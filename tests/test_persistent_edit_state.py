@@ -68,7 +68,7 @@ class PersistentStateTests(unittest.TestCase):
                 self.assertEqual(editor.session.history,history);self.assertEqual(editor.edit_status(),status)
                 self.assertEqual((base/'draft.json').read_bytes(),raw)
 
-    def test_baseline_json_cache_preserves_v3_and_invalidates_on_reset(self):
+    def test_baseline_json_cache_preserves_v4_and_invalidates_on_reset(self):
         with isolated() as base:
             editor=Editor(source(base),base/'draft.json')
             editor.apply(editor.prepare_macro_edit('a',(1,1,'ctrl',1),'Changed',['']*6))
@@ -76,7 +76,7 @@ class PersistentStateTests(unittest.TestCase):
             with patch.object(EditSession,'baseline_records',side_effect=AssertionError('baseline encoded twice')):
                 editor.undo();editor.redo()
             second=json.loads((base/'draft.json').read_text(encoding='utf-8'))
-            self.assertEqual(first['baseline'],second['baseline']);self.assertEqual(second['version'],3)
+            self.assertEqual(first['baseline'],second['baseline']);self.assertEqual(second['version'],4)
             editor.start_fresh()
             editor.apply(editor.prepare_macro_edit('a',(1,1,'ctrl',1),'Reset',['']*6))
             reopened=Editor(source(base),base/'draft.json')

@@ -39,6 +39,41 @@ class Editor:
         macro=self._session.read(character,'macros',address)
         return deepcopy(edit_macro(current,macro,title,lines))
 
+    def prepare_equipment_move(self,folder,source,target):
+        if self.blocked:raise ValueError(self.blocked)
+        from .equipment_moves import plan_move
+        return plan_move(self._session.character(folder),source,target)
+
+    def has_pending_move(self,folder):return bool(self._session.movement_origins(folder))
+
+    def prepare_combined_save(self,folder):
+        if self.blocked:raise ValueError(self.blocked)
+        from .combined_saving import prepare_combined_save
+        return prepare_combined_save(self._session.saved,self._session.working,folder,self._session.movement_origins(folder))
+
+    def save_combined(self,preview,backup_root):
+        from .combined_saving import execute_combined_save
+        from .saving import require_game_closed
+        if preview!=self.prepare_combined_save(preview.character):raise ValueError('編集内容が変わりました。保存プレビューを開き直してください。')
+        require_game_closed();self.store.save(self._session)
+        next_session=self._session.fork();saved=next_session.saved
+        working=next_session.working
+        updated=next(c for c in working.characters if c.folder_id==preview.character)
+        # Rebuild raw source fields from the actual replacement files.
+        from .codecs import equipsets
+        from .domain import Text
+        decoded={e.number:e for f in preview.equipment.files for e in equipsets(f.replacement,f.page)}
+        updated.equipsets=[decoded.get(e.number,e) for e in updated.equipsets]
+        if preview.macro:
+            changes={(c.address,c.line):c for f in preview.macro.files for c in f.changes}
+            def changed(m,n,old):
+                c=changes.get((macro_key(m),n))
+                return Text(c.after,c.replacement.hex(),'cp932',c.tokens) if c else old
+            updated.macros=[replace(m,title=changed(m,0,m.title),lines=tuple(changed(m,n,line) for n,line in enumerate(m.lines,1))) for m in updated.macros]
+        saved.characters=[updated if c.folder_id==preview.character else c for c in saved.characters]
+        next_session.saved=saved;next_session.mark_movement_saved(preview.character)
+        return self._save_checkpoint(preview,backup_root,next_session,execute_combined_save)
+
     def equipment_candidates(self,character,slot,query=''):
         from .equipment_editing import candidates
         return candidates(self._session.character(character),self._session.item_catalog(),slot,query)
@@ -62,7 +97,7 @@ class Editor:
         data=json.loads(pending.read_text(encoding='utf-8'))
         if data.get('draft_revision')!=self.store.revision:
             current=json.loads(self.store.path.read_text(encoding='utf-8')) if self.store.path.exists() else {}
-            if all(current.get(k)==data.get(k) for k in ('version','installation','sources','baseline','history','cursor')):
+            if all(current.get(k)==data.get(k) for k in ('version','installation','sources','baseline','history','cursor','saved_origins')):
                 pending.unlink();return
             raise ValueError('保存途中の記録と現在の作業ファイルが一致しません。作業ファイルと復旧用のpending記録を保管して確認してください。')
         from .draft_store import signature
@@ -119,6 +154,7 @@ class Editor:
 
     @traced('editor.prepare_macro_save')
     def prepare_macro_save(self,folder,scope='storage-fix'):
+        if self.has_pending_move(folder):raise ValueError('装備セットの移動と参照マクロを一括保存してください。')
         if self.blocked:raise ValueError(self.blocked)
         from .macro_saving import prepare_macro_save
         return prepare_macro_save(self._session.saved,self._session.working,folder,scope)
@@ -145,6 +181,7 @@ class Editor:
 
     @traced('editor.prepare_equipment_save')
     def prepare_equipment_save(self,folder,scope='reference-fix'):
+        if self.has_pending_move(folder):raise ValueError('装備セットの移動と参照マクロを一括保存してください。')
         if self.blocked:raise ValueError(self.blocked)
         from .equipment_saving import prepare_equipment_save
         return prepare_equipment_save(self._session.saved,self._session.working,folder,scope)

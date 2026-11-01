@@ -12,7 +12,7 @@ def write_json(path,value):
 
 
 def execute_batch(plan, backup_root, root, validate, decode, kind, prefix, serialize,
-                  require_closed, write_record, restore, *, single_file_receipt=False):
+                  require_closed, write_record, restore, *, single_file_receipt=False, decode_file=None):
     require_closed()
     root=Path(root).resolve();backup_root=Path(backup_root).resolve()
     if backup_root.is_relative_to(root):raise ValueError('バックアップ先はゲームフォルダの外に指定してください。')
@@ -62,7 +62,8 @@ def execute_batch(plan, backup_root, root, validate, decode, kind, prefix, seria
                     if p.read_bytes()!=f.original:raise ValueError('置換直前に保存元が変更されました。')
                     attempted.append(f);os.replace(staged[p],p)
                     if p.read_bytes()!=f.replacement:raise OSError('保存後の内容が一致しません。')
-                    decode(p.read_bytes(),f.page)
+                    if decode_file:decode_file(f,p.read_bytes())
+                    else:decode(p.read_bytes(),f.page)
             except Exception as error:
                 failed=[]
                 for f in reversed(attempted):

@@ -1,6 +1,6 @@
 """Equipment edits and domain-approved position fixes, with guarded persistence."""
 from contextlib import ExitStack
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, replace
 from pathlib import Path
 import hashlib
 import struct
@@ -139,15 +139,36 @@ class EquipmentSavePlan:
     deferred_changes: tuple = ()
     scope: str = 'reference-fix'
     catalogs: tuple = ()
+    transfers: tuple = ()
 
     @property
     def deferred(self):return len(self.deferred_changes)
 
-def prepare_equipment_save(saved, working, folder, scope='reference-fix'):
+def transfer_data(parent,data,transfers):
+    if not transfers:return data
+    from .edit_values import integer
+    if any(not integer(a,1,200) or not integer(b,1,200) or a==b for a,b in transfers) or len({a for a,b in transfers})!=len(transfers) or {a for a,b in transfers}!={b for a,b in transfers}:raise ValueError('移動する原本の対応が不正です。')
+    result=dict(data);modified={}
+    for target,source in transfers:
+        path=parent/f'es{(target-1)//20}.dat';source_path=parent/f'es{(source-1)//20}.dat'
+        if path not in data or source_path not in data:raise ValueError('移動元または移動先の原本が不足しています。')
+        equipsets(data[source_path],(source-1)//20)
+        offset=24+(target-1)%20*80;source_offset=24+(source-1)%20*80
+        out=modified.setdefault(path,bytearray(data[path]));out[offset:offset+80]=data[source_path][source_offset:source_offset+80]
+    for path,out in modified.items():
+        out[8:24]=hashlib.md5(out[24:]).digest();result[path]=bytes(out)
+    return result
+
+
+def prepare_equipment_save(saved, working, folder, scope='reference-fix', transfers=()):
     if scope not in ('reference-fix','all'):raise ValueError('保存範囲が不正です。')
     original=next(c for c in saved.characters if c.folder_id==folder)
     edited=next(c for c in working.characters if c.folder_id==folder)
     require_same_targets(original,edited)
+    if transfers:
+        if scope!='all':raise ValueError('移動は一括保存してください。')
+        sources={e.number:e for e in original.equipsets};mapping=dict(transfers)
+        original=replace(original,equipsets=[replace(sources[mapping.get(e.number,e.number)],number=e.number) for e in original.equipsets])
     allowed={(x.equipset,x.slot):x for x in plan_fixes(original).changes}
     old={e.number:e for e in original.equipsets};grouped={};deferred=[]
     for e in edited.equipsets:
@@ -166,6 +187,7 @@ def prepare_equipment_save(saved, working, folder, scope='reference-fix'):
                     grouped.setdefault((e.number-1)//20,[]).append(EquipmentSlotChange(e.number,a.name,slot_fields(a),slot_fields(b)));continue
                 deferred.append(DeferredChange(address+' / '+a.name,'この枠は自動補正の保存対象外です。個別編集は装備セットの編集保存から保存できます。'));continue
             grouped.setdefault((e.number-1)//20,[]).append(change)
+    for target,source in transfers:grouped.setdefault((target-1)//20,[])
     if not grouped:raise ValueError('保存できる装備セットの変更がありません。先に変更案を作業データへ適用してください。'+('\n'+deferred_text(deferred) if deferred else ''))
     records={Path(s['path']).resolve():s for s in saved.sources}
     parents={p.parent for p in records if p.parent.name==folder and p.parent.parent.name.upper()=='USER'}
@@ -186,28 +208,30 @@ def prepare_equipment_save(saved, working, folder, scope='reference-fix'):
         raw=p.read_bytes()
         if digest(raw)!=records[p]['sha256']:raise ValueError('ゲームファイルが変わりました。再読み込みしてください。')
         data[p]=raw
-    validate_evidence(parent,changes,catalogs,data)
+    transformed=transfer_data(parent,data,transfers)
+    validate_evidence(parent,changes,catalogs,transformed)
     files=[]
     for page,changes in sorted(grouped.items()):
         target=parent/f'es{page}.dat';raw=data[target]
-        files.append(EquipmentFile(str(target),page,raw,patch_file(raw,page,changes),tuple(changes)))
-    return EquipmentSavePlan(folder,tuple(files),tuple((str(p),digest(raw)) for p,raw in data.items()),tuple(deferred),scope,catalogs)
+        files.append(EquipmentFile(str(target),page,raw,patch_file(transformed[target],page,changes) if changes else transformed[target],tuple(changes)))
+    return EquipmentSavePlan(folder,tuple(files),tuple((str(p),digest(raw)) for p,raw in data.items()),tuple(deferred),scope,catalogs,transfers)
 
-def execute_equipment_save(plan,backup_root):
-    require_game_closed()
+def validate_equipment_plan(plan):
     if plan.scope not in ('reference-fix','all'):raise ValueError('保存範囲が不正です。')
     if plan.scope!='all' and any(isinstance(c,(EquipmentNameChange,EquipmentSlotChange)) for f in plan.files for c in f.changes):raise ValueError('個別編集の保存範囲が不正です。')
     if not plan.files:raise ValueError('保存対象がありません。')
     root=Path(plan.files[0].target).resolve().parent.parent.parent
-    backup_root=Path(backup_root).resolve()
-    if backup_root.is_relative_to(root):raise ValueError('バックアップ先はゲームフォルダの外に指定してください。')
     targets={Path(f.target).resolve() for f in plan.files}
     if len(targets)!=len(plan.files):raise ValueError('保存先が重複しています。')
     if not re.fullmatch('[0-9a-fA-F]+',plan.character):raise ValueError('キャラクターIDが不正です。')
     parent=root/'USER'/plan.character
+    if plan.transfers and plan.scope!='all':raise ValueError('移動の保存範囲が不正です。')
+    original_data={Path(f.target).resolve():f.original for f in plan.files}
+    transformed=transfer_data(parent,original_data,plan.transfers)
     for f in plan.files:
         if Path(f.target).resolve()!=parent/f'es{f.page}.dat' or not 0<=f.page<10:raise ValueError('保存先が不正です。')
-        if not f.changes or patch_file(f.original,f.page,f.changes)!=f.replacement:raise ValueError('保存計画が不正です。')
+        base=transformed[Path(f.target).resolve()]
+        if (not f.changes and not plan.transfers) or (patch_file(base,f.page,f.changes) if f.changes else base)!=f.replacement:raise ValueError('保存計画が不正です。')
         fixes=[x for x in f.changes if isinstance(x,FixChange)]
         if len({(x.equipset,x.slot) for x in fixes})!=len(fixes):raise ValueError('変更枠が重複しています。')
     changes=tuple(c for f in plan.files for c in f.changes)
@@ -217,7 +241,14 @@ def execute_equipment_save(plan,backup_root):
     if len(plan.dependencies)!=len(required) or {Path(p).resolve() for p,_ in plan.dependencies}!=required:
         raise ValueError('保存対象と参照検証に必要な資料が不足しています。')
     def validate(data):
-        validate_evidence(parent,changes,plan.catalogs,data)
+        validate_evidence(parent,changes,plan.catalogs,transfer_data(parent,data,plan.transfers))
+    return root,validate
+
+
+def execute_equipment_save(plan,backup_root):
+    require_game_closed()
+    if plan.transfers:raise ValueError('移動は参照マクロと一括保存してください。')
+    root,validate=validate_equipment_plan(plan)
     return execute_batch(plan,backup_root,root,validate,equipsets,'equipment-edit' if plan.scope=='all' else 'equipment-reference-fix','.ff11-equipment-',
                          asdict,require_game_closed,write_json,atomic_replace)
 

@@ -12,10 +12,11 @@ from uuid import uuid4
 def _types():
     from .macro_saving import MacroSavePlan, MacroFile, LineChange
     from .equipment_saving import EquipmentSavePlan, EquipmentFile, EquipmentNameChange, EquipmentSlotChange
+    from .combined_saving import CombinedSavePlan
     from .fixes import FixChange
     from .domain import TextToken
     from .save_plan import DeferredChange
-    return {c.__name__:c for c in (MacroSavePlan,MacroFile,LineChange,EquipmentSavePlan,EquipmentFile,EquipmentNameChange,EquipmentSlotChange,FixChange,TextToken,DeferredChange)}
+    return {c.__name__:c for c in (CombinedSavePlan,MacroSavePlan,MacroFile,LineChange,EquipmentSavePlan,EquipmentFile,EquipmentNameChange,EquipmentSlotChange,FixChange,TextToken,DeferredChange)}
 
 
 def encode(value):
@@ -50,7 +51,8 @@ def execute_request(request, expected_hash):
     plan=decode(data['plan'])
     from .macro_saving import MacroSavePlan, execute_macro_save
     from .equipment_saving import EquipmentSavePlan, execute_equipment_save
-    executors={MacroSavePlan:execute_macro_save,EquipmentSavePlan:execute_equipment_save}
+    from .combined_saving import CombinedSavePlan, execute_combined_save
+    executors={CombinedSavePlan:execute_combined_save,MacroSavePlan:execute_macro_save,EquipmentSavePlan:execute_equipment_save}
     if type(plan) not in executors:raise ValueError('保存要求の種類が不正です。')
     return executors[type(plan)](plan,Path(data['backup_root']))
 

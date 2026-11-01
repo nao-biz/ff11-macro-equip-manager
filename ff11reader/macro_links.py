@@ -42,14 +42,24 @@ def is_empty(equipset):
     return len(equipset.slots) == 16 and all(s.action == 'keep' for s in equipset.slots)
 
 
+def reference_match(line):
+    # Keep spans in the original display text, including an auto-translate command.
+    match=re.match(r'\s*(?:/(equipset|lockstyleset)|【/(equipset|lockstyleset)】)\s+([0-9]{1,3})(?=\s|<|$)',line,re.I)
+    return match if match and 1<=int(match[3])<=200 else None
+
+
 def parse_reference(line):
-    # The decoder wraps resolved auto-translate phrases in Japanese brackets.
-    value = re.sub(r'^\s*【(/(?:equipset|lockstyleset))】', r'\1', line, flags=re.I)
-    # Extract the reference independently of trailing command options.
-    match = re.match(r'\s*/(equipset|lockstyleset)\s+([0-9]{1,3})(?=\s|<|$)', value, re.I)
-    if match and 1 <= int(match[2]) <= 200:
-        return match[1].lower(), int(match[2])
-    return None
+    match=reference_match(line)
+    return ((match[1] or match[2]).lower(),int(match[3])) if match else None
+
+
+def retarget_reference(line,source,target):
+    from .text_editing import remap_text
+    match=reference_match(line.display)
+    if not match or int(match[3])!=source:return line
+    start,end=match.span(3)
+    number=str(target).zfill(end-start)
+    return remap_text(line,line.display[:start]+number+line.display[end:])
 
 
 def analyze_macro_sets(character):

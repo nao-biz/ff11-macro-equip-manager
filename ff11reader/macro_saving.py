@@ -169,13 +169,10 @@ def prepare_macro_save(saved,working,folder,scope='storage-fix'):
     return MacroSavePlan(folder,tuple(files),tuple(dependencies),tuple(deferred),scope)
 
 
-def execute_macro_save(plan,backup_root):
+def validate_macro_plan(plan):
     from .application import load_snapshot
-    require_game_closed()
     if not plan.files:raise ValueError('保存対象がありません。')
     root=Path(plan.files[0].target).resolve().parent.parent.parent
-    backup_root=Path(backup_root).resolve()
-    if backup_root.is_relative_to(root):raise ValueError('バックアップ先はゲームフォルダの外に指定してください。')
     targets={Path(f.target).resolve() for f in plan.files}
     if len(targets)!=len(plan.files):raise ValueError('保存先が重複しています。')
     for f in plan.files:
@@ -193,6 +190,12 @@ def execute_macro_save(plan,backup_root):
         character.macros=[replace(m,title=changed(m,0,m.title),lines=tuple(changed(m,n,line) for n,line in enumerate(m.lines,1))) for m in character.macros]
         verified=prepare_macro_save(fresh,proposed,plan.character,plan.scope)
         if verified.files!=plan.files or verified.dependencies!=plan.dependencies:raise ValueError('保存計画が現在のマクロ変更と一致しません。')
+    return root,validate
+
+
+def execute_macro_save(plan,backup_root):
+    require_game_closed()
+    root,validate=validate_macro_plan(plan)
     return execute_batch(plan,backup_root,root,validate,macros,'macro-edit' if plan.scope=='all' else 'macro-storage-fix','.ff11-macro-',
                          lambda c:{'address':c.address,'line':c.line,'before':c.before,'after':c.after,
                                    'before_token_ids':[t.identity for t in c.original_tokens or ()],

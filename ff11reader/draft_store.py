@@ -67,13 +67,13 @@ class DraftStore:
             self.prepare_baseline(session)
             return session
         data = json.loads(self.path.read_text(encoding='utf-8'))
-        if data['version'] not in (1,2,3) or data['installation'] != snapshot.installation_key or data['sources'] != [list(v) for v in signature(snapshot)]:
+        if data['version'] not in (1,2,3,4) or data['installation'] != snapshot.installation_key or data['sources'] != [list(v) for v in signature(snapshot)]:
             raise ValueError('ゲームの読込元が変わっています。以前の作業ファイルを保管して、新しい編集を開始できます。')
         from .dictionaries import resolve_token
         resolver=lambda p:resolve_token(p,snapshot.phrases,snapshot.items)
         history = decode(data['history'],resolver)
         initial = session.baseline
-        if data['version'] == 3:
+        if data['version'] in (3,4):
             # History may lose a saved operation after Undo followed by branching.
             # Keep its original values even for targets absent from the new history.
             from .edit_values import character_value, validate_structure
@@ -117,6 +117,7 @@ class DraftStore:
             session.apply(edit)
         while session.cursor > cursor:
             session.undo()
+        session.restore_saved_origins(data['saved_origins'] if data['version']==4 else ())
         self.prepare_baseline(session)
         return session
 
@@ -137,9 +138,9 @@ class DraftStore:
             with span('draft.encode'):
                 self.prepare_baseline(session)
                 installation, sources = session.saved_header()
-                data = {'version': 3, 'installation': installation,
+                data = {'version': 4, 'installation': installation,
                         'sources': sorted((str(s['path']),s['sha256']) for s in sources),
-                        'history': encode(session.history), 'cursor': session.cursor}
+                        'history': encode(session.history), 'cursor': session.cursor, 'saved_origins':session.saved_origins()}
                 header = json.dumps(data, ensure_ascii=False)
             temp = self.path.with_name(self.path.name + '.' + uuid4().hex + '.tmp')
             try:

@@ -1,5 +1,6 @@
 """In-memory edit transactions. No GUI, filesystem or binary encoding."""
 from copy import deepcopy
+from immutables import Map
 from dataclasses import dataclass, replace
 from .domain import Text
 from .text_editing import remap_text
@@ -23,6 +24,7 @@ class Change:
 class Edit:
     label: str
     changes: tuple[Change, ...]
+    moves: tuple = ()
 
 
 def macro_key(macro):
@@ -72,12 +74,15 @@ class EditSession:
         self._working = self._baseline
         self._saved = self._baseline
         self._history = ()
+        self._origins = Map()
+        self._saved_origins = Map()
         self.cursor = 0
 
     def fork(self):
         result = object.__new__(EditSession)
         result._baseline, result._working, result._saved = self._baseline, self._working, self._saved
         result._history, result.cursor = self._history, self.cursor
+        result._origins,result._saved_origins=self._origins,self._saved_origins
         return result
 
     def __deepcopy__(self, memo): return self.fork()
@@ -107,15 +112,40 @@ class EditSession:
     def read(self, folder, kind, address): return self._working.read(folder,kind,address)
     def history_length(self): return len(self._history)
 
+    def saved_origins(self):return tuple(sorted((folder,number,origin) for (folder,number),origin in self._saved_origins.items()))
+
+    def restore_saved_origins(self,records):
+        from .edit_values import integer
+        result={}
+        for folder,number,origin in records:
+            if not integer(number,1,200) or not integer(origin,1,200) or not self._saved.has((folder,'equipsets',(number,))) or not self._saved.has((folder,'equipsets',(origin,))) or (folder,number) in result:raise ValueError('移動履歴の原本対応が不正です。')
+            result[folder,number]=origin
+        for folder in {f for f,n in result}:
+            if {n for f,n in result if f==folder}!={o for (f,n),o in result.items() if f==folder}:raise ValueError('移動履歴の原本対応が重複しています。')
+        self._saved_origins=Map(result)
+
+    def movement_origins(self,folder):
+        numbers={n for f,n in set(self._origins)|set(self._saved_origins) if f==folder}
+        inverse={self._saved_origins.get((folder,n),n):n for n in numbers}
+        return tuple(sorted((n,inverse[self._origins.get((folder,n),n)]) for n in numbers if inverse[self._origins.get((folder,n),n)]!=n))
+
+    def mark_movement_saved(self,folder):
+        self._saved_origins=Map({k:v for k,v in self._saved_origins.items() if k[0]!=folder})
+        for key,origin in self._origins.items():
+            if key[0]==folder:self._saved_origins=self._saved_origins.set(key,origin)
+
     @property
-    def dirty(self): return not self._saved.same_values(self._working)
+    def dirty(self): return not self._saved.same_values(self._working) or self._origins != self._saved_origins
 
     def _apply(self, edit, reverse=False):
         if not isinstance(edit,Edit) or not isinstance(edit.changes,tuple):raise ValueError('編集案の形式が不正です。')
         seen, replacements = set(), {}
         for change in edit.changes:
             if not isinstance(change,Change) or not isinstance(change.key,tuple) or not isinstance(change.character,str):raise ValueError('変更の形式が不正です。')
-            validate_transition(change.before,change.after,change.kind)
+            if not edit.moves:validate_transition(change.before,change.after,change.kind)
+            else:
+                from .edit_values import validate_structure
+                validate_structure(change.before,change.kind);validate_structure(change.after,change.kind)
             identity = (change.character, change.kind, change.key)
             if identity in seen or change.kind not in ('macros', 'equipsets'):
                 raise ValueError('編集操作の対象が不正です。')
@@ -125,12 +155,24 @@ class EditSession:
                 raise ValueError('作業データが変わりました。変更案を作り直してください。')
             if value(before)!=value(after):replacements[identity] = after
         if replacements:self._working = self._working.updated(replacements)
+        for folder,source,target in edit.moves:
+            a=self._origins.get((folder,source),source);b=self._origins.get((folder,target),target)
+            self._origins=self._origins.set((folder,source),b).set((folder,target),a)
+            if b==source:self._origins=self._origins.delete((folder,source))
+            if a==target:self._origins=self._origins.delete((folder,target))
 
     def apply(self, edit):
         if not isinstance(edit,Edit) or not isinstance(edit.changes,tuple):raise ValueError('編集案の形式が不正です。')
+        if not isinstance(edit.moves,tuple) or len(edit.moves)>1:raise ValueError('移動の形式が不正です。')
+        if edit.moves:
+            from .equipment_moves import plan_move
+            folder,source,target=edit.moves[0]
+            expected=plan_move(self.character(folder),source,target)
+            semantic=lambda changes:tuple((c.character,c.kind,c.key,value(c.before),value(c.after)) for c in changes)
+            if semantic(edit.changes)!=semantic(expected.changes):raise ValueError('移動と参照更新が一致しません。')
         for c in edit.changes:
             if not isinstance(c,Change):raise ValueError('変更の形式が不正です。')
-            validate_transition(c.before,c.after,c.kind)
+            if not edit.moves:validate_transition(c.before,c.after,c.kind)
             if not isinstance(c.key,tuple) or c.key!=edit_key(c.before) or not isinstance(c.character,str):raise ValueError('変更対象のキーが不正です。')
         if len({(c.character,c.kind,c.key) for c in edit.changes})!=len(edit.changes):raise ValueError('変更対象が重複しています。')
         # Copy the incoming history before publishing any next state.

@@ -157,7 +157,7 @@ class EditingProperties(unittest.TestCase):
                 self.assertEqual((base/'source.dat').read_bytes(),b'synthetic source')
 
     def test_legacy_work_versions_and_invalid_baseline(self):
-        for version in (1,2,3):
+        for version in (1,2,3,4):
             with self.subTest(version=version),isolated() as base:
                 snap=source(base);editor=Editor(snap,base/'draft.json');model=Model();key=('a','m',1)
                 edited=('Changed',model.value[key][1])
@@ -165,11 +165,12 @@ class EditingProperties(unittest.TestCase):
                 data=json.loads((base/'draft.json').read_text(encoding='utf-8'))
                 data['version']=version
                 if version<3:data.pop('baseline')
+                if version<4:data.pop('saved_origins')
                 (base/'draft.json').write_text(json.dumps(data),encoding='utf-8')
                 reopened=Editor(snap,base/'draft.json');self.assertIsNone(reopened.blocked)
                 self.assertEqual(values(reopened.snapshot()),model.value)
                 reopened.redo();model.apply({key:edited});self.assertEqual(values(reopened.snapshot()),model.value)
-                self.assertEqual(json.loads((base/'draft.json').read_text())['version'],3)
+                self.assertEqual(json.loads((base/'draft.json').read_text())['version'],4)
         with isolated() as base:
             snap=source(base);editor=Editor(snap,base/'draft.json');editor.undo()
             data=json.loads((base/'draft.json').read_text());data['baseline'].pop('a')

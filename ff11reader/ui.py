@@ -104,6 +104,7 @@ class ReaderWindow:
   ttk.Button(right,text='ワードローブの未参照アイテム',command=self.show_unused_wardrobe).pack(fill='x',pady=(0,6))
   self.active_slot=None
   self.slot_edit_button=ActionButton(right,busy=True,text='選択した装備枠を編集',command=self.edit_selected_slot,state='disabled');self.slot_edit_button.pack(fill='x',pady=(0,6))
+  self.move_button=ActionButton(right,busy=True,text='選択した装備セットを移動…',command=self.move_selected_equipment,state='disabled');self.move_button.pack(fill='x',pady=(0,6))
   self.equipment_name_button=ActionButton(right,text='選択した装備セットの名前を編集',command=self.edit_selected_equipment_name,state='disabled');self.equipment_name_button.pack(fill='x',pady=(0,6))
   self.edit_button=ActionButton(right,busy=True,text='選択マクロを編集',command=self.edit_selected_macro,state='disabled');self.edit_button.pack(fill='x',pady=(0,6))
   history=ttk.Frame(right);history.pack(fill='x',pady=(0,6))
@@ -216,6 +217,7 @@ class ReaderWindow:
   except (OSError,ValueError) as e:dialogs.showerror('リセット',str(e),parent=self.app);return
  def preview_game_save(self,scope='storage-fix'):
   if not self.character:return
+  if self.editor.has_pending_move(self.character.folder_id):return self.preview_combined_save()
   try:plan=self.editor.prepare_macro_save(self.character.folder_id,scope)
   except (OSError,ValueError,RuntimeError) as e:dialogs.showerror('保存プレビュー',str(e),parent=self.app);return
   window=tk.Toplevel(self.app,background='#080f22');window.title('マクロの編集 / ゲームへの保存' if scope=='all' else 'マクロ収納番号Fix / ゲームへの保存');window.geometry('980x680')
@@ -245,6 +247,7 @@ class ReaderWindow:
  def preview_equipment_save(self):
   from .equipment_saving import EquipmentNameChange, EquipmentSlotChange
   if not self.character:return
+  if self.editor.has_pending_move(self.character.folder_id):return self.preview_combined_save()
   try:plan=self.editor.prepare_equipment_save(self.character.folder_id,'all')
   except (OSError,ValueError,RuntimeError) as e:dialogs.showerror('保存プレビュー',str(e),parent=self.app);return
   window=tk.Toplevel(self.app,background='#080f22');window.title('装備セットの編集 / ゲームへの保存');window.geometry('980x680')
@@ -276,7 +279,7 @@ class ReaderWindow:
  @traced('ui.change_mode')
  def change_mode(self):
   if not self.character:return
-  self.active_macro=None;self.edit_button.configure(state='disabled');self.equipment_name_button.configure(state='disabled');self.active_slot=None;self.slot_edit_button.configure(state='disabled')
+  self.active_macro=None;self.edit_button.configure(state='disabled');self.equipment_name_button.configure(state='disabled');self.move_button.configure(state='disabled');self.active_slot=None;self.slot_edit_button.configure(state='disabled')
   self.nav.delete(0,'end');c=self.character;mode=self.mode.get();self.navigation=[]
   self.macro_tree.delete(*self.macro_tree.get_children())
   self.macro_tree.pack_forget();self.nav.pack_forget()
@@ -334,7 +337,7 @@ class ReaderWindow:
   self.expand_macro_book(selection[0])
   parts=selection[0].split('-')
   if parts[0]=='book':
-   self.active_macro=None;self.edit_button.configure(state='disabled');self.equipment_name_button.configure(state='disabled');self.active_slot=None;self.slot_edit_button.configure(state='disabled')
+   self.active_macro=None;self.edit_button.configure(state='disabled');self.equipment_name_button.configure(state='disabled');self.move_button.configure(state='disabled');self.active_slot=None;self.slot_edit_button.configure(state='disabled')
    self.clear_cards();self.selected=None
    self.heading.configure(text=self.macro_tree.item(selection[0],'text'))
    self.subtitle.configure(text='パレットを選択してください。')
@@ -348,7 +351,7 @@ class ReaderWindow:
   value=self.navigation[selection[0]];self.clear_cards();self.selected=value
   mode=self.mode.get()
   if mode=='装備セット':
-   self.render_equipment(value);self.equipment_name_button.configure(state='disabled' if self.editor.blocked else 'normal')
+   self.render_equipment(value);self.equipment_name_button.configure(state='disabled' if self.editor.blocked else 'normal');self.move_button.configure(state='disabled' if self.editor.blocked else 'normal')
   elif mode=='マクロ':self.render_macros(value)
   else:self.render_inventory(value)
  def show_evidence(self):
@@ -443,7 +446,7 @@ class ReaderWindow:
   text+='\n\n補足\n照合条件: 収納・内部位置・種類ID。候補は読み取れたインベントリから検索します。保存情報の更新タイミングは調査中です。'
   self.show_detail(title,primary,actions[:8] if view.status in ('multiple','needs_review','fixable') else (),evidence=text)
  def render_macros(self,address):
-  self.active_macro=None;self.edit_button.configure(state='disabled');self.equipment_name_button.configure(state='disabled');self.active_slot=None;self.slot_edit_button.configure(state='disabled')
+  self.active_macro=None;self.edit_button.configure(state='disabled');self.equipment_name_button.configure(state='disabled');self.move_button.configure(state='disabled');self.active_slot=None;self.slot_edit_button.configure(state='disabled')
   book,palette=address;self.heading.configure(text=f'ブック {book} / パレット {palette}');self.subtitle.configure(text='マクロをクリックすると全6行を表示します。')
   macros=[m for m in self.character.macros if (m.book,m.palette)==address]
   for row,title in [(0,'Ctrl'),(2,'Alt')]:
@@ -462,6 +465,55 @@ class ReaderWindow:
   inventory=[r for r in self.macro_item_refs if r.address==macro_key(macro)]
   if inventory:body+='\n\nアイテム参照\n'+'\n'.join(f'{r.line}行目: {MACRO_ITEM_LABELS[r.state]}' for r in inventory)
   self.show_detail(macro.title.display or '（空欄マクロ）',(warning+'\n\n' if warning else '')+body)
+ def move_selected_equipment(self):
+  if self.mode.get()!='装備セット' or not self.selected:return
+  from .equipment_moves import vacant
+  source=self.selected.number;folder=self.character.folder_id
+  choices=[f'{e.number:03}' for e in self.character.equipsets if e.number!=source and vacant(e)]
+  if not choices:dialogs.showwarning('移動先','名前が空で全枠が「変更しない」の移動先がありません。',parent=self.app);return
+  window=tk.Toplevel(self.app,background='#080f22');window.title('装備セットを移動');window.geometry('540x220')
+  ttk.Label(window,text=f'移動元: {self.equipset_label(source)}',padding=12).pack(anchor='w')
+  ttk.Label(window,text='移動先（名前が空・全枠が「変更しない」）',padding=12).pack(anchor='w')
+  choice=ttk.Combobox(window,state='readonly',values=choices);choice.pack(padx=12,fill='x');choice.current(0);choice.focus_set()
+  def preview():
+   try:edit=self.editor.prepare_equipment_move(folder,source,int(choice.get()))
+   except ValueError as e:dialogs.showerror('移動案',str(e),parent=window);return
+   self.preview_edit(edit,lambda:self.editor.apply(edit),window)
+  ActionButton(window,busy=True,text='移動と参照更新を確認',command=preview).pack(pady=12)
+  self.move_dialog=(window,choice)
+ def preview_combined_save(self):
+  if not self.character:return
+  try:plan=self.editor.prepare_combined_save(self.character.folder_id)
+  except (OSError,ValueError,RuntimeError) as e:dialogs.showerror('一括保存プレビュー',str(e),parent=self.app);return
+  window=tk.Toplevel(self.app,background='#080f22');window.title('装備セットの移動とマクロ / 一括保存');window.geometry('980x700')
+  ttk.Label(window,text=f'選択キャラの変更を一括保存 · {len(plan.files)}ファイル',padding=12).pack(anchor='w')
+  ttk.Label(window,text='FF11とPlayOnlineを終了してから保存してください。全対象をバックアップして保存します。',padding=12).pack(anchor='w')
+  text=tk.Text(window,bg='#101b38',fg='#edf1fa',wrap='word',padx=12,pady=12)
+  bar=ttk.Scrollbar(window,command=text.yview);text.configure(yscrollcommand=bar.set);bar.pack(side='right',fill='y');text.pack(fill='both',expand=True)
+  from .codecs import equipsets
+  from .edit_values import value,slot_value
+  for file in plan.equipment.files:
+   text.insert('end',file.target+'\n')
+   for before,after in zip(equipsets(file.original,file.page),equipsets(file.replacement,file.page)):
+    if value(before)==value(after):continue
+    text.insert('end',f'装備セット {before.number:03}\n  名前: {before.title.display or "（空）"} → {after.title.display or "（空）"}\n')
+    for a,b in zip(before.slots,after.slots):
+     if slot_value(a)!=slot_value(b):text.insert('end',f'  {SLOTS[a.name]}\n    前: {self.slot_description(slot_value(a)[1:])}\n    後: {self.slot_description(slot_value(b)[1:])}\n')
+    text.insert('end','\n')
+  if plan.macro:
+   for file in plan.macro.files:
+    text.insert('end',file.target+'\n')
+    for c in file.changes:
+     b,p,bank,key=c.address;field='名前' if c.line==0 else f'{c.line}行目'
+     text.insert('end',f'ブック {b:02} / パレット {p} / {bank.upper()} {key if key<10 else 0} / {field}\n  前: {c.before}\n  後: {c.after}\n\n')
+  text.configure(state='disabled')
+  def save():
+   button.configure(state='disabled')
+   try:backup=self.editor.save_combined(plan,Path(__file__).resolve().parent.parent/'backups'/'moves')
+   except (OSError,ValueError,RuntimeError) as e:
+    self.update_edit_status();dialogs.showerror('一括保存',str(e),parent=window);button.configure(state='normal');return
+   window.destroy();self.refresh_edits();self.footer.configure(text=f'移動と参照更新を保存・検証しました。バックアップ: {backup}')
+  button=ActionButton(window,busy=True,text='全対象をバックアップして一括保存（必要時に管理者確認）',command=save);button.pack(pady=12)
  def slot_description(self,fields):
   action,item,bag,index=fields
   if action!='equip':return {'keep':'変更しない','remove':'外す'}.get(action,'未知の動作')
