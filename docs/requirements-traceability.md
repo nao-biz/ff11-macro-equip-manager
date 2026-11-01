@@ -40,9 +40,10 @@
 | [VIEW-001](../requirements.md#view-001) | [ui.py](../ff11reader/ui.py) | — | 専用自動テストなし。画面で確認する |
 | [VIEW-002](../requirements.md#view-002) | [ui.py](../ff11reader/ui.py)、[presentation.py](../ff11reader/presentation.py) | [PresentationTests.test_four_main_actions](../tests/test_presentation.py) | 状態表示の分類を検証。視覚品質は手動確認 |
 | [VIEW-003](../requirements.md#view-003) | [ui.py](../ff11reader/ui.py)、[dialogs.py](../ff11reader/dialogs.py) | [test_dialogs.py](../tests/test_dialogs.py) | 親画面内モーダル、取消・入力、フォーカスとgrabの復帰、長文、起動時の表示を合成Tkで検証。実機で起動通知・再読込操作・本文量に応じたサイズをユーザーが確認済み |
+| [VIEW-004](../requirements.md#view-004) | — | EX-UIE01〜12、PT-UIE（仕様のみ） | 複数選択・共通ショートカット・相対配置・衝突時の全体拒否・共通保存導線は未実装 |
 | [WARD-001](../requirements.md#ward-001) | [wardrobe_usage.py](../ff11reader/wardrobe_usage.py) | [WardrobeUsageTests.test_scope_and_both_reference_sources](../tests/test_wardrobe_usage.py) | 参照元と対象収納を検証 |
 | [WARD-002](../requirements.md#ward-002) | [wardrobe_usage.py](../ff11reader/wardrobe_usage.py) | [WardrobeUsageTests.test_edit_and_undo_recompute_without_cross_character_references](../tests/test_wardrobe_usage.py) | 再計算とキャラ分離を検証 |
-| [FUT-001](../requirements.md#fut-001) | [equipment_moves.py](../ff11reader/equipment_moves.py)、[editing.py](../ff11reader/editing.py)、[combined_saving.py](../ff11reader/combined_saving.py)、[edit_application.py](../ff11reader/edit_application.py)、[ui.py](../ff11reader/ui.py) | [test_equipment_moves.py](../tests/test_equipment_moves.py): EX-MOVE01〜06、PT-32初期範囲 | 装備セット移動・参照更新・Undo/Redo・一括保存を合成データで確認。2026-11-02、ユーザーが保存後のゲーム内動作を確認済み。パレット・マクロ移動は未実装 |
+| [FUT-001](../requirements.md#fut-001) | [equipment_moves.py](../ff11reader/equipment_moves.py)、[editing.py](../ff11reader/editing.py)、[combined_saving.py](../ff11reader/combined_saving.py)、[edit_application.py](../ff11reader/edit_application.py)、[ui.py](../ff11reader/ui.py) | [test_equipment_moves.py](../tests/test_equipment_moves.py): EX-MOVE01〜06、PT-32初期範囲 | 装備セット移動・参照更新・Undo/Redo・一括保存を合成データで確認。2026-11-02、ユーザーが保存後のゲーム内動作を確認済み。パレット・マクロのブック間移動、同一キャラ内コピー、複数選択操作は未実装 |
 | [FUT-002](../requirements.md#fut-002) | — | — | 未実装。参照セットの同時コピーと番号衝突の扱いは未決定 |
 | [FUT-003](../requirements.md#fut-003) | [macro_inventory.py](../ff11reader/macro_inventory.py) | — | /equipの参照判定は実装済み。定型文候補の名前検索は実装済み。種類IDによる参照調査と誤記検出は未実装で、範囲・判定規則は未決定 |
 | OBS-001 | [tracing.py](../ff11reader/tracing.py)、[edit_application.py](../ff11reader/edit_application.py) | [test_tracing.py](../tests/test_tracing.py) | 親子の操作ID・所要時間・失敗・個人データ非記録を検証。ゲーム保存内部の詳細区間は未実装 |
@@ -55,7 +56,8 @@
 | DATA-001 | キャラ別の閲覧・表示名・切替 | アカウント単位の整理 |
 | DATA-003 | 取得不可として扱い、参照一致条件から除外 | オーグメント取得は保留。メモリ読取の導入は別途合意 |
 | EDIT-005 | 再起動時の最新読込、旧作業の保管と再開 | 起動中の再読込UI、選択的引継ぎ。リセット単独ではファイルを読み直さない |
-| FUT-001 | 空き番号への装備セット移動、参照カスケード、Undo/Redo、依存グループ単位の保存 | パレット・マクロ移動、上書き・入替え規則 |
+| VIEW-004 | 操作仕様確定 | 複数選択・共通ショートカット・相対配置・削除・共通保存ボタン。テスト仕様からの実装 |
+| FUT-001 | 空き番号への装備セット移動、参照カスケード、Undo/Redo、依存グループ単位の保存 | パレット・マクロのブック間移動、同一キャラ内コピー、VIEW-004の共通操作。上書き・入替えは対象外 |
 | FUT-002 | キャラ別の参照判定 | キャラ間コピー。参照セットの同時コピーと番号衝突の扱いの確定 |
 | FUT-003 | /equipの参照判定、定型文候補の名前検索 | 種類IDによる参照調査、誤記検出。辞書未解決と未所持の区別・候補規則の確定 |
 | OBS-001 | 編集・作業保存・画面更新・ゲーム保存入口の区間計測 | ゲーム保存内部の詳細区間 |
