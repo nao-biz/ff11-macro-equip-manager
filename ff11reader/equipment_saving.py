@@ -177,7 +177,7 @@ def prepare_equipment_save(saved, working, folder, scope='reference-fix', transf
         address=f'装備セット {e.number:03} {e.title.display}'
         if e.title.display!=before.title.display:
             if scope=='all':grouped.setdefault((e.number-1)//20,[]).append(EquipmentNameChange(e.number,before.title.display,e.title.display))
-            else:deferred.append(DeferredChange(address+' / 名前','名前の変更は装備セットの編集保存から保存できます。'))
+            else:deferred.append(DeferredChange(address+' / 名前','名前の変更は「変更を保存…」から保存できます。'))
         for a,b in zip(before.slots,e.slots):
             values=lambda s:(s.name,s.action,s.item_id,s.container,s.index)
             if values(a)==values(b):continue
@@ -185,7 +185,7 @@ def prepare_equipment_save(saved, working, folder, scope='reference-fix', transf
             if change is None or values(b)!=(a.name,a.action,a.item_id,*change.after):
                 if scope=='all':
                     grouped.setdefault((e.number-1)//20,[]).append(EquipmentSlotChange(e.number,a.name,slot_fields(a),slot_fields(b)));continue
-                deferred.append(DeferredChange(address+' / '+a.name,'この枠は自動補正の保存対象外です。個別編集は装備セットの編集保存から保存できます。'));continue
+                deferred.append(DeferredChange(address+' / '+a.name,'この枠は自動補正の保存対象外です。個別編集は「変更を保存…」から保存できます。'));continue
             grouped.setdefault((e.number-1)//20,[]).append(change)
     for target,source in transfers:grouped.setdefault((target-1)//20,[])
     if not grouped:raise ValueError('保存できる装備セットの変更がありません。先に変更案を作業データへ適用してください。'+('\n'+deferred_text(deferred) if deferred else ''))

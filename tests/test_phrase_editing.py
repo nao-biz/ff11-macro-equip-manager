@@ -204,12 +204,12 @@ class PhraseUITests(unittest.TestCase):
                 preview=next(w for w in app.winfo_children() if isinstance(w,tk.Toplevel) and '作業データ' in w.title())
                 button(preview,'作業データに適用').invoke();app.update()
                 plan=f.preview();self.assertIn(bytes.fromhex('FD02010201FD'),plan.files[0].changes[0].replacement)
-                before=f.bytes();button(app,'マクロの編集をゲームに保存').invoke();app.update()
-                saving=next(w for w in app.winfo_children() if isinstance(w,tk.Toplevel) and 'ゲームへの保存' in w.title())
+                before=f.bytes();button(app,'変更を保存…').invoke();app.update()
+                saving=next(w for w in app.winfo_children() if isinstance(w,tk.Toplevel) and '一括保存' in w.title())
                 self.assertEqual(f.bytes(),before)
-                save=f.editor.save_macros
-                with patch.object(application,'load_snapshot',side_effect=lambda _:f.load()),patch.object(f.editor,'save_macros',side_effect=lambda plan,root:save(plan,base/'backups')):
+                save=f.editor.save_combined
+                with patch.object(application,'load_snapshot',side_effect=lambda _:f.load()),patch.object(f.editor,'save_combined',side_effect=lambda plan,root:save(plan,base/'backups')):
                     button(saving,'バックアップして').invoke();app.update()
-                self.assertFalse(f.editor.session.dirty);self.assertFalse(errors,errors)
+                self.assertFalse(errors,errors);self.assertFalse(f.editor.session.dirty)
                 f.reopen();self.assertIsNone(f.editor.blocked);self.assertFalse(f.editor.session.dirty)
             finally:app.destroy()

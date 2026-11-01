@@ -12,33 +12,33 @@ from .codecs import equipsets, macros
 @dataclass(frozen=True)
 class CombinedSavePlan:
     character: str
-    equipment: equipment_saving.EquipmentSavePlan
+    equipment: equipment_saving.EquipmentSavePlan | None
     macro: macro_saving.MacroSavePlan | None
     dependencies: tuple
     members: tuple
 
     @property
-    def files(self):return self.equipment.files+(self.macro.files if self.macro else ())
+    def files(self):return (self.equipment.files if self.equipment else ())+(self.macro.files if self.macro else ())
     @property
-    def deferred(self):return self.equipment.deferred+(self.macro.deferred if self.macro else 0)
+    def deferred(self):return (self.equipment.deferred if self.equipment else 0)+(self.macro.deferred if self.macro else 0)
 
 
 def prepare_combined_save(saved,working,folder,transfers):
-    if not transfers:raise ValueError('一括保存する移動がありません。')
-    equipment=equipment_saving.prepare_equipment_save(saved,working,folder,'all',transfers)
     before=next(c for c in saved.characters if c.folder_id==folder)
     after=next(c for c in working.characters if c.folder_id==folder)
+    equipment=equipment_saving.prepare_equipment_save(saved,working,folder,'all',transfers) if transfers or any(value(a)!=value(b) for a,b in zip(before.equipsets,after.equipsets)) else None
     macro=macro_saving.prepare_macro_save(saved,working,folder,'all') if any(value(a)!=value(b) for a,b in zip(before.macros,after.macros)) else None
-    dependencies=dict(equipment.dependencies)
+    dependencies=dict(equipment.dependencies) if equipment else {}
     if macro:dependencies.update(macro.dependencies)
-    parent=Path(equipment.files[0].target).resolve().parent
+    if equipment is None and macro is None:raise ValueError('保存する変更がありません。')
+    parent=Path((equipment or macro).files[0].target).resolve().parent
     for record in saved.sources:
         path=Path(record['path']).resolve()
         if path.parent==parent and re.fullmatch(r'mcr[0-9]*\.dat',path.name):
             if digest(path.read_bytes())!=record['sha256']:raise ValueError('参照元のマクロが変わりました。再読み込みしてください。')
             dependencies[str(path)]=record['sha256']
-    if equipment.deferred or (macro and macro.deferred):raise ValueError('保存対象に含められない変更があります。')
-    files=equipment.files+(macro.files if macro else ())
+    if (equipment and equipment.deferred) or (macro and macro.deferred):raise ValueError('保存対象に含められない変更があります。')
+    files=(equipment.files if equipment else ())+(macro.files if macro else ())
     members=tuple((f.target,digest(f.replacement)) for f in files)
     return CombinedSavePlan(folder,equipment,macro,tuple(sorted(dependencies.items())),members)
 
@@ -54,9 +54,14 @@ def serialize_change(change):
 def execute_combined_save(plan,backup_root):
     require_game_closed()
     if plan.members!=tuple((f.target,digest(f.replacement)) for f in plan.files):raise ValueError('依存グループの保存対象が欠落または変更されています。')
-    if type(plan.equipment) is not equipment_saving.EquipmentSavePlan or not plan.equipment.transfers or plan.equipment.character!=plan.character or plan.equipment.scope!='all':raise ValueError('移動の一括保存計画が不正です。')
-    root,validate_equipment=equipment_saving.validate_equipment_plan(plan.equipment)
-    checks=[validate_equipment];required=dict(plan.equipment.dependencies)
+    if not plan.files:raise ValueError('保存対象がありません。')
+    root=Path(plan.files[0].target).resolve().parent.parent.parent
+    checks=[];required={}
+    if plan.equipment:
+        if type(plan.equipment) is not equipment_saving.EquipmentSavePlan or plan.equipment.character!=plan.character or plan.equipment.scope!='all':raise ValueError('装備セットの保存範囲が不正です。')
+        equipment_root,validate_equipment=equipment_saving.validate_equipment_plan(plan.equipment)
+        if equipment_root!=root:raise ValueError('保存先が異なります。')
+        checks.append(validate_equipment);required.update(plan.equipment.dependencies)
     if plan.macro:
         if type(plan.macro) is not macro_saving.MacroSavePlan or plan.macro.character!=plan.character or plan.macro.scope!='all':raise ValueError('参照マクロの保存範囲が不正です。')
         macro_root,validate_macro=macro_saving.validate_macro_plan(plan.macro)

@@ -46,7 +46,7 @@ def macros(data, page, resolver=None):
         b=data[24+n*380:24+(n+1)*380]
         result.append(Macro(page//10+1,page%10+1,'ctrl' if n<10 else 'alt',
                             n%10+1,text(b[370:380]),
-                            tuple(text(b[4+i*61:65+i*61],resolver) for i in range(6))))
+                            tuple(text(b[4+i*61:65+i*61],resolver) for i in range(6)),b.hex()))
     return result
 
 

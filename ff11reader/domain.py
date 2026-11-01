@@ -47,6 +47,7 @@ class Macro:
     key: int
     title: Text
     lines: tuple[Text, ...]
+    raw_hex: str = ''
 
 
 @dataclass(frozen=True)

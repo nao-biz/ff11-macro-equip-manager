@@ -25,6 +25,7 @@ class Edit:
     label: str
     changes: tuple[Change, ...]
     moves: tuple = ()
+    atomic: bool = False
 
 
 def macro_key(macro):
@@ -112,6 +113,10 @@ class EditSession:
     def read(self, folder, kind, address): return self._working.read(folder,kind,address)
     def history_length(self): return len(self._history)
 
+    def has_pending_atomic(self,folder):
+        if not any(e.atomic and any(c.character==folder for c in e.changes) for e in self._history):return False
+        return character_value(self._working.read_character(folder))!=character_value(self._saved.read_character(folder))
+
     def saved_origins(self):return tuple(sorted((folder,number,origin) for (folder,number),origin in self._saved_origins.items()))
 
     def restore_saved_origins(self,records):
@@ -155,7 +160,7 @@ class EditSession:
                 raise ValueError('作業データが変わりました。変更案を作り直してください。')
             if value(before)!=value(after):replacements[identity] = after
         if replacements:self._working = self._working.updated(replacements)
-        for folder,source,target in edit.moves:
+        for folder,source,target in (reversed(edit.moves) if reverse else edit.moves):
             a=self._origins.get((folder,source),source);b=self._origins.get((folder,target),target)
             self._origins=self._origins.set((folder,source),b).set((folder,target),a)
             if b==source:self._origins=self._origins.delete((folder,source))
@@ -163,12 +168,23 @@ class EditSession:
 
     def apply(self, edit):
         if not isinstance(edit,Edit) or not isinstance(edit.changes,tuple):raise ValueError('編集案の形式が不正です。')
-        if not isinstance(edit.moves,tuple) or len(edit.moves)>1:raise ValueError('移動の形式が不正です。')
+        if type(edit.atomic) is not bool:raise ValueError('一括編集の指定が不正です。')
+        if not isinstance(edit.moves,tuple):raise ValueError('移動の形式が不正です。')
         if edit.moves:
             from .equipment_moves import plan_move
-            folder,source,target=edit.moves[0]
-            expected=plan_move(self.character(folder),source,target)
-            semantic=lambda changes:tuple((c.character,c.kind,c.key,value(c.before),value(c.after)) for c in changes)
+            folders={m[0] for m in edit.moves}
+            if len(folders)!=1:raise ValueError('同一キャラの移動を指定してください。')
+            folder=next(iter(folders))
+            if len(edit.moves)==1:
+                _,source,target=edit.moves[0]
+                expected=plan_move(self.character(folder),source,target)
+            else:
+                trial=self.fork()
+                before=self.character(folder)
+                for _,source,target in edit.moves:trial.apply(plan_move(trial.character(folder),source,target))
+                after=trial.character(folder)
+                expected=Edit(edit.label,tuple(Change(folder,f,edit_key(a),a,b) for f in ('equipsets','macros') for a,b in zip(getattr(before,f),getattr(after,f)) if value(a)!=value(b)))
+            semantic=lambda changes:{(c.character,c.kind,c.key):(value(c.before),value(c.after)) for c in changes if value(c.before)!=value(c.after)}
             if semantic(edit.changes)!=semantic(expected.changes):raise ValueError('移動と参照更新が一致しません。')
         for c in edit.changes:
             if not isinstance(c,Change):raise ValueError('変更の形式が不正です。')

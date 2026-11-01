@@ -12,12 +12,16 @@ class Editor:
     def __init__(self, snapshot, path=None):
         self.store = DraftStore(path or Path(__file__).resolve().parent.parent / 'work' / 'drafts' / (snapshot.installation_key + '.json'))
         self.blocked = None
+        self._transfer = None
         try:
             self._recover_save(snapshot)
             self._session = self.store.load(snapshot)
         except (OSError, ValueError, KeyError, TypeError, AttributeError, StopIteration) as exc:
             self.blocked = str(exc)
             self._session = EditSession(snapshot)
+
+    @property
+    def transfer(self):return deepcopy(self._transfer)
 
     @property
     def session(self):
@@ -39,12 +43,35 @@ class Editor:
         macro=self._session.read(character,'macros',address)
         return deepcopy(edit_macro(current,macro,title,lines))
 
+    def capture_transfer(self,folder,kind,selection,cut=False):
+        if self.blocked:raise ValueError(self.blocked)
+        from .transfer_editing import capture
+        self._transfer=capture(self._session.character(folder),kind,selection,cut)
+
+    def clear_transfer(self):self._transfer=None
+
+    def prepare_paste(self,folder,anchor):
+        if self.blocked:raise ValueError(self.blocked)
+        if self._transfer is None:raise ValueError('先にコピーまたは切り取りをしてください。')
+        from .transfer_editing import plan_paste
+        return deepcopy(plan_paste(self._session.character(folder),self._transfer,anchor))
+
+    def paste(self,folder,anchor,preview):
+        if preview!=self.prepare_paste(folder,anchor):raise ValueError('貼り付け内容が変わりました。変更案を開き直してください。')
+        self.apply(preview)
+        if self._transfer.cut:self.clear_transfer()
+
+    def prepare_delete(self,folder,kind,selection):
+        if self.blocked:raise ValueError(self.blocked)
+        from .transfer_editing import plan_delete
+        return plan_delete(self._session.character(folder),kind,selection)
+
     def prepare_equipment_move(self,folder,source,target):
         if self.blocked:raise ValueError(self.blocked)
         from .equipment_moves import plan_move
         return plan_move(self._session.character(folder),source,target)
 
-    def has_pending_move(self,folder):return bool(self._session.movement_origins(folder))
+    def has_pending_move(self,folder):return bool(self._session.movement_origins(folder)) or self._session.has_pending_atomic(folder)
 
     def prepare_combined_save(self,folder):
         if self.blocked:raise ValueError(self.blocked)
@@ -62,14 +89,14 @@ class Editor:
         # Rebuild raw source fields from the actual replacement files.
         from .codecs import equipsets
         from .domain import Text
-        decoded={e.number:e for f in preview.equipment.files for e in equipsets(f.replacement,f.page)}
+        decoded={e.number:e for f in (preview.equipment.files if preview.equipment else ()) for e in equipsets(f.replacement,f.page)}
         updated.equipsets=[decoded.get(e.number,e) for e in updated.equipsets]
         if preview.macro:
             changes={(c.address,c.line):c for f in preview.macro.files for c in f.changes}
             def changed(m,n,old):
                 c=changes.get((macro_key(m),n))
                 return Text(c.after,c.replacement.hex(),'cp932',c.tokens) if c else old
-            updated.macros=[replace(m,title=changed(m,0,m.title),lines=tuple(changed(m,n,line) for n,line in enumerate(m.lines,1))) for m in updated.macros]
+            updated.macros=[self._sync_macro_raw(preview.macro.files,replace(m,title=changed(m,0,m.title),lines=tuple(changed(m,n,line) for n,line in enumerate(m.lines,1)))) for m in updated.macros]
         saved.characters=[updated if c.folder_id==preview.character else c for c in saved.characters]
         next_session.saved=saved;next_session.mark_movement_saved(preview.character)
         return self._save_checkpoint(preview,backup_root,next_session,execute_combined_save)
@@ -150,11 +177,12 @@ class Editor:
         self.store.prepare_baseline(next_session)
         self.store.archive()
         self._session = next_session
+        self.clear_transfer()
         self.blocked = None
 
     @traced('editor.prepare_macro_save')
     def prepare_macro_save(self,folder,scope='storage-fix'):
-        if self.has_pending_move(folder):raise ValueError('装備セットの移動と参照マクロを一括保存してください。')
+        if self.has_pending_move(folder):raise ValueError('依存する変更を一括保存してください。')
         if self.blocked:raise ValueError(self.blocked)
         from .macro_saving import prepare_macro_save
         return prepare_macro_save(self._session.saved,self._session.working,folder,scope)
@@ -175,13 +203,13 @@ class Editor:
         def changed(m,n,old):
             change=changes.get((macro_key(m),n))
             return Text(change.after,change.replacement.hex(),'cp932',change.tokens) if change else old
-        character.macros=[replace(m,title=changed(m,0,m.title),lines=tuple(changed(m,n,line) for n,line in enumerate(m.lines,1))) for m in character.macros]
+        character.macros=[self._sync_macro_raw(preview.files,replace(m,title=changed(m,0,m.title),lines=tuple(changed(m,n,line) for n,line in enumerate(m.lines,1)))) for m in character.macros]
         next_session.saved=saved
         return self._save_checkpoint(preview,backup_root,next_session,execute_macro_save)
 
     @traced('editor.prepare_equipment_save')
     def prepare_equipment_save(self,folder,scope='reference-fix'):
-        if self.has_pending_move(folder):raise ValueError('装備セットの移動と参照マクロを一括保存してください。')
+        if self.has_pending_move(folder):raise ValueError('依存する変更を一括保存してください。')
         if self.blocked:raise ValueError(self.blocked)
         from .equipment_saving import prepare_equipment_save
         return prepare_equipment_save(self._session.saved,self._session.working,folder,scope)
@@ -204,6 +232,22 @@ class Editor:
         character.equipsets=assess_equipment(character,sources)
         next_session.saved=saved
         return self._save_checkpoint(preview,backup_root,next_session,execute_equipment_save)
+
+    @staticmethod
+    def _macro_raw(files,macro):
+        page=(macro.book-1)*10+macro.palette-1
+        file=next((f for f in files if f.page==page),None)
+        if file is None:return macro.raw_hex
+        offset=24+((0 if macro.bank=='ctrl' else 10)+macro.key-1)*380
+        return file.replacement[offset:offset+380].hex()
+
+    @classmethod
+    def _sync_macro_raw(cls,files,macro):
+        raw_hex=cls._macro_raw(files,macro)
+        if not raw_hex:return macro
+        raw=bytes.fromhex(raw_hex)
+        return replace(macro,raw_hex=raw_hex,title=replace(macro.title,raw_hex=raw[370:380].hex()),
+                       lines=tuple(replace(t,raw_hex=raw[4+i*61:65+i*61].hex()) for i,t in enumerate(macro.lines)))
 
     def _save_checkpoint(self,preview,backup_root,next_session,execute_save):
         from .saving import digest

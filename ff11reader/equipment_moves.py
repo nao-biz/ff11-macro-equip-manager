@@ -5,7 +5,8 @@ from .macro_links import is_empty, retarget_reference
 from .edit_values import value, integer
 
 
-def vacant(equipment):return equipment.title.display=='' and is_empty(equipment)
+def vacant(equipment):
+    return equipment.title.display in ('', f'Set{equipment.number:03}') and is_empty(equipment)
 
 
 def plan_move(character,source,target):
@@ -14,7 +15,7 @@ def plan_move(character,source,target):
     sets={e.number:e for e in character.equipsets}
     if source not in sets or target not in sets:raise ValueError('移動元または移動先を読み取れていません。')
     before=sets[source];destination=sets[target]
-    if not vacant(destination):raise ValueError('移動先は名前が空で、全枠が「変更しない」のセットを選んでください。')
+    if not vacant(destination):raise ValueError('移動先は名前が空または既定名で、全枠が「変更しない」のセットを選んでください。')
     if vacant(before):raise ValueError('移動元は空の装備セットです。')
     empty=replace(before,title=Text('',destination.title.raw_hex,'draft'),slots=tuple(Slot(s.name,'keep',None,None,None,s.raw_hex) for s in destination.slots))
     moved=replace(before,number=target)

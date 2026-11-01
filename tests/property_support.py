@@ -1,4 +1,5 @@
 """Seeded generators, independent fixtures, shrinking and synthetic I/O isolation."""
+from encodings import cp932  # Load the codec before installing the synthetic I/O guard.
 from ff11reader import elevation  # Load save transport before the I/O isolation guard.
 from contextlib import contextmanager, ExitStack
 from contextvars import ContextVar
@@ -14,7 +15,7 @@ import sys
 import tempfile
 from unittest.mock import patch
 # Load lazy imports before enabling the I/O guard.
-from ff11reader import adapters, application, codecs, equipment_saving, macro_saving, saving, file_transaction
+from ff11reader import adapters, application, codecs, equipment_saving, macro_saving, saving, file_transaction, combined_saving, selection_ui, transfer_editing
 from ff11reader.domain import Character, Snapshot, Text
 from ff11reader.edit_application import Editor
 from ff11reader.editing import Change, Edit, plan_macro_fixes
@@ -52,7 +53,7 @@ def isolated():
         root = Path(tmp).resolve()
         with ExitStack() as stack:
             # No process enumeration, installation discovery, resources or native locking.
-            for module in (saving, macro_saving, equipment_saving):
+            for module in (saving, macro_saving, equipment_saving, combined_saving):
                 stack.enter_context(patch.object(module, 'require_game_closed', return_value=None))
             stack.enter_context(patch.object(adapters, 'discover', side_effect=AssertionError('Installation discovery forbidden')))
             stack.enter_context(patch.object(application, 'installations', side_effect=AssertionError('Installation discovery forbidden')))

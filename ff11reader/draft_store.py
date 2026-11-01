@@ -73,6 +73,17 @@ class DraftStore:
         resolver=lambda p:resolve_token(p,snapshot.phrases,snapshot.items)
         history = decode(data['history'],resolver)
         initial = session.baseline
+        # Older drafts stored field bytes only. Their record prefix is unchanged in
+        # the current source; reconstruct the original record from those two parts.
+        prefixes={(c.folder_id,(m.book,m.palette,m.bank,m.key)):m.raw_hex[:8]
+                  for c in initial.characters for m in c.macros if len(m.raw_hex)==760}
+        def complete_record(folder, item):
+            if not isinstance(item,domain.Macro) or item.raw_hex:return item
+            prefix=prefixes.get((folder,editing.macro_key(item)))
+            if prefix is None or len(item.title.raw_hex)!=20 or any(len(t.raw_hex)!=122 for t in item.lines):return item
+            return replace(item,raw_hex=prefix+''.join(t.raw_hex for t in item.lines)+item.title.raw_hex)
+        history=[replace(edit,changes=tuple(replace(change,before=complete_record(change.character,change.before),
+                                                   after=complete_record(change.character,change.after)) for change in edit.changes)) for edit in history]
         if data['version'] in (3,4):
             # History may lose a saved operation after Undo followed by branching.
             # Keep its original values even for targets absent from the new history.
@@ -85,7 +96,7 @@ class DraftStore:
                 if set(record) != {'macros', 'equipsets'}:
                     raise ValueError('作業履歴の起点の形式が不正です。')
                 before = character_value(character)
-                character.macros = record['macros']
+                character.macros = [complete_record(character.folder_id,m) for m in record['macros']]
                 character.equipsets = record['equipsets']
                 after = character_value(character)
                 if any(a.keys() != b.keys() for a, b in zip(before, after)):
