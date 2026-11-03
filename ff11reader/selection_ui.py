@@ -1,12 +1,15 @@
 """One selection/command controller shared by object views."""
 import tkinter as tk
 from . import dialogs
-from .ui_actions import state
+from .ui_actions import run_action
+from .ui_tasks import background, is_running
 
 
 class SelectionCommands:
     def __init__(self, view):
         self.view = view
+        self.focus_job = None
+        view.app.bind('<Destroy>', self.cancel_focus_restore, add='+')
         self.kind = None
         self.selection = set()
         self.anchor = None
@@ -26,7 +29,16 @@ class SelectionCommands:
         self.cards = {}
         self.paint()
 
+    def cancel_focus_restore(self,event):
+        if event.widget is self.view.app and self.focus_job:
+            self.view.app.after_cancel(self.focus_job);self.focus_job=None
+
+    def schedule_focus_restore(self):
+        if self.focus_job:self.view.app.after_cancel(self.focus_job)
+        self.focus_job=self.view.app.after_idle(self.restore_focus)
+
     def restore_focus(self):
+        self.focus_job=None
         try:
             if self.view.app.grab_current() is not None:return
             widget=(self.cards.get(self.focus) if self.kind=='macro' else
@@ -180,9 +192,10 @@ class SelectionCommands:
         if command:self.run(command);return 'break'
 
     def run(self, command):
+        if is_running(self.view.app):return
         heavy = {'cut', 'copy', 'paste', 'delete', 'undo', 'redo'}
         if command not in heavy or self.reason(command):return self._run(command)
-        with state(self.view.app).handling():return self._run(command)
+        return run_action(self.view.app,lambda:self._run(command),busy=True)
 
     def _run(self, command):
         v=self.view
@@ -194,13 +207,13 @@ class SelectionCommands:
         try:
             folder=v.character.folder_id
             if command in ('copy','cut'):
-                v.editor.capture_transfer(folder,self.kind,tuple(sorted(self.selection)),command=='cut');self.paint()
+                background(v.app,v.editor.capture_transfer,folder,self.kind,tuple(sorted(self.selection)),command=='cut');self.paint()
             elif command=='paste':
                 anchor=next(iter(self.selection))
-                edit=v.editor.prepare_paste(folder,anchor)
+                edit=background(v.app,v.editor.prepare_paste,folder,anchor)
                 v.preview_edit(edit,lambda:v.editor.paste(folder,anchor,edit))
             elif command=='delete':
-                edit=v.editor.prepare_delete(folder,self.kind,tuple(sorted(self.selection)))
+                edit=background(v.app,v.editor.prepare_delete,folder,self.kind,tuple(sorted(self.selection)))
                 v.preview_edit(edit,lambda:v.editor.apply(edit))
             else:v.undo_fix() if command=='undo' else v.redo_edit()
         except (ValueError,OSError) as exc:dialogs.showerror('編集操作',str(exc),parent=v.app)

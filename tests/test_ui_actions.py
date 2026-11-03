@@ -61,3 +61,36 @@ class ActionTests(unittest.TestCase):
         self.assertEqual(seen,['wait'])
         button.configure(command=child.destroy);button.invoke()
         self.assertEqual(self.entry.cget('cursor'),'xterm');self.assertFalse(self.errors)
+
+    def test_notice_visible_during_work_hidden_for_input_and_after_failure(self):
+        from ff11reader.ui_actions import input_wait
+        busy=state(self.app)
+        def action():
+            self.assertEqual(busy.notice.cget('text'),'読み込み中')
+            self.assertTrue(busy.notice.winfo_ismapped())
+            with input_wait(self.app):
+                self.assertEqual(busy.notice.winfo_manager(),'')
+            self.assertTrue(busy.notice.winfo_ismapped())
+            raise ValueError('synthetic failure')
+        ActionButton(self.app,busy=True,busy_message='読み込み中',command=action).invoke()
+        self.assertEqual(len(self.errors),1)
+        self.assertIs(self.errors[0][0],ValueError)
+        self.assertEqual(busy.notice.winfo_manager(),'')
+        self.assertEqual(self.entry.cget('cursor'),'xterm')
+
+    def test_common_runner_paints_before_work_and_restores_nested_message(self):
+        from ff11reader.ui_actions import run_action, input_wait
+        busy=state(self.app);events=[]
+        original=self.app.update_idletasks
+        def paint():events.append('paint');original()
+        def work():
+            events.append('work')
+            self.assertEqual(self.entry.cget('cursor'),'wait')
+            with input_wait(self.app):
+                run_action(self.app,lambda:None,busy=True,message='内側')
+            self.assertEqual(busy.message,'外側')
+            self.assertEqual(self.entry.cget('cursor'),'wait')
+        with patch.object(self.app,'update_idletasks',side_effect=paint):
+            run_action(self.app,work,busy=True,message='外側')
+        self.assertEqual(events[:2],['paint','work'])
+        self.assertEqual(self.entry.cget('cursor'),'xterm')

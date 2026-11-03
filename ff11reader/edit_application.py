@@ -9,7 +9,8 @@ from .tracing import span, traced
 
 
 class Editor:
-    def __init__(self, snapshot, path=None):
+    def __init__(self, snapshot, path=None, *, root=None):
+        self.root = Path(root).resolve() if root is not None else None
         self.store = DraftStore(path or Path(__file__).resolve().parent.parent / 'work' / 'drafts' / (snapshot.installation_key + '.json'))
         self.blocked = None
         self._transfer = None
@@ -19,6 +20,22 @@ class Editor:
         except (OSError, ValueError, KeyError, TypeError, AttributeError, StopIteration) as exc:
             self.blocked = str(exc)
             self._session = EditSession(snapshot)
+
+    @traced('editor.reload')
+    def reload(self):
+        from .application import load_snapshot
+        if self.root is None:raise ValueError('読込元のインストール先が設定されていません。')
+        if self.store.path.with_suffix('.pending.json').exists():
+            raise ValueError('ゲーム保存の復旧記録があります。アプリを開き直して復旧してください。')
+        fresh = load_snapshot(self.root)
+        if fresh.installation_key != self._session.saved.installation_key:
+            raise ValueError('読込元のインストール先が一致しません。')
+        next_session = EditSession(fresh)
+        archived = self.store.save(next_session, archive_previous=True)
+        self._session = next_session
+        self.blocked = None
+        self.clear_transfer()
+        return archived
 
     @property
     def transfer(self):return deepcopy(self._transfer)

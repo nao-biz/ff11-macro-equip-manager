@@ -138,7 +138,7 @@ class DraftStore:
             self._baseline_json = encoded
             self._baseline_token = session.baseline_token()
 
-    def save(self, session):
+    def save(self, session, *, archive_previous=False):
         self.path.parent.mkdir(parents=True, exist_ok=True)
         lock = self.path.with_suffix('.lock')
         # Exclusive lock also prevents two app instances from overwriting a draft.
@@ -162,10 +162,17 @@ class DraftStore:
                         stream.write(self._baseline_json)
                         stream.write('}')
                         stream.flush(); os.fsync(stream.fileno())
+                archived = None
+                if archive_previous and self.path.exists():
+                    archived = self.path.with_name(self.path.stem + ".archived-" + uuid4().hex + ".json")
+                    with archived.open("xb") as stream:
+                        stream.write(self.path.read_bytes())
+                        stream.flush(); os.fsync(stream.fileno())
                 temp.replace(self.path)
             finally:
                 temp.unlink(missing_ok=True)
             self.revision = self._revision()
+            return archived
         finally:
             handle.close()
             lock.unlink()

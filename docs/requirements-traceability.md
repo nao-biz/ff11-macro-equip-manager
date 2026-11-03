@@ -28,7 +28,7 @@
 | [EDIT-002](../requirements.md#edit-002) | [editing.py](../ff11reader/editing.py)、[edit_values.py](../ff11reader/edit_values.py) | [FoundationTests.test_invalid_batch_is_atomic_even_through_generic_apply](../tests/test_edit_foundation.py) | 汎用変更案を含めて検証 |
 | [EDIT-003](../requirements.md#edit-003) | [editing.py](../ff11reader/editing.py) | [EditingTests.test_batch_undo_redo_branch_and_raw_preservation](../tests/test_editing.py) | 共通履歴・無変更は関連テストでも検証 |
 | [EDIT-004](../requirements.md#edit-004) | [draft_store.py](../ff11reader/draft_store.py)、[edit_application.py](../ff11reader/edit_application.py) | [EditingTests.test_persistence_redo_conflict_and_failed_save](../tests/test_editing.py) | 保存失敗・再開・競合を検証 |
-| [EDIT-005](../requirements.md#edit-005) | [draft_store.py](../ff11reader/draft_store.py)、[edit_application.py](../ff11reader/edit_application.py) | [EditingTests.test_corrupt_draft_is_preserved](../tests/test_editing.py) | 古い作業の保管と新Snapshotでの再開はProperty Testでも検証。起動中の再読込UIと選択的引継ぎは未実装 |
+| [EDIT-005](../requirements.md#edit-005) | [draft_store.py](../ff11reader/draft_store.py)、[edit_application.py](../ff11reader/edit_application.py) | [EditingTests.test_corrupt_draft_is_preserved](../tests/test_editing.py) | 古い作業の保管と新Snapshotでの再開はProperty Testでも検証。起動中の再読み込み・旧履歴保管・失敗時の状態保持はtest_reload.pyで検証。選択的引継ぎは将来対応 |
 | [EDIT-006](../requirements.md#edit-006) | [editing.py](../ff11reader/editing.py)、[edit_application.py](../ff11reader/edit_application.py)、[ui.py](../ff11reader/ui.py) | [EditingUITests.test_edit_preview_undo_redo_fix_and_reopen](../tests/test_editing_ui.py) | マクロ編集と[装備セット名の編集・履歴・保存](../tests/test_equipment_names.py)を合成データで検証。[装備枠の個別編集・部位別選択・履歴・保存](../tests/test_equipment_slots.py)も合成データで検証。2026-10-29にユーザーが各枠編集の保存後、ゲーム内で認識されることを確認済み。2026-10-29にユーザーが名前編集・Undo/Redoと保存後のゲーム内反映を確認済み |
 | [EDIT-007](../requirements.md#edit-007) | [phrases.py](../ff11reader/phrases.py)、[text_editing.py](../ff11reader/text_editing.py)、[phrase_ui.py](../ff11reader/phrase_ui.py)、[macro_text.py](../ff11reader/macro_text.py) | [test_phrase_editing.py](../tests/test_phrase_editing.py) | 通常定型文・アイテム名の検索、読み、カテゴリ階層、初期フォーカス、ID保持を実装。2026-10-29に実機確認まで完了。詳細は下記「定型文入力」を参照 |
 | [SAVE-001](../requirements.md#save-001) | [save_plan.py](../ff11reader/save_plan.py)、[macro_saving.py](../ff11reader/macro_saving.py)、[equipment_saving.py](../ff11reader/equipment_saving.py)、[ui.py](../ff11reader/ui.py) | [MacroSavingTests.test_unrelated_manual_edits_are_retained](../tests/test_macro_saving.py) | Fix限定保存と保留に加え、[test_manual_macro_saving.py](../tests/test_manual_macro_saving.py)で名前・各行の一般保存を検証。[test_equipment_names.py](../tests/test_equipment_names.py)で装備セット名の単独保存・Fixとの混在・保留を検証 |
@@ -55,7 +55,7 @@
 |---|---|---|
 | DATA-001 | キャラ別の閲覧・表示名・切替 | アカウント単位の整理 |
 | DATA-003 | 取得不可として扱い、参照一致条件から除外 | オーグメント取得は保留。メモリ読取の導入は別途合意 |
-| EDIT-005 | 再起動時の最新読込、旧作業の保管と再開 | 起動中の再読込UI、選択的引継ぎ。リセット単独ではファイルを読み直さない |
+| EDIT-005 | 起動中の最新読込、旧作業の保管と新規開始 | 差分の選択的引継ぎは将来対応。再読み込みUI・旧履歴保管・失敗時の状態保持を合成データで確認。実機確認待ち |
 | FUT-002 | キャラ別の参照判定 | キャラ間コピー。参照セットの同時コピーと番号衝突の扱いの確定 |
 | FUT-003 | /equipの参照判定、定型文候補の名前検索 | 種類IDによる参照調査、誤記検出。辞書未解決と未所持の区別・候補規則の確定 |
 | OBS-001 | 編集・作業保存・画面更新・ゲーム保存入口の区間計測 | ゲーム保存内部の詳細区間 |
@@ -152,3 +152,13 @@
 装備枠編集（EDIT-006、SAVE-001〜006）: [equipment_editing.py](../ff11reader/equipment_editing.py)が候補と選択検証、[equipment_ui.py](../ff11reader/equipment_ui.py)が入力、[equipment_saving.py](../ff11reader/equipment_saving.py)が形式変換と依存資料の検証を担当する。[test_equipment_slots.py](../tests/test_equipment_slots.py)で複数候補の手動選択、keep/remove、再開と保存、辞書・収納の競合、ロールバック、合成GUI、PT-EQSの240ケースを検証。
 
 装備セットの既定名: `test_default_named_equipment_destination`で010→013（Set013・全keep）のコピー案を検証。独自名・別番号の既定名・内容を持つ枠は保護する（EX-UIE13）。
+
+EDIT-005: `tests/test_reload.py`で旧履歴の復元、最新データでの再開、読込・保管・置換失敗、作業競合、復旧待ち、合成UIの取消と確定を検証する。D-14に沿って`Editor.reload`と`DraftStore.save(archive_previous=True)`を使用する。実ゲームでの確認は未実施。
+
+VIEW-003 / D-10: `test_ui_actions.py`で共通処理中メッセージの表示、入力待ちの非表示、処理再開時の再表示、例外後の解除を合成Tkで検証。
+
+VIEW-003 / D-15: [ui_tasks.py](../ff11reader/ui_tasks.py)の共通ワーカーで読込・編集・保存を実行する。待機中は入力と背後のレイアウト計算を停止し、Tkイベントループは継続する。[test_ui_tasks.py](../tests/test_ui_tasks.py)で実行スレッド、コンテキスト引継ぎ、重複実行拒否、入力遮断、終了要求、例外と開始失敗後の復帰、既存モーダルのgrab復元を検証。[test_reload.py](../tests/test_reload.py)で6秒超のCPU負荷と連続リサイズを含む再読み込みを検証する。2026-11-03の合成GUI検証では6.41秒の処理中にUIタイマーが70回実行され、最大間隔は0.156秒だった。Tkへのワーカーからのアクセスはテスト用ガードで拒否する。実ゲームデータによる再確認は未実施。
+
+2026-11-03: 共通ワーカー導入後、合成GUIを含む全262テストを実行し成功（実ゲーム読込テスト1件をスキップ）。全体実行中の長時間再読み込みは6.45秒、UIタイマー66回、最大間隔0.156秒。
+
+再発防止（D-15、EX-UIBG04）: [test_ui_execution.py](../tests/test_ui_execution.py)がUI経由の再読み込み・編集・Undo/Redo・保存プレビュー・保存・リセットの実行スレッドを検証する。[tests.yml](../.github/workflows/tests.yml)に合成GUIの専用ステップを追加し、長時間応答・入力排他・復帰と併せて毎回実行する。2026-11-03、CIと同じ17テストがローカルで成功。ワーカーを意図的に迂回した検証では、編集のUIスレッド実行を検出した。GitHub上の実行は次回プッシュ後に確認する。

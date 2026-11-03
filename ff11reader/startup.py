@@ -18,7 +18,7 @@ def prepare(root, report):
         with span('startup.read'):snapshot=load_snapshot(Path(roots[0]).resolve())
         report('編集履歴を復元しています…')
         with span('startup.restore'):
-            editor=Editor(snapshot)
+            editor=Editor(snapshot,root=roots[0])
             snapshot=editor.snapshot()
         return snapshot,editor
 
