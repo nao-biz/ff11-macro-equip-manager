@@ -59,3 +59,12 @@ class EquipmentStatsTests(unittest.TestCase):
         self.assertEqual(item['description'],'防75 HP+50 MP+20')
         struct.pack_into('<I',raw,0x3c,0xfffffff0)
         self.assertIsNone(codecs.item_records(bytes(raw).translate(inverse))[10276]['description'])
+
+    def test_path_metadata_alone_keeps_actual_missing_abilities_visible(self):
+        data=fixture()
+        observation=reconcile(parse(encoded(data)),character())
+        equipment=Equipset(1,Text('Test','','cp932'),(Slot('main','equip',21581,12,1,''),))
+        report=summarize(equipment,{21581:{'description':'HP+20'}},observation)
+        self.assertTrue(report.incomplete)
+        self.assertTrue(any('Path B の能力が未取得' in line for _,line in report.missing))
+        self.assertFalse(report.unparsed)

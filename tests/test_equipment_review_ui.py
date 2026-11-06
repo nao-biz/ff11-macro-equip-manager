@@ -3,6 +3,7 @@ from dataclasses import replace
 import os
 from threading import get_ident
 import time
+import tkinter as tk
 from tkinter import font
 import unittest
 from unittest.mock import patch
@@ -13,14 +14,24 @@ from ff11reader.ui_tasks import tasks
 from prototypes.equipment_review_data import ReviewData, SLOT_KEYS
 from tests.test_equipment_slots import SlotFixture
 from tests.test_workspace_ui import WorkspaceMixin
+from tests.test_practical_equipment_evaluation import offline
 
 
 @unittest.skipUnless(os.environ.get('FF11_RUN_INTEGRATION') == '1', 'Synthetic Tk checks')
 class EquipmentReviewUITests(WorkspaceMixin, SlotFixture):
-    def open_dense_view(self):
+    def open_dense_view(self, weapon_text=False, unknown_armor=False, extra_weapon_text='', data=None):
         errors = patch('ff11reader.ui.dialogs.showerror', side_effect=AssertionError('Unexpected UI error'))
         errors.start(); self.addCleanup(errors.stop)
-        data = ReviewData()
+        data = ReviewData() if data is None else data
+        if weapon_text:
+            item = data.items['0:0']
+            data.master[item.item_id]['description'] = ('D100 隔200 HP+80\n' + data.master[item.item_id]['description']
+                                                      + '\nファントムロール数:被ダメージ-4%')
+        if extra_weapon_text:
+            item = data.items['0:0']
+            data.master[item.item_id]['description'] = extra_weapon_text + '\n' + data.master[item.item_id]['description']
+        if unknown_armor:
+            data.master[data.items['4:0'].item_id]['description'] = None
         c = self.source.characters[0]
         self.source.augment_names = data.names
         c.inventory = [InventoryRow(12, i.position, i.item_id, 1) for i in data.items.values()]
@@ -55,7 +66,8 @@ class EquipmentReviewUITests(WorkspaceMixin, SlotFixture):
         view.slot_editor.preview_button.invoke(); self.preview_window().cancel_button.invoke(); self.app.update()
         self.assertEqual(self.values('魔命'), ('320', '335', '+15'))
         self.choose(3)
-        self.assertEqual(self.values('魔命')[-1], '未確定')
+        self.assertEqual(self.values('魔命')[-1], '-5*')
+        self.assertIn('* は既知分', view.equipment_summary.note.cget('text'))
         view.slot_editor.cancel(); self.app.update()
         self.assertEqual(self.values('魔命'), ('320', '—', '—'))
         self.choose(2)
@@ -75,7 +87,7 @@ class EquipmentReviewUITests(WorkspaceMixin, SlotFixture):
         for path, raw in self.original.items(): self.assertEqual(path.read_bytes(), raw)
 
     def test_density_and_live_controls_at_both_sizes(self):
-        view = self.open_dense_view()
+        view = self.open_dense_view(weapon_text=True)
         for size in ('1440x900', '1320x840'):
             self.app.geometry(size); self.app.update()
             for candidate in (2, 3):
@@ -97,6 +109,84 @@ class EquipmentReviewUITests(WorkspaceMixin, SlotFixture):
                     self.assertLessEqual(widget.winfo_rooty() + widget.winfo_height(), self.app.winfo_rooty() + self.app.winfo_height())
                 last = view.card_widgets['feet']
                 self.assertLessEqual(last.winfo_y() + last.winfo_height(), view.canvas.winfo_height())
+
+    def test_weapon_metadata_difference_cancel_apply_and_undo(self):
+        view = self.open_dense_view(weapon_text=True, unknown_armor=True)
+        owner = get_ident()
+        from ff11reader.equipment_stats import summarize
+        def checked_summary(*args):
+            self.assertEqual(get_ident(), owner)
+            return summarize(*args)
+        with patch('ff11reader.equipment_summary_ui.summarize', side_effect=checked_summary), \
+             patch('ff11reader.adapters.LocalReader.read', side_effect=AssertionError('Candidate selection must not read files')):
+            self.choose(2)
+            self.assertEqual(self.values('魔命')[-1], '+15')
+            self.assertEqual(self.values('HP')[0], '455')
+            self.assertNotIn('* は', view.equipment_summary.note.cget('text'))
+            view.slot_editor.cancel(); self.app.update()
+            self.assertEqual(self.values('魔命')[-1], '—')
+            self.assertNotIn('* は', view.equipment_summary.note.cget('text'))
+        self.choose(2)
+        previous = self.values('魔命')[0]
+        candidate = self.values('魔命')[1]
+        view.slot_editor.preview_button.invoke(); self.preview_window().accept_button.invoke(); self.app.update()
+        self.assertEqual(self.values('魔命'), (candidate, '—', '—'))
+        view.undo_fix(); self.app.update()
+        self.assertEqual(self.values('魔命'), (previous, '—', '—'))
+        for path, raw in self.original.items(): self.assertEqual(path.read_bytes(), raw)
+
+    def test_unchanged_unknown_armor_allows_confirmed_weapon_difference(self):
+        view = self.open_dense_view(unknown_armor=True)
+        self.choose(2)
+        self.assertEqual(self.values('魔命')[-1], '+15')
+        self.assertIn('現在: 既知分のみ', view.equipment_summary.note.cget('text'))
+
+    def test_unresolved_effect_is_scoped_to_its_row_and_details(self):
+        view = self.open_dense_view(extra_weapon_text='ファストキャスト効果アップ\n受け流しスキル+10～20')
+        self.choose(2)
+        self.assertEqual(self.values('魔命')[-1], '+15')
+        self.assertTrue(self.values('ファストキャスト', '%')[-1].endswith('*'))
+        self.assertTrue(self.values('ファストキャスト', '%')[0].endswith('*'))
+        details = view.equipment_summary.details_text()
+        self.assertIn('解析未対応', details)
+        self.assertIn('受け流しスキル+10～20', details)
+        self.assertIn('集計対象外', details)
+        self.assertNotIn('取得不足', details)
+
+    def test_offline_evaluation_exposes_original_properties_in_real_details_window(self):
+        data = ReviewData()
+        source_text, candidate_text = 'ＺＺＺアップ', '候補固有の能力アップ'
+        bag = data.observation.export.bags[0]
+        observed = tuple(replace(item, augments=(*item.augments, candidate_text))
+                         if item.index == data.items['0:2'].position else item for item in bag.items)
+        data.observation = replace(data.observation, export=replace(data.observation.export,
+                                   bags=(replace(bag, items=observed),)))
+        with offline():
+            view = self.open_dense_view(extra_weapon_text=source_text + '\n雨天のとき被ダメージ-5%', data=data)
+            before = self.editor.edit_status()
+            with patch('ff11reader.adapters.LocalReader.read', side_effect=AssertionError('Use loaded data')):
+                self.choose(2)
+                self.assertEqual(self.values('HP'), ('400', '400', '±0'))
+                self.assertEqual(self.values('魔命'), ('320', '335', '+15'))
+                self.assertEqual(self.values('被ダメージ', '%'), ('-25%', '-25%', '±0'))
+                summary = view.equipment_summary
+                button = next(w for w in summary.frame.winfo_children()[0].winfo_children()
+                              if w.cget('text') == '全項目・内訳')
+                button.invoke(); self.app.update()
+                window = next(w for w in summary.frame.winfo_children() if isinstance(w, tk.Toplevel))
+                text = next(w for w in window.winfo_children() if isinstance(w, tk.Text))
+                displayed = text.get('1.0', 'end')
+                current, proposed = displayed.split('候補 —', 1)
+                self.assertIn('main / 試作の短剣: ' + source_text, current)
+                self.assertIn('雨天のとき被ダメージ-5%', current)
+                self.assertNotIn(candidate_text, current)
+                self.assertIn('main / 試作の短剣 / オグメ: ' + candidate_text, proposed)
+                self.assertTrue(text.winfo_viewable())
+                window.destroy(); self.app.update()
+                view.slot_editor.cancel(); self.app.update()
+                self.assertEqual(self.values('魔命'), ('320', '—', '—'))
+                self.assertNotIn(candidate_text, summary.details_text())
+                self.assertEqual(self.editor.edit_status(), before)
 
     def test_new_apply_path_uses_worker_and_recovers_after_failure(self):
         view = self.open_dense_view()

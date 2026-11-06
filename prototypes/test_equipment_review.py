@@ -54,8 +54,9 @@ class EquipmentReviewTests(unittest.TestCase):
 
     def test_unknown_keep_and_remove_are_distinct(self):
         self.choose('0:3')
-        self.assertEqual(self.values(('魔命', ''))[-1], '未確定')
+        self.assertEqual(self.values(('魔命', ''))[-1], '-5*')
         self.assertIn('候補: 既知分のみ', self.ui.coverage.cget('text'))
+        self.assertIn('* は既知分', self.ui.coverage.cget('text'))
         self.choose('keep')
         self.assertEqual(self.values(('HP', ''))[-1], '未確定')
         self.choose('remove')
@@ -91,10 +92,21 @@ class EquipmentReviewTests(unittest.TestCase):
         self.ui.select_slot(4)
         self.choose('4:0')
         self.assertIn('現在: 既知分のみ', self.ui.coverage.cget('text'))
-        self.assertEqual(self.values(('魔命', ''))[-1], '未確定')
+        self.assertEqual(self.values(('魔命', ''))[-1], '+5*')
         self.ui.apply_button.invoke()
         self.root.update()
         self.assertNotIn('既知分のみ', self.ui.coverage.cget('text'))
+
+    def test_weapon_metadata_and_unchanged_unknown_armor(self):
+        weapon = self.ui.data.master[self.ui.data.items['0:0'].item_id]
+        weapon['description'] = 'D100 隔200\n' + weapon['description']
+        self.ui.selection[4] = '4:3'
+        self.choose('0:2')
+        self.assertEqual(self.values(('魔命', ''))[-1], '+15')
+        self.assertNotIn('* は', self.ui.coverage.cget('text'))
+        self.ui.cancel_button.invoke(); self.root.update()
+        self.assertEqual(self.values(('魔命', ''))[-1], '—')
+        self.assertNotIn('* は', self.ui.coverage.cget('text'))
 
     def test_dense_layout_and_game_order_at_reference_sizes(self):
         for size in ('1440x900', '1320x840'):

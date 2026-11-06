@@ -170,7 +170,14 @@ VIEW-002の追加表示: `augment_presentation.path_label` と `inventory_ui.ite
 
 VIEW-005 / D-17: `LocalReader.load_augment_names`がゲーム内の英日辞書を読み、`equipment_stat_names.py`が同じ辞書IDから能力名を対応させる。`equipment_stats.py`が装備・個体の加算値を集計し、原文・未対応の効果を内訳に保持する。根拠は[能力名と単位](reference/augment-stat-names.md)。`tests/test_augment_dictionary.py`で合成DATの取得・欠落・破損・Snapshotへの引継ぎと再読込、`tests/test_equipment_stat_names.py`で辞書の更新・競合・単位・引用符・II・原文を検証する（EX-EVAL01・07）。
 
+曖昧な表記の活用（EX-EVAL10）: [test_practical_equipment_evaluation.py](../tests/test_practical_equipment_evaluation.py)で外部通信を禁止し、明確な数値の集計・差分、条件付き効果と未知の効果の原文・出典保持、元情報の未取得との区別を検証する。[test_equipment_review_ui.py](../tests/test_equipment_review_ui.py)の`test_offline_evaluation_exposes_original_properties_in_real_details_window`は本体の「全項目・内訳」を開き、現在・候補の原文と出典、取消後の表示を確認する。「雨天のとき被ダメージ-5%」の誤集計をこの検証で検出して修正し、続く独立した魔命の加算も確認した。
+
+収集・保守コスト（D-17）は採用理由と依存先をレビューし、評価処理が読込済みのゲーム由来情報・個体情報だけで動作し、外部の補完収集を要求しないことを確認した。費用の定量評価や利便性の最大化の証明は含まない。原文を数値欄の外へ列挙するDP-02の案は未実装・未検証。
+
 VIEW-006 / D-17・D-18: `equipment_picker_ui.py`の部位別候補を4×4枠の下に、`equipment_summary_ui.py`の集計を右へ常時表示する。主要43項目・分類・比較値の表示は`equipment_stats_presentation.py`で管理し、モックと定義を共有する。候補の一時比較は作業・原本を変更せず、確定は既存の変更案確認と共通ワーカーへ渡す。
+
+比較の取得範囲（EX-EVAL04・08・09）: `equipment_stat_parser.py`が混在行の加算値・対象外・未解釈を分け、`equipment_stats.comparison_kind`が変更する枠・項目の情報を評価する。取得不足や対象項目の解析不足だけ既知分の印を付ける。`tests/test_equipment_stat_parser.py`・`tests/test_equipment_stats_presentation.py`で解析と影響範囲を、`tests/test_equipment_review_ui.py`・`prototypes/test_equipment_review.py`で表示・取消・適用を検証する。
+2026-11-06: 関連53テスト成功、スキップ0（辞書・解析・集計・正規化・比較・EX-EVAL10の単体33、本体・モック・ワーカー20）。最小画面の可読性、取消・適用・Undo、候補選択時のUIスレッドとファイルI/Oなし、長時間処理中の応答・入力排他・失敗後の復帰を合成検証した。ロスタム本体説明の読取確認は[能力名と単位](reference/augment-stat-names.md)に記録する。
 
 `tests/test_equipment_review_ui.py`が日本語の装備説明＋英語オグメからの現在値・候補値・差分、適用・Undo/Redo・未取得、1440×900と1320×840の文字幅・全項目・操作ボタン、失敗後の入力保持と再試行を検証する（EX-EVAL02〜06）。`tests/test_workspace_ui.py`でタブ往復、`tests/test_equipment_slots.py`で保存導線、`tests/test_equipment_stats_presentation.py`で追加項目・別単位の保持と未確定の差分を検証する。実データでの再確認は未実施。
 

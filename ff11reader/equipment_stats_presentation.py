@@ -1,4 +1,5 @@
 """Shared evaluation groups, stable ordering and value formatting (D-17)."""
+from .equipment_stats import comparison_kind
 
 GROUPS = (
     ('基本ステータス', 0, tuple((n, '', n) for n in
@@ -46,14 +47,30 @@ def number(value, unit='', signed=False):
 def comparison(current, trial=None):
     before = {(n, u): v for n, u, v in current.totals}
     after = {(n, u): v for n, u, v in trial.totals} if trial else {}
-    uncertain = current.incomplete or (trial is not None and trial.incomplete)
     rows = {}
     for _, _, metrics in GROUPS:
         for name, unit, label in metrics:
             key = name, unit
+            kind = comparison_kind(current, trial, key)
             value = before.get(key, 0)
             candidate = after.get(key, 0)
             delta = candidate - value
-            rows[key] = (number(value, unit), number(candidate, unit) if trial else '—',
-                         ('未確定' if uncertain else number(delta, unit, signed=True) if delta else '±0') if trial else '—')
+            change = number(delta, unit, signed=True) if delta else '±0'
+            if kind == 'partial':
+                change += '*'
+            elif kind == 'unavailable':
+                change = '未確定'
+            rows[key] = ((number(value, unit) + ('*' if key in current.uncertain else '')) if current.available else '未確定',
+                         (number(candidate, unit) + ('*' if key in trial.uncertain else '') if trial.available else '未確定') if trial else '—',
+                         change if trial else '—')
     return rows
+
+
+def comparison_note(current, trial):
+    return '* は既知分' if any(cell.endswith('*') for row in comparison(current, trial).values() for cell in row) else ''
+
+
+def exclusion_groups(report):
+    issues = set(report.unparsed) | set(report.missing)
+    return (('集計対象外', tuple(line for line in report.excluded if line not in issues)),
+            ('解析未対応', report.unparsed), ('取得不足', report.missing))

@@ -4,7 +4,7 @@ from tkinter import ttk
 from .theme import BG, FG, PANEL, SELECT, MUTED, ACCENT, WARNING
 from .ui_actions import ActionButton
 from .equipment_stats import summarize
-from .equipment_stats_presentation import GROUPS, comparison, display_totals, number
+from .equipment_stats_presentation import GROUPS, comparison, comparison_note, display_totals, exclusion_groups, number
 
 
 class EquipmentSummary:
@@ -74,15 +74,19 @@ class EquipmentSummary:
             cells = self.metric_labels[key]
             for cell, value in zip(cells[1:], values):
                 cell.configure(text=value)
-            changed = self.trial_result is not None and values[2] != '±0'
+            changed = self.trial_result is not None and values[2] not in ('±0', '±0*')
             cells[2].configure(bg=SELECT if changed else PANEL)
-            cells[3].configure(fg=WARNING if values[2] == '未確定' else ACCENT if changed else MUTED)
+            cells[3].configure(fg=WARNING if values[2] == '未確定' or values[2].endswith('*') else ACCENT if changed else MUTED)
         def coverage(report):
             return ('既知分のみ・' if report.incomplete else '') + f'集計外 {len(report.excluded)}件'
         text = '現在: ' + coverage(self.result)
         if self.trial_result:
             text += ' / 候補: ' + coverage(self.trial_result)
-        self.note.configure(text=text)
+        note = comparison_note(self.result, self.trial_result)
+        if note:
+            text += '\n' + note
+        self.note.configure(text=text, foreground=WARNING if note or self.result.incomplete or
+                            (self.trial_result and self.trial_result.incomplete) else MUTED)
 
     def details_text(self):
         lines = []
@@ -93,8 +97,10 @@ class EquipmentSummary:
             lines.extend(f'{name}  {number(value, unit)}' for name, unit, value in display_totals(report.totals))
             lines.extend(('', '集計に使った原文'))
             lines.extend(f'{source}: {line}' for source, line in report.included)
-            lines.extend(('', '集計外'))
-            lines.extend(f'{source}: {line}' for source, line in report.excluded)
+            for heading, entries in exclusion_groups(report):
+                if entries:
+                    lines.extend(('', heading))
+                    lines.extend(f'{source}: {line}' for source, line in entries)
             lines.append('')
         return '\n'.join(lines)
 

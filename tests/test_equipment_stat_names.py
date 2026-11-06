@@ -85,7 +85,9 @@ class StatNameTests(unittest.TestCase):
         report = self.report('魔命+20', raw)
         self.assertEqual(report.totals, (('魔命', '', 20),))
         self.assertEqual([line for _, line in report.excluded], raw)
-        self.assertTrue(report.incomplete)
+        self.assertFalse(report.incomplete)
+        self.assertEqual([line for _, line in report.unparsed], ['Unknown bonus+4'])
+        self.assertFalse(report.uncertain)
 
 
 if __name__ == '__main__':

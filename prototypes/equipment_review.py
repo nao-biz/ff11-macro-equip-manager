@@ -4,8 +4,9 @@ from tkinter import ttk
 
 from ff11reader import theme
 from ff11reader.ui_actions import ActionButton
+from ff11reader.equipment_stats_presentation import comparison, comparison_note, exclusion_groups
 from .equipment_review_data import (
-    GROUPS, SET_NAMES, SLOTS, ReviewData, incomplete, number, totals,
+    GROUPS, SET_NAMES, SLOTS, ReviewData, incomplete, number,
 )
 
 
@@ -215,18 +216,15 @@ class EquipmentReviewMock:
         if self.trial_key is not None:
             trial[self.slot_index] = self.trial_key
         self.trial_report = self.data.report(trial) if self.trial_key is not None else None
-        current = totals(self.current_report)
-        proposed = totals(self.trial_report) if self.trial_report else {}
-        uncertain = incomplete(self.current_report) or (self.trial_report and incomplete(self.trial_report))
+        rows = comparison(self.current_report, self.trial_report)
         for key, (_, now, after, change) in self.metric_labels.items():
-            unit = key[1]
-            now.configure(text=number(current.get(key, 0), unit))
-            after.configure(text=number(proposed.get(key, 0), unit) if self.trial_report else '—')
-            delta = proposed.get(key, 0) - current.get(key, 0)
-            text = '未確定' if uncertain else number(delta, unit, signed=True) if delta else '±0'
-            change.configure(text=text if self.trial_report else '—',
-                             fg=theme.WARNING if uncertain else theme.ACCENT if delta else theme.MUTED)
-            after.configure(bg=theme.SELECT if self.trial_report and (delta or uncertain) else theme.PANEL)
+            value, candidate, delta = rows[key]
+            now.configure(text=value)
+            after.configure(text=candidate)
+            changed = self.trial_report is not None and delta not in ('±0', '±0*')
+            change.configure(text=delta,
+                             fg=theme.WARNING if delta == '未確定' or delta.endswith('*') else theme.ACCENT if changed else theme.MUTED)
+            after.configure(bg=theme.SELECT if changed else theme.PANEL)
         label = self.data.label(self.trial_key) if self.trial_key is not None else '下の一覧で候補を選ぶと差分を表示'
         if self.trial_report and incomplete(self.trial_report):
             label += '（候補は既知分のみ）'
@@ -236,7 +234,11 @@ class EquipmentReviewMock:
         text = '現在: ' + coverage(self.current_report)
         if self.trial_report:
             text += '   /   候補: ' + coverage(self.trial_report)
-        self.coverage.configure(text=text)
+        note = comparison_note(self.current_report, self.trial_report)
+        if note:
+            text += '\n' + note
+        self.coverage.configure(text=text, foreground=theme.WARNING if note or self.current_report.incomplete or
+                                (self.trial_report and self.trial_report.incomplete) else theme.MUTED)
         changed = self.trial_key is not None and self.trial_key != self.selection[self.slot_index]
         self.apply_button.configure(state='normal' if changed else 'disabled')
         self.cancel_button.configure(state='normal' if self.trial_key is not None else 'disabled')
@@ -305,8 +307,10 @@ class EquipmentReviewMock:
                 continue
             lines.extend((title + ' — 上限適用前の装備加算値', '既知分のみ' if incomplete(report) else ''))
             lines.extend(f'{name}  {number(value, unit)}' for name, unit, value in report.totals)
-            lines.extend(('', '集計外'))
-            lines.extend(f'{source}: {line}' for source, line in report.excluded)
+            for heading, entries in exclusion_groups(report):
+                if entries:
+                    lines.extend(('', heading))
+                    lines.extend(f'{source}: {line}' for source, line in entries)
             lines.extend(('', '集計に使った内訳（合成入力）'))
             lines.extend(f'{source}: {line}' for source, line in report.included)
             lines.append('\n')
