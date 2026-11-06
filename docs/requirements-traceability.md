@@ -42,6 +42,7 @@
 | VIEW-002 | [ui.py](../ff11reader/ui.py)、[presentation.py](../ff11reader/presentation.py) | [PresentationTests.test_four_main_actions](../tests/test_presentation.py) | 状態表示の分類を検証。視覚品質は手動確認 |
 | VIEW-003 | [ui.py](../ff11reader/ui.py)、[dialogs.py](../ff11reader/dialogs.py) | [test_dialogs.py](../tests/test_dialogs.py) | 親画面内モーダル、取消・入力、フォーカスとgrabの復帰、長文、起動時の表示を合成Tkで検証。実機で起動通知・再読込操作・本文量に応じたサイズをユーザーが確認済み |
 | VIEW-004 | [paste_placement.py](../ff11reader/paste_placement.py)、[transfer_editing.py](../ff11reader/transfer_editing.py)、[selection_ui.py](../ff11reader/selection_ui.py)、[ui.py](../ff11reader/ui.py) | [test_paste_placement.py](../tests/test_paste_placement.py)、[test_selection_commands.py](../tests/test_selection_commands.py) | 配置判定、転送・削除、Undo/Redo、右クリック、入力欄との分離、共通保存を合成データで検証。2026-11-02、ユーザーが今回の変更のゲーム内動作を確認済み |
+| VIEW-007 | [共通プロパティモック](../prototypes/item_properties.py)・[表示部品](../prototypes/item_property_panel.py)。本体の関連処理は[ui.py](../ff11reader/ui.py)の`inspect_slot`・`inspect_inventory`・`show_equipment_detail` | [test_item_properties.py](../prototypes/test_item_properties.py)、EX-PROP01〜06 | 選択追従・両表示・比較への受渡し・取得不足・列の切替・差分色・改行と可読性をモックで合成検証。詳細な範囲は[モックREADME](../prototypes/README.md)。本体への反映とキャラ切替の検証は未実施。採用後にD-18へ反映する |
 | WARD-001 | [wardrobe_usage.py](../ff11reader/wardrobe_usage.py) | [WardrobeUsageTests.test_scope_and_both_reference_sources](../tests/test_wardrobe_usage.py) | 参照元と対象収納を検証 |
 | WARD-002 | [wardrobe_usage.py](../ff11reader/wardrobe_usage.py) | [WardrobeUsageTests.test_edit_and_undo_recompute_without_cross_character_references](../tests/test_wardrobe_usage.py) | 再計算とキャラ分離を検証 |
 | FUT-001 | [equipment_moves.py](../ff11reader/equipment_moves.py)、[editing.py](../ff11reader/editing.py)、[combined_saving.py](../ff11reader/combined_saving.py)、[edit_application.py](../ff11reader/edit_application.py)、[ui.py](../ff11reader/ui.py) | [test_equipment_moves.py](../tests/test_equipment_moves.py): EX-MOVE01〜06、PT-32初期範囲 | 装備セット移動・参照更新・Undo/Redo・一括保存を合成データで確認。2026-11-02、ユーザーが保存後のゲーム内動作を確認済み。パレット・マクロのブック間移動と同一キャラ内コピー、複数選択は合成データで検証。2026-11-02、今回の追加範囲もユーザーがゲーム内動作を確認済み |
@@ -172,7 +173,7 @@ VIEW-005 / D-17: `LocalReader.load_augment_names`がゲーム内の英日辞書�
 
 曖昧な表記の活用（EX-EVAL10）: [test_practical_equipment_evaluation.py](../tests/test_practical_equipment_evaluation.py)で外部通信を禁止し、明確な数値の集計・差分、条件付き効果と未知の効果の原文・出典保持、元情報の未取得との区別を検証する。[test_equipment_review_ui.py](../tests/test_equipment_review_ui.py)の`test_offline_evaluation_exposes_original_properties_in_real_details_window`は本体の「全項目・内訳」を開き、現在・候補の原文と出典、取消後の表示を確認する。「雨天のとき被ダメージ-5%」の誤集計をこの検証で検出して修正し、続く独立した魔命の加算も確認した。
 
-収集・保守コスト（D-17）は採用理由と依存先をレビューし、評価処理が読込済みのゲーム由来情報・個体情報だけで動作し、外部の補完収集を要求しないことを確認した。費用の定量評価や利便性の最大化の証明は含まない。原文を数値欄の外へ列挙するDP-02の案は未実装・未検証。
+収集・保守コスト（D-17）は採用理由と依存先をレビューし、評価処理が読込済みのゲーム由来情報・個体情報だけで動作し、外部の補完収集を要求しないことを確認した。費用の定量評価や利便性の最大化の証明は含まない。原文を数値欄の外へ列挙するDP-02の案は、選択アイテムについてVIEW-007のモックで検証。本体反映とセット全体の原文一覧は未実施。
 
 VIEW-006 / D-17・D-18: `equipment_picker_ui.py`の部位別候補を4×4枠の下に、`equipment_summary_ui.py`の集計を右へ常時表示する。主要43項目・分類・比較値の表示は`equipment_stats_presentation.py`で管理し、モックと定義を共有する。候補の一時比較は作業・原本を変更せず、確定は既存の変更案確認と共通ワーカーへ渡す。
 

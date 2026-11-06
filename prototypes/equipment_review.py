@@ -11,30 +11,34 @@ from .equipment_review_data import (
 
 
 class EquipmentReviewMock:
-    def __init__(self, root):
+    def __init__(self, root, *, parent=None, data=None, show_properties=False):
         self.root = root
+        parent = root if parent is None else parent
         root.title('装備セット評価 — Pythonモック')
         root.geometry('1440x900')
         root.minsize(1320, 840)
         theme.install(root)
-        self.data = ReviewData()
+        self.data = ReviewData() if data is None else data
+        self.inspect_values = show_properties
+        self.extra_properties = None
         self.set_index = self.slot_index = 0
         self.trial_key = None
         self.history = []
         self.query = tk.StringVar()
         self.status = tk.StringVar(value='枠を選ぶ → 候補を選んで差分を見る → 適用')
 
-        header = ttk.Frame(root, padding=(18, 12, 18, 10))
-        header.pack(fill='x')
+        header = ttk.Frame(parent, padding=(18, 12, 18, 10))
+        if parent is root:
+            header.pack(fill='x')
         ttk.Label(header, text='装備セット', font=('Yu Gothic UI', 17, 'bold')).pack(side='left')
         ttk.Label(header, text='画面構成の検討  /  合成データ', style='Muted.TLabel').pack(side='left', padx=18)
         ttk.Label(header, text='変更はモックを閉じるまで保持', style='Muted.TLabel').pack(side='right')
-        footer = ttk.Frame(root, padding=(18, 8))
+        footer = ttk.Frame(parent, padding=(18, 8))
         footer.pack(side='bottom', fill='x')
         ttk.Label(footer, textvariable=self.status).pack(side='left')
         self.undo_button = ActionButton(footer, text='直前の適用を戻す', command=self.undo)
         self.undo_button.pack(side='right')
-        body = ttk.Frame(root, padding=(14, 0, 14, 0))
+        body = ttk.Frame(parent, padding=(14, 0, 14, 0))
         body.pack(fill='both', expand=True)
         body.columnconfigure(1, weight=4, minsize=490)
         body.columnconfigure(2, weight=6, minsize=600)
@@ -97,22 +101,26 @@ class EquipmentReviewMock:
         self.candidates.configure(yscrollcommand=scrollbar.set)
         self.candidates.bind('<<TreeviewSelect>>', self.preview_candidate)
         actions = ttk.Frame(center, padding=(0, 8, 0, 0))
-        actions.pack(fill='x')
+        if show_properties:
+            actions.pack(fill='x', side='bottom', before=self.candidates_panel)
+        else:
+            actions.pack(fill='x')
         self.apply_button = ActionButton(actions, text='この候補を適用', style='Primary.TButton', command=self.apply_candidate)
         self.apply_button.pack(side='right')
         self.cancel_button = ActionButton(actions, text='候補を解除', command=self.cancel_candidate)
         self.cancel_button.pack(side='right', padx=8)
         ttk.Label(actions, text='選択だけでは変更しません', style='Muted.TLabel').pack(side='left')
-
         self.summary = ttk.Frame(body, padding=(10, 4, 0, 0))
         self.summary.grid(row=0, column=2, sticky='nsew')
         top = ttk.Frame(self.summary)
         top.pack(fill='x')
-        ttk.Label(top, text='装備の加算値', font=('Yu Gothic UI', 13, 'bold')).pack(side='left')
+        ttk.Label(top, text='装備の加算値（上限前）' if show_properties else '装備の加算値',
+                  font=('Yu Gothic UI', 13, 'bold')).pack(side='left')
         ActionButton(top, text='全項目・内訳', command=self.show_report).pack(side='right')
-        ttk.Label(self.summary, text='上限適用前  /  キャラの基礎値を含まない', style='Muted.TLabel').pack(anchor='w', pady=(2, 4))
+        if not show_properties:
+            ttk.Label(self.summary, text='上限適用前  /  キャラの基礎値を含まない', style='Muted.TLabel').pack(anchor='w', pady=(2, 4))
         self.comparison_title = ttk.Label(self.summary, foreground=theme.ACCENT)
-        self.comparison_title.pack(anchor='w', pady=(0, 6))
+        self.comparison_title.pack(anchor='w', pady=(0, 2 if show_properties else 6))
         tables = ttk.Frame(self.summary)
         tables.pack(fill='x')
         tables.columnconfigure(0, weight=1, uniform='stats')
@@ -124,28 +132,44 @@ class EquipmentReviewMock:
             for col in (1, 2, 3):
                 frame.columnconfigure(col, minsize=61)
         self.metric_labels = {}
+        self.value_headers = []
         positions = [0, 0]
         for title, column, metrics in GROUPS:
             frame, row = columns[column], positions[column]
             for col, label in enumerate((title, '現在', '候補', '差分')):
                 heading = tk.Label(frame, text=label, bg=theme.BG, fg=theme.MUTED,
                                    font=('Yu Gothic UI', 9, 'bold'), anchor='w' if col == 0 else 'e')
-                heading.grid(row=row, column=col, sticky='ew', pady=(6 if row else 0, 3), padx=4)
+                heading.grid(row=row, column=col, sticky='ew', pady=(2 if row and show_properties else 6 if row else 0,
+                                                                   0 if show_properties else 3), padx=4)
+                if col in (1, 2):
+                    self.value_headers.append((col, heading))
             for name, unit, label in metrics:
                 row += 1
                 cells = []
                 for col in range(4):
                     cell = tk.Label(frame, text=label if col == 0 else '', bg=theme.PANEL,
                                     fg=theme.FG, anchor='w' if col == 0 else 'e',
-                                    font=('Yu Gothic UI', 10), pady=1)
+                                    font=('Yu Gothic UI', 10), pady=0 if show_properties else 1)
                     cell.grid(row=row, column=col, sticky='ew', padx=4)
                     cells.append(cell)
                 self.metric_labels[name, unit] = cells
             positions[column] = row + 1
         self.coverage = ttk.Label(self.summary, foreground=theme.WARNING)
-        self.coverage.pack(anchor='w', pady=(12, 3))
-        ttk.Label(self.summary, text='集計外の効果は内訳で確認。未取得がある比較は差分を「未確定」と表示。',
-                  style='Muted.TLabel', wraplength=570).pack(anchor='w')
+        self.coverage.pack(anchor='w', pady=(2, 2) if show_properties else (12, 3))
+        if show_properties:
+            ttk.Label(self.summary, text='選択装備のその他の性能・効果', foreground=theme.REVIEW).pack(anchor='w')
+            extra = ttk.Frame(self.summary)
+            extra.pack(fill='both', expand=True)
+            bar = ttk.Scrollbar(extra)
+            bar.pack(side='right', fill='y')
+            self.extra_properties = tk.Text(extra, height=3, width=1, wrap='word', bg=theme.PANEL, fg=theme.FG,
+                                            relief='flat', padx=8, pady=4, font=('Yu Gothic UI', 10),
+                                            yscrollcommand=bar.set)
+            self.extra_properties.pack(fill='both', expand=True)
+            bar.configure(command=self.extra_properties.yview)
+        else:
+            ttk.Label(self.summary, text='* は既知分の比較。集計外の効果・取得状況は内訳で確認できます。',
+                      style='Muted.TLabel', wraplength=570).pack(anchor='w')
         self.query.trace_add('write', lambda *_: self.filter_candidates())
         self.render()
 
@@ -192,7 +216,7 @@ class EquipmentReviewMock:
         for key, item in self.data.items.items():
             if item.slot != self.slot_index or query not in item.label.casefold():
                 continue
-            state = f'収納1 #{item.position}  ' + ('取得済み' if item.decoded else 'オグメ未取得')
+            state = f'収納{item.container - 11} #{item.position}  ' + ('取得済み' if item.decoded else 'オグメ未取得')
             if key == self.selection[self.slot_index]:
                 state = '装備中 / ' + state
             self.candidates.insert('', 'end', iid=key, values=(item.name, item.path, state))
@@ -242,6 +266,50 @@ class EquipmentReviewMock:
         changed = self.trial_key is not None and self.trial_key != self.selection[self.slot_index]
         self.apply_button.configure(state='normal' if changed else 'disabled')
         self.cancel_button.configure(state='normal' if self.trial_key is not None else 'disabled')
+        if self.inspect_values:
+            self.refresh_item_values(rows)
+
+    def refresh_item_values(self, rows):
+        from .item_property_panel import item_report, other_properties, property_content
+        key = self.trial_key if self.trial_key is not None else self.selection[self.slot_index]
+        self.inspected_key = key
+        self.inspected_report = item_report(self.data, key)
+        title, identity, body, augments = property_content(self.data, key)
+        comparing = self.trial_key is not None
+        single = comparison(self.inspected_report)
+        for metric, (_, now, after, change) in self.metric_labels.items():
+            if not comparing:
+                value = single[metric][0]
+                if self.inspected_report.incomplete and not value.endswith('*') and value != '未確定':
+                    value += '*'
+                after.configure(text=value, fg=theme.REVIEW, bg=theme.PANEL)
+                change.configure(text='', fg=theme.MUTED)
+            else:
+                delta = rows[metric][2]
+                if delta in ('±0', '±0*'):
+                    delta = ''
+                color = (theme.DANGER if delta.startswith('-') else theme.ACCENT if delta.startswith('+')
+                         else theme.WARNING if delta else theme.MUTED)
+                after.configure(fg=theme.REVIEW)
+                change.configure(text=delta, fg=color)
+            now.configure(fg=theme.FG)
+        for col, heading in self.value_headers:
+            heading.configure(text='現在計' if col == 1 else '候補計' if comparing else '選択装備',
+                              fg=theme.MUTED if col == 1 else theme.REVIEW)
+        self.comparison_title.configure(text=('比較: ' if comparing else '選択装備: ') + title + (' / ' + identity if identity else ''),
+                                        foreground=theme.REVIEW)
+        note = self.coverage.cget('text').replace('\n', '  /  ')
+        if not comparing and self.inspected_report.incomplete:
+            note += ' / 選択装備は既知分（*）'
+        self.coverage.configure(text=note)
+        text = other_properties(self.inspected_report)
+        if key in self.data.items:
+            text += '\n\n本体の全プロパティ\n' + body + '\n\nオーグメント\n' + augments
+        self.extra_properties.configure(state='normal')
+        self.extra_properties.delete('1.0', 'end')
+        self.extra_properties.insert('1.0', text)
+        self.extra_properties.configure(state='disabled')
+        self.extra_properties.yview_moveto(0)
 
     def cancel_candidate(self):
         self.trial_key = None
@@ -294,10 +362,11 @@ class EquipmentReviewMock:
         if item is None:
             self.show_text('個体詳細', self.data.label(key))
             return
+        from .item_property_panel import property_content
+        title, identity, body, augments = property_content(self.data, key, formatted=False)
         self.show_text('個体詳細 — 合成データ',
-                       item.label + f'\nワードローブ1 / 位置 {item.position}\n\n装備本体\n'
-                       + (item.description or '未取得') + '\n\nオーグメント原文\n'
-                       + ('\n'.join(item.raw_augments) or '未取得')
+                       title + '\n' + identity + '\n\n装備本体\n'
+                       + body + '\n\nオーグメント原文\n' + augments
                        + '\n\n日本語の能力値と集計の根拠は「全項目・内訳」で確認できます。')
 
     def report_text(self):

@@ -30,6 +30,7 @@ class ReviewItem:
     description: str | None
     raw_augments: tuple[str, ...]
     decoded: bool = True
+    container: int = 12
 
     @property
     def label(self):
@@ -96,7 +97,7 @@ class ReviewData:
                 slots.append(Slot(SLOT_KEYS[part], key, None, None, None, ''))
             else:
                 item = self.items[key]
-                slots.append(Slot(SLOT_KEYS[part], 'equip', item.item_id, 12, item.position, ''))
+                slots.append(Slot(SLOT_KEYS[part], 'equip', item.item_id, item.container, item.position, ''))
         return summarize(Equipset(1, Text('合成データ', '', 'cp932'), tuple(slots)),
                          self.master, self.observation, self.names)
 
