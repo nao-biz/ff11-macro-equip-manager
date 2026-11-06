@@ -137,3 +137,4 @@ class Snapshot:
         'augments': 'unsupported', 'write': 'equipset_reference_single_file_guarded'})
     phrases: dict = field(default_factory=dict)
     phrase_readings: dict = field(default_factory=dict)
+    augment_names: dict = field(default_factory=dict)

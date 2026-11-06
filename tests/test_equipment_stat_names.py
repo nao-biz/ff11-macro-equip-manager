@@ -2,10 +2,16 @@
 from decimal import Decimal
 import unittest
 from ff11reader.domain import Equipset, Slot, Text
-from ff11reader.equipment_stats import parse_line, summarize
+from ff11reader.equipment_stats import parse_line as parse_with_dictionary, summarize
+from ff11reader.equipment_stat_names import from_dictionary
+from prototypes.augment_dictionary_fixture import names
 from ff11reader.augment_import import parse
 from ff11reader.augment_observation import reconcile
 from tests.test_augment_import import character, encoded, fixture
+
+
+def parse_line(line):
+    return parse_with_dictionary(line, names())
 
 
 class StatNameTests(unittest.TestCase):
@@ -14,7 +20,27 @@ class StatNameTests(unittest.TestCase):
         data['bags'][12]['items'][0]['augments'] = augments
         observation = reconcile(parse(encoded(data)), character())
         equipment = Equipset(1, Text('合成装備', '', 'cp932'), (Slot('main', 'equip', 21581, 12, 1, ''),))
-        return summarize(equipment, {21581: {'name': '合成装備', 'description': description}}, observation)
+        return summarize(equipment, {21581: {'name': '合成装備', 'description': description}}, observation, names())
+
+    def test_names_follow_resource_ids_and_dictionary_changes(self):
+        english = {7: 'Novel stat%+d', 8: 'Attack%+d', 9: 'Haste%+d%%'}
+        japanese = {9: 'ヘイスト%+d', 7: '新能力%+d', 8: '攻%+d'}
+        table = from_dictionary(english, japanese)
+        self.assertEqual(parse_with_dictionary('Novel stat+7 Haste+3', table), [('新能力', '', 7), ('ヘイスト', '%', 3)])
+        japanese[7] = '更新能力%+d'
+        self.assertEqual(parse_with_dictionary('Novel stat+7', from_dictionary(english, japanese)), [('更新能力', '', 7)])
+        self.assertIsNone(parse_with_dictionary('Accuracy+10'))
+        self.assertEqual(parse_with_dictionary('魔命+10 HP+20'), [('魔命', '', 10), ('HP', '', 20)])
+
+    def test_missing_conflicting_or_complex_records_do_not_guess(self):
+        table = from_dictionary({1: 'Ambiguous%+d', 2: 'Ambiguous%+d', 3: 'Missing%+d',
+                                 4: 'Pair%+d Other%+d', 5: 'Pet: Attack%+d'},
+                                {1: '攻%+d', 2: '命中%+d', 4: '攻%+d 命中%+d', 5: 'ペット:攻%+d'})
+        for line in ('Ambiguous+5', 'Missing+5', 'Pair+5 Other+5', 'Pet: Attack+5'):
+            self.assertIsNone(parse_with_dictionary(line, table))
+        units = from_dictionary({1: 'Rate%+d', 2: 'Rate%+d%%'}, {1: '新数値%+d', 2: '新数値%+d%%'})
+        self.assertIsNone(parse_with_dictionary('Rate+5', units))
+        self.assertEqual(parse_with_dictionary('Rate+5%', units), [('新数値', '%', 5)])
 
     def test_quoted_english_augments_join_japanese_base_and_keep_raw(self):
         raw = ['"Mag. Acc."+10', '"Store TP"+5', '"Dbl.Atk."+3', 'Haste+2',

@@ -19,7 +19,7 @@ class EquipmentStats:
     incomplete: bool = False
 
 
-def parse_line(line):
+def parse_line(line, names=None):
     line=unicodedata.normalize('NFKC',line).strip().replace('−','-')
     line=re.sub(r'詠唱中断率\s*(\d+(?:\.\d+)?)%ダウン',r'詠唱中断率-\1%',line)
     line=DEFENSE.sub(r'防+\1',line)
@@ -27,16 +27,16 @@ def parse_line(line):
     remainder=TOKEN.sub('',line)
     if not matches or remainder.strip(' ,、;'):
         return None
-    values=[normalize(m[1].strip(),m[3],Decimal(re.sub(r'\s+','',m[2]))) for m in matches]
+    values=[normalize(m[1].strip(),m[3],Decimal(re.sub(r'\s+','',m[2])),names) for m in matches]
     return values if all(v is not None for v in values) else None
 
 
-def summarize(equipset, items, observation=None):
+def summarize(equipset, items, observation=None, names=None):
     totals=defaultdict(int);excluded=[];included=[];incomplete=False
     def add(source,line):
         nonlocal incomplete
         if not line.strip():return
-        values=parse_line(line)
+        values=parse_line(line,names)
         if values is None:excluded.append((source,line));incomplete=True;return
         for name,unit,number in values:totals[name,unit]+=number
         included.append((source,line))

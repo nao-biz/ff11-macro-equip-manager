@@ -407,7 +407,7 @@ class ReaderWindow:
   self.active_card=frame;frame.configure(highlightbackground=ACCENT,highlightthickness=1);command()
  def render_equipment(self,equipset):
   self.selected=equipset
-  self.equipment_summary.show(equipset,self.snapshot.items,self.augment_observations.get(self.character.folder_id),self.detail_heading)
+  self.equipment_summary.show(equipset,self.snapshot.items,self.augment_observations.get(self.character.folder_id),self.snapshot.augment_names)
   self.active_slot=None;self.slot_edit_button.configure(state='disabled')
   self.heading.configure(text=self.equipset_label(equipset.number))
   refs=self.macro_links.for_set(equipset.number)

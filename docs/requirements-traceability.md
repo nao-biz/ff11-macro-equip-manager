@@ -13,6 +13,7 @@
 | DATA-002 | [codecs.py](../ff11reader/codecs.py)、[dictionaries.py](../ff11reader/dictionaries.py)、[icons.py](../ff11reader/icons.py) | [DecodingTests.test_resolved_token_preserves_bytes_and_unknown_fallback](../tests/test_reader.py) | 文字解決を検証。アイコンは別の形式テストも参照 |
 | DATA-003 | [出力アドオン](../addons/ff11export/ff11export.lua)、[取り込み](../ff11reader/augment_import.py)、[照合](../ff11reader/augment_observation.py) | [合成出力・取り込み](../tests/test_augment_import.py)、[合成GUI](../tests/test_augment_ui.py)、[個体情報の永続化](../tests/test_augment_store.py) | Lua 5.1で合成APIのJSON出力をPythonへ取り込み。2026-11-06、ユーザーがロスタムB/Cの出力・取り込みの実機確認完了を報告。個別の日本語・Rank・読込タイミングの検証記録は未記載 |
 | DATA-004 | [adapters.py](../ff11reader/adapters.py)、[references.py](../ff11reader/references.py) | [ReferenceTests.test_loaded_empty_and_missing_and_unreadable_are_distinct](../tests/test_references.py) | 参照判定を検証 |
+| DATA-005 | [adapters.py](../ff11reader/adapters.py)、[equipment_stat_names.py](../ff11reader/equipment_stat_names.py)、[データ源の根拠](reference/sources.json) | [辞書の更新・再読込](../tests/test_augment_dictionary.py)、[名称追加・変更](../tests/test_equipment_stat_names.py)、EX-D08・09／EX-EVAL07 | 本体辞書への追従は合成検証済み。第三者の継続保守・無償更新は採用時レビューの対象で、既存採用元全体の確認は未実施 |
 | EQ-001 | [references.py](../ff11reader/references.py)、[domain.py](../ff11reader/domain.py) | [SlotStateTests.test_augments_do_not_affect_reference_state](../tests/test_slot_state.py) | 一致・優先順位はSlotStateTestsにも検証あり |
 | EQ-002 | [fixes.py](../ff11reader/fixes.py)、[references.py](../ff11reader/references.py) | [FixTests.test_unique_target_in_every_storage_is_fixable](../tests/test_fixes.py) | 全収納の候補を検証 |
 | EQ-003 | [fixes.py](../ff11reader/fixes.py)、[references.py](../ff11reader/references.py) | [FixTests.test_no_candidate_and_repeated_position_are_blocked](../tests/test_fixes.py) | 不足資料・キャラ分離は関連テストでも検証 |
@@ -167,7 +168,7 @@ VIEW-003 / D-15: [ui_tasks.py](../ff11reader/ui_tasks.py)の共通ワーカー�
 
 VIEW-002の追加表示: `augment_presentation.path_label` と `inventory_ui.item_row` を `ui.py` から利用。`tests/test_augment_ui.py` で枠内Path、表示切替、行クリック、表示方式の維持を合成GUIで確認。
 
-VIEW-005 / D-17: `equipment_stats.py`が装備・個体の加算値を集計し、`equipment_stat_names.py`が既知の英語名称と省略単位を日本語の項目へ正規化する。原文・未対応の効果は内訳に保持する。根拠は[能力名と単位](reference/augment-stat-names.md)。`tests/test_equipment_stats.py`と`tests/test_equipment_stat_names.py`で意味・単位・引用符・II・未知表記・原文を検証する（EX-EVAL01）。
+VIEW-005 / D-17: `LocalReader.load_augment_names`がゲーム内の英日辞書を読み、`equipment_stat_names.py`が同じ辞書IDから能力名を対応させる。`equipment_stats.py`が装備・個体の加算値を集計し、原文・未対応の効果を内訳に保持する。根拠は[能力名と単位](reference/augment-stat-names.md)。`tests/test_augment_dictionary.py`で合成DATの取得・欠落・破損・Snapshotへの引継ぎと再読込、`tests/test_equipment_stat_names.py`で辞書の更新・競合・単位・引用符・II・原文を検証する（EX-EVAL01・07）。
 
 VIEW-006 / D-17・D-18: `equipment_picker_ui.py`の部位別候補を4×4枠の下に、`equipment_summary_ui.py`の集計を右へ常時表示する。主要43項目・分類・比較値の表示は`equipment_stats_presentation.py`で管理し、モックと定義を共有する。候補の一時比較は作業・原本を変更せず、確定は既存の変更案確認と共通ワーカーへ渡す。
 
@@ -176,3 +177,5 @@ VIEW-006 / D-17・D-18: `equipment_picker_ui.py`の部位別候補を4×4枠の�
 2026-11-06の装備評価モック: 仕様管理・既存集計と表示・旧新モック・共通ワーカーの関連46テスト成功、正本64件の参照検査成功。実画面で候補選択時の差分と未取得表示を確認した。主要項目追加後、モックの7テストで43項目の配置・現在値・候補値・差分を再確認した。
 
 2026-11-06の本体反映: 合成GUI・モックを含む全347テストを実行し346件成功、実ゲーム読込1件をスキップ。Tkテストの破棄済み画面をUIスレッドで解放するよう修正した。目視で見つけたタブ往復後の集計幅の縮小を修正し、往復を含むレイアウト検証と既存操作の12テストが成功。本体の集計・候補比較・内訳を目視確認し、最小1320×840でタブ往復後の表示も確認した。正本64件の参照検査成功。実ゲームファイルへの書込みは行っていない。
+
+2026-11-06のゲーム辞書への切替: 全352テスト中351件成功、実ゲームUI1件をスキップ。単位が競合する書式の扱いを調整した後も関連16テスト成功。ローカル辞書の読取確認は[能力名と単位](reference/augment-stat-names.md)に記録した。

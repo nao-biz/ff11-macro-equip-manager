@@ -22,6 +22,7 @@ class EquipmentReviewUITests(WorkspaceMixin, SlotFixture):
         errors.start(); self.addCleanup(errors.stop)
         data = ReviewData()
         c = self.source.characters[0]
+        self.source.augment_names = data.names
         c.inventory = [InventoryRow(12, i.position, i.item_id, 1) for i in data.items.values()]
         c.inventory_coverage[12] = 'loaded'
         slots = {}

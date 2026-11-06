@@ -7,6 +7,7 @@ from ff11reader.augment_observation import reconcile
 from ff11reader.augment_import import parse
 from ff11reader import codecs
 from tests.test_augment_import import fixture,encoded,character
+from prototypes.augment_dictionary_fixture import names
 
 class EquipmentStatsTests(unittest.TestCase):
     def test_units_conditional_and_keep(self):
@@ -46,7 +47,7 @@ class EquipmentStatsTests(unittest.TestCase):
         self.assertEqual(totals['ウェポンスキルのダメージ','%'],15)
         self.assertEqual(totals['詠唱中断率','%'],-15)
         self.assertEqual(totals['新能力',''],Decimal('3.3'))
-        self.assertEqual(parse_line('Accuracy+10 "Mag.Atk.Bns."+5'),[('命中','',10),('魔攻','',5)])
+        self.assertEqual(parse_line('Accuracy+10 "Mag.Atk.Bns."+5',names()),[('命中','',10),('魔攻','',5)])
 
     def test_japanese_description_record(self):
         raw=bytearray(0x1400);struct.pack_into('<H',raw,0,10276)

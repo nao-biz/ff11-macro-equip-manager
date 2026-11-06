@@ -73,6 +73,24 @@ class LocalReader:
                 phrases[key]=linked[value[1]].get(int(value[2:],16),value)
         return phrases
 
+    def load_augment_names(self):
+        from .equipment_stat_names import from_dictionary
+        table = self.guarded(self.root/'FTABLE.DAT', lambda b: b)
+        if table is None:
+            return {}
+        languages = []
+        for logical in (0xD98C, 0xD914):
+            if logical * 2 + 2 > len(table):
+                self.diagnostics.append({'code': 'augment_dictionary_unavailable', 'logical_id': logical})
+                return {}
+            packed = struct.unpack_from('<H', table, logical * 2)[0]
+            path = self.root/'ROM'/str(packed >> 7)/f'{packed & 127}.DAT'
+            names = self.guarded(path, dictionaries.dmsg_names)
+            if names is None:
+                return {}
+            languages.append(names)
+        return from_dictionary(*languages)
+
     def load_characters(self, resolver=None):
         result=[]
         for folder in sorted((self.root/'USER').iterdir()):

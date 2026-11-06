@@ -4,7 +4,7 @@ FF11のローカルファイルを扱うWindowsデスクトップアプリ。
 
 ## 開発資料
 
-要件・採用設計は構造化した正本を`python -m spec_manager`から参照・更新します。[開発資料の案内](docs/README.md)に検索方法と、検証仕様・既存実装との対応・ファイル形式への入口を記載しています。
+要件・採用設計・UI方針は[maintain-specs](.agents/skills/maintain-specs/SKILL.md)を入口に参照・更新します。[開発資料の案内](docs/README.md)に資料の役割と、要件・設計の分類・更新方針を記載しています。
 
 ## 起動
 

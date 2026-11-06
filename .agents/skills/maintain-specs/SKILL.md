@@ -1,6 +1,6 @@
 ---
 name: maintain-specs
-description: "このリポジトリの要件・採用設計を調査・追加・変更し、検証仕様や実装との対応を確認する。"
+description: "このリポジトリの要件・採用設計・UI方針を調査・保守する。実装・テストの着手時にも使い、対象の正本・検証仕様・参照資料を確認する。"
 ---
 
 # 要件・設計の保守
@@ -19,7 +19,14 @@ python -X utf8 -m spec_manager overview
 python -X utf8 -m spec_manager validate
 ```
 
-検索結果から対象IDの`record`を取得し、関連ID・検証仕様・対応表の該当箇所を読む。`overview`には文書全体の説明と未確定事項がある。`related`の`relations`は明示的な関係、`occurrences`は本文などでの言及。どちらも一段の関連であり、意味上の影響範囲は内容から判断する。`truncated`なら`--limit`を増やす。UI・バイナリ変更の追加参照はAGENTS.mdに従う。
+検索結果から対象IDの`record`を取得し、関連ID・検証仕様・対応表の該当箇所を読む。`overview`には文書全体の説明と未確定事項がある。`related`の`relations`は明示的な関係、`occurrences`は本文などでの言及。どちらも一段の関連であり、意味上の影響範囲は内容から判断する。`truncated`なら`--limit`を増やす。`search --kind requirement/design/policy`で種類を絞れる。
+
+対象に応じて次も参照する。IDの本文は`get`で取得し、関連する検証仕様まで確認する。
+
+- 調査・実装・テスト: SAFE-001。
+- UIの設計・変更: D-10・D-15と、`search --kind policy`で得た対象DP。モックの確認範囲はDP-06。
+- ゲーム由来のデータ源の採用・更新: DATA-005。
+- バイナリ処理: [ローカル形式](../../../docs/reference/local-formats.md)と[調査根拠](../../../docs/reference/sources.json)。
 
 ## 更新する
 

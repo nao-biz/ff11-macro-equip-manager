@@ -48,9 +48,10 @@ class EquipmentSummary:
         self.note.pack(anchor='w', pady=(6, 0))
         self.result = self.trial_result = None
 
-    def show(self, equipset, items, observation, before=None):
+    def show(self, equipset, items, observation, names=None):
         self.equipset, self.items, self.observation = equipset, items, observation
-        self.result = summarize(equipset, items, observation)
+        self.names = names
+        self.result = summarize(equipset, items, observation, names)
         self.clear_candidate()
         self.frame.pack(fill='both', expand=True)
 
@@ -63,7 +64,7 @@ class EquipmentSummary:
             self.render('候補を選ぶと現在との差分を表示')
 
     def show_candidate(self, equipset, label):
-        self.trial_result = summarize(equipset, self.items, self.observation)
+        self.trial_result = summarize(equipset, self.items, self.observation, self.names)
         self.render('候補: ' + label + ('（既知分のみ）' if self.trial_result.incomplete else ''))
 
     def render(self, label):

@@ -2,17 +2,7 @@
 
 ## 仕様を調べる
 
-要件・採用設計・UI方針は構造化した正本を管理処理から参照する。保守手順は [maintain-specs](../.agents/skills/maintain-specs/SKILL.md) に従う。リポジトリのルートで実行する。
-
-```sh
-python -X utf8 -m spec_manager search "定型文"
-python -X utf8 -m spec_manager get EDIT-007
-python -X utf8 -m spec_manager related EDIT-007
-python -X utf8 -m spec_manager overview
-python -X utf8 -m spec_manager validate
-```
-
-Windowsでは`.venv/Scripts/python.exe`を使用できる。`search --kind requirement/design/policy`で種類を絞る。`overview`は文書全体の説明と未確定事項、`related`は明記された関係と、本文・検証仕様・対応表での参照箇所を返す。意味上の影響範囲は対象の内容から判断する。
+要件・採用設計・UI方針の参照・保守は [maintain-specs](../.agents/skills/maintain-specs/SKILL.md) を入口にする。検索・更新の操作と対象別の参照先はSKILL、本文は管理処理から取得する構造化した正本で管理する。この文書は資料の役割と分類・更新方針を説明する。
 
 | 情報 | 役割 |
 |---|---|
@@ -23,7 +13,7 @@ Windowsでは`.venv/Scripts/python.exe`を使用できる。`search --kind requi
 | [対応表](requirements-traceability.md) | 既存コード・テスト・検証不足への索引 |
 | [ローカル形式](reference/local-formats.md)・[調査根拠](reference/sources.json) | バイナリ処理の技術的根拠 |
 
-[個体情報の出力形式](reference/augment-export.md)はDATA-003の取り込み契約。UI・バイナリ変更時の追加参照はAGENTS.mdに従う。
+[個体情報の出力形式](reference/augment-export.md)はDATA-003の取り込み契約。
 
 ## 要件と設計の判別・更新
 

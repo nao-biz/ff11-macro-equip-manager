@@ -7,6 +7,7 @@ from ff11reader.augment_observation import (
 from ff11reader.domain import Equipset, Slot, Text
 from ff11reader.equipment_stats import summarize
 from .equipment_workspace import SLOTS
+from .augment_dictionary_fixture import names
 
 SLOT_KEYS = ('main', 'sub', 'range', 'ammo', 'head', 'neck', 'ear1', 'ear2',
              'body', 'hands', 'ring1', 'ring2', 'back', 'waist', 'legs', 'feet')
@@ -37,6 +38,7 @@ class ReviewItem:
 
 class ReviewData:
     def __init__(self):
+        self.names = names()
         self.items = {}
         for part in range(16):
             for variant in range(4):
@@ -96,7 +98,7 @@ class ReviewData:
                 item = self.items[key]
                 slots.append(Slot(SLOT_KEYS[part], 'equip', item.item_id, 12, item.position, ''))
         return summarize(Equipset(1, Text('合成データ', '', 'cp932'), tuple(slots)),
-                         self.master, self.observation)
+                         self.master, self.observation, self.names)
 
     def label(self, key):
         return {'keep': '変更しない（実行前の装備は未確定）', 'remove': '装備を外す'}.get(key) or self.items[key].label

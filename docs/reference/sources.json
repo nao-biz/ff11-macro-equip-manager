@@ -646,6 +646,28 @@
       "augment_values contains quoted stat names and alternative spellings",
       "string_augment adds percent sign only when percent is set; some percentage properties omit it"
     ],
-    "caution": "Source establishes exported strings; Japanese name/unit mappings and UI are verified using synthetic inputs."
+    "caution": "Export spelling and omitted percent signs only. Japanese names come from the installed bilingual augment dictionaries (S-AUG-DICT)."
+  },
+  {
+    "id": "S-AUG-DICT",
+    "type": "public implementation and local read-only verification",
+    "repo": "Windower/Resources; Windower/ResourceExtractor",
+    "accessed": "2026-11-06",
+    "urls": [
+      "https://github.com/Windower/Resources/blob/master/resources_data/augments.lua",
+      "https://github.com/Windower/ResourceExtractor/blob/master/Program.cs",
+      "https://github.com/Windower/ResourceExtractor/blob/master/DMsgParser.cs"
+    ],
+    "blob_shas": {
+      "augments.lua": "591c11421ce624c8674e805317d2ad136d887585",
+      "Program.cs": "aa22a0562e707a8aaa94f5f85768b5148198a209",
+      "DMsgParser.cs": "547b5f7254e53ed415cef67038a3e474b15e0f18"
+    },
+    "supports": [
+      "Bilingual augment strings share resource IDs",
+      "English logical DAT 0xD98C and Japanese 0xD914; d_msg format",
+      "Installed dictionaries read successfully: 2048 entries per language; source hashes unchanged"
+    ],
+    "caution": "Dictionary IDs are not extdata encoded augment IDs. Join language resources by dictionary ID only. Single numeric templates are used for normalization; unsupported templates remain excluded. Game assets are not distributed."
   }
 ]
