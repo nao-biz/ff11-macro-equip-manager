@@ -1,4 +1,5 @@
 """One selection/command controller shared by object views."""
+from .theme import ACCENT, FG, MUTED, PANEL, SELECT, WARNING
 import tkinter as tk
 from . import dialogs
 from .ui_actions import run_action
@@ -15,7 +16,7 @@ class SelectionCommands:
         self.anchor = None
         self.focus = None
         self.cards = {}
-        self.menu = tk.Menu(view.app, tearoff=False, bg='#101b38', fg='#edf1fa', activebackground='#354b7a')
+        self.menu = tk.Menu(view.app, tearoff=False, bg=PANEL, fg=FG, activebackground=SELECT)
         self.actions = [('切り取り', 'Ctrl+X', 'cut'), ('コピー', 'Ctrl+C', 'copy'),
                         ('貼り付け…', 'Ctrl+V', 'paste'), ('削除…', 'Delete', 'delete'),
                         ('元に戻す', 'Ctrl+Z', 'undo'), ('やり直す', 'Ctrl+Y', 'redo')]
@@ -139,7 +140,7 @@ class SelectionCommands:
             v.nav.selection_clear(0,'end')
             for i,e in enumerate(v.navigation):
                 if self.kind=='equipment' and (e.number,) in self.selection:v.nav.selection_set(i)
-                v.nav.itemconfigure(i,foreground='#f3ce77' if cut_kind=='equipment' and (e.number,) in cut else ('#7e8ca9' if all(s.action=='keep' for s in e.slots) else '#edf1fa'))
+                v.nav.itemconfigure(i,foreground=WARNING if cut_kind=='equipment' and (e.number,) in cut else (MUTED if all(s.action=='keep' for s in e.slots) else FG))
         if v.mode.get()=='マクロ':
             if self.kind=='palette':
                 items=[f'palette-{a[0]}-{a[1]}' for a in self.selection]
@@ -152,8 +153,8 @@ class SelectionCommands:
             if not widget.winfo_exists():continue
             selected=self.kind=='macro' and address in self.selection
             cutting=cut_kind=='macro' and address in cut
-            widget.configure(highlightbackground='#f3ce77' if cutting else '#fff1bc' if selected else widget.normal_border,
-                             background='#263b65' if selected else '#101e36')
+            widget.configure(highlightbackground=WARNING if cutting else ACCENT if selected else widget.normal_border,
+                             background=SELECT if selected else PANEL)
         label={'macro':'マクロ','palette':'パレット','equipment':'装備セット'}.get(self.kind,'対象')
         message=f'{label} {len(self.selection)}件選択'
         if transfer:message+=f' · {"切り取り中" if transfer.cut else "コピー済み"} {len(transfer.selection)}件'

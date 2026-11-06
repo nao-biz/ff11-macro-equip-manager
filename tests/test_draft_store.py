@@ -1,5 +1,6 @@
 """Synthetic draft replacement failures, recovery and concurrent external edits."""
 import os
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -150,3 +151,44 @@ class DraftReplacementTests(unittest.TestCase):
             self.assertGreater(sleep.call_count, 0)
         self.assertEqual(self.editor.edit_status(), (2, 2, True))
         self.assertEqual(Editor(self.source, self.path).snapshot(), self.editor.snapshot())
+
+
+class CheckpointReplacementTests(unittest.TestCase):
+    def test_complete_checkpoint_uses_one_publication_with_bounded_retry(self):
+        from tests.property_support import GameFixture, isolated
+        with isolated() as base:
+            fixture=GameFixture(base,'macro',127,1);fixture.fix();plan=fixture.preview()
+            pending=fixture.editor.store.path.with_suffix('.pending.json')
+            actual=Path.replace;attempts=[]
+            def replace(temp,target):
+                if Path(target)==pending:
+                    data=json.loads(temp.read_text(encoding='utf-8'))
+                    self.assertEqual(data['draft_revision'],fixture.editor.store.revision)
+                    self.assertEqual(fixture.bytes(),fixture.all_original)
+                    self.assertFalse(pending.exists())
+                    attempts.append(temp)
+                    if len(attempts)<3:raise windows_error()
+                return actual(temp,target)
+            with patch.object(Path,'replace',replace),patch('ff11reader.draft_store.time.sleep'):
+                fixture.save(plan)
+            self.assertEqual(len(attempts),3);self.assertEqual(len(set(attempts)),1)
+            self.assertFalse(pending.exists());fixture.reopen()
+            self.assertIsNone(fixture.editor.blocked);self.assertFalse(fixture.editor.session.dirty)
+
+    def test_failed_checkpoint_keeps_game_and_work_then_can_retry(self):
+        from tests.property_support import GameFixture, isolated
+        with isolated() as base:
+            fixture=GameFixture(base,'macro',127,1);fixture.fix();plan=fixture.preview()
+            pending=fixture.editor.store.path.with_suffix('.pending.json')
+            original=fixture.editor.store.path.read_bytes();status=fixture.editor.edit_status()
+            actual=Path.replace
+            def replace(temp,target):
+                if Path(target)==pending:raise windows_error()
+                return actual(temp,target)
+            with patch.object(Path,'replace',replace),patch('ff11reader.draft_store.time.sleep'):
+                with self.assertRaises(PermissionError):fixture.save(plan)
+            self.assertEqual(fixture.bytes(),fixture.all_original)
+            self.assertEqual(fixture.editor.store.path.read_bytes(),original)
+            self.assertEqual(fixture.editor.edit_status(),status)
+            self.assertFalse(pending.exists());self.assertFalse(list(base.glob('*.tmp')))
+            fixture.save(plan);fixture.reopen();self.assertIsNone(fixture.editor.blocked)

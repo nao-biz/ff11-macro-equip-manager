@@ -1,4 +1,5 @@
 """Startup preparation off the Tk thread; one-way ownership handoff to the UI."""
+from .theme import BG, FG, PANEL, install
 from pathlib import Path
 from queue import Queue, Empty
 from threading import Thread
@@ -25,12 +26,13 @@ def prepare(root, report):
 
 class Startup:
     def __init__(self, app, prepare_work, ready):
+        install(app)
         self.app=app;self.prepare_work=prepare_work;self.ready=ready
         self.messages=Queue();self.closed=False;self.started=False;self.poll_id=None
-        app.title('FF11 ワークスペース — 起動中');app.geometry('480x180');app.configure(bg='#080f22')
-        self.panel=tk.Frame(app,bg='#080f22',padx=24,pady=24);self.panel.pack(fill='both',expand=True)
-        tk.Label(self.panel,text='FF11 ワークスペースを起動しています',bg='#080f22',fg='#edf1fa',font=('MS Gothic',13,'bold')).pack(anchor='w')
-        self.status=tk.Label(self.panel,text='準備しています…',bg='#080f22',fg='#edf1fa',wraplength=430,justify='left');self.status.pack(anchor='w',pady=12)
+        app.title('FF11 ワークスペース — 起動中');app.geometry('480x180');app.configure(bg=BG)
+        self.panel=tk.Frame(app,bg=BG,padx=24,pady=24);self.panel.pack(fill='both',expand=True)
+        tk.Label(self.panel,text='FF11 ワークスペースを起動しています',bg=BG,fg=FG,font=('MS Gothic',13,'bold')).pack(anchor='w')
+        self.status=tk.Label(self.panel,text='準備しています…',bg=BG,fg=FG,wraplength=430,justify='left');self.status.pack(anchor='w',pady=12)
         self.progress=ttk.Progressbar(self.panel,mode='indeterminate');self.progress.pack(fill='x');self.progress.start(40)
         app.protocol('WM_DELETE_WINDOW',self.close)
         self.binding=app.bind('<Map>',self.mapped,add='+')
@@ -74,7 +76,7 @@ class Startup:
         self.app.title('FF11 ワークスペース — 起動エラー')
         self.status.configure(text='起動できませんでした。')
         self.progress.pack_forget()
-        detail=tk.Text(self.panel,height=6,bg='#101b38',fg='#edf1fa',wrap='word')
+        detail=tk.Text(self.panel,height=6,bg=PANEL,fg=FG,wrap='word')
         detail.insert('1.0',message);detail.configure(state='disabled');detail.pack(fill='both',expand=True)
         ttk.Button(self.panel,text='閉じる',command=self.close).pack(pady=8)
         self.app.geometry('600x340')

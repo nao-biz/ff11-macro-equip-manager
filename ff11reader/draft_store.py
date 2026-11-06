@@ -161,7 +161,7 @@ class DraftStore:
             self._baseline_json = encoded
             self._baseline_token = session.baseline_token()
 
-    def save(self, session, *, archive_previous=False):
+    def save(self, session, *, archive_previous=False, draft_revision=None):
         self.path.parent.mkdir(parents=True, exist_ok=True)
         lock = self.path.with_suffix('.lock')
         # Exclusive lock also prevents two app instances from overwriting a draft.
@@ -174,6 +174,7 @@ class DraftStore:
                 data = {'version': 4, 'installation': installation,
                         'sources': sorted((str(s['path']),s['sha256']) for s in sources),
                         'history': encode(session.history), 'cursor': session.cursor, 'saved_origins':session.saved_origins()}
+                if draft_revision is not None:data['draft_revision']=draft_revision
                 header = json.dumps(data, ensure_ascii=False)
             temp = self.path.with_name(self.path.name + '.' + uuid4().hex + '.tmp')
             try:

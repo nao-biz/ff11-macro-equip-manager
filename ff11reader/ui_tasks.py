@@ -3,6 +3,7 @@
 Only the caller/poller touches Tk. The worker receives a callable with captured
 plain arguments, owns application state until completion, and returns via Queue.
 """
+from .theme import ACCENT, BG, BORDER, PANEL
 from contextvars import copy_context
 from queue import Queue, Empty
 from threading import Thread, get_ident
@@ -40,12 +41,12 @@ class TaskScreen:
             command = window.register(self.request_close)
             window.tk.call('wm', 'protocol', window._w, 'WM_DELETE_WINDOW', command)
             self.protocols.append((window, previous, command))
-            layer = tk.Frame(window, bg='#080f22', cursor='wait', takefocus=True)
+            layer = tk.Frame(window, bg=BG, cursor='wait', takefocus=True)
             # Show after a short delay so fast operations do not flash an overlay.
             layer.bindtags((self.tag,))
-            panel = tk.Frame(layer,bg='#101b38',padx=24,pady=20,highlightthickness=1,highlightbackground='#8491b2')
+            panel = tk.Frame(layer,bg=PANEL,padx=24,pady=20,highlightthickness=1,highlightbackground=BORDER)
             panel.place(relx=.5,rely=.5,anchor='center')
-            label = tk.Label(panel,text=message,bg='#101b38',fg='#fff3c4',font=('MS Gothic',12),wraplength=420)
+            label = tk.Label(panel,text=message,bg=PANEL,fg=ACCENT,font=('MS Gothic',12),wraplength=420)
             label.pack()
             progress = ttk.Progressbar(panel,mode='indeterminate',length=300)
             progress.pack(pady=(16,0))

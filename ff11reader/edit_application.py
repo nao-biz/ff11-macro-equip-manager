@@ -274,11 +274,9 @@ class Editor:
             if file:source['sha256']=digest(file.replacement)
         next_session.saved=saved
         pending=self.store.path.with_suffix('.pending.json')
-        if pending.exists():raise ValueError('前回のゲーム保存の復旧確認が必要です。')
-        DraftStore(pending).save(next_session)
-        data=json.loads(pending.read_text(encoding='utf-8'));data['draft_revision']=self.store.revision
-        from .saving import atomic_replace
-        atomic_replace(pending,json.dumps(data,ensure_ascii=False).encode('utf-8'))
+        checkpoint=DraftStore(pending)
+        if checkpoint.revision is not None:raise ValueError('前回のゲーム保存の復旧確認が必要です。')
+        checkpoint.save(next_session,draft_revision=self.store.revision)
         try:
             from .elevation import execute_with_permission
             backup=execute_with_permission(preview,backup_root,execute_save)

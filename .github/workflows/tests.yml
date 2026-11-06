@@ -20,4 +20,4 @@ jobs:
         timeout-minutes: 5
         env:
           FF11_RUN_INTEGRATION: "1"
-        run: python -X utf8 -B -m unittest tests.test_ui_tasks tests.test_reload tests.test_ui_actions tests.test_ui_execution tests.test_augment_ui -v
+        run: python -X utf8 -B -m unittest tests.test_ui_tasks tests.test_reload tests.test_ui_actions tests.test_ui_execution tests.test_augment_ui tests.test_workspace_ui tests.test_dialogs tests.test_editing_ui tests.test_phrase_editing.PhraseUITests tests.test_equipment_slots.SlotUITests -v

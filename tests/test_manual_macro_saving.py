@@ -213,6 +213,6 @@ class ManualMacroSavingTests(unittest.TestCase):
                 self.assertIn('名前',detail);self.assertIn('/echo custom',detail);self.assertEqual(f.bytes(),before)
                 save=f.editor.save_combined
                 with patch.object(application,'load_snapshot',side_effect=lambda _:f.load()),patch.object(f.editor,'save_combined',side_effect=lambda plan,root:save(plan,base/'backups')):
-                    find(window,'バックアップして').invoke();app.update()
+                    window.accept_button.invoke();app.update()
                 self.assertFalse(errors,errors);self.assertFalse(f.editor.session.dirty)
             finally:app.destroy()

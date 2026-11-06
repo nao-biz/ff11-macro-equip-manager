@@ -191,7 +191,7 @@ class PhraseUITests(unittest.TestCase):
                 view.mode.set('マクロ');view.change_mode()
                 macro=next(m for m in view.character.macros if macro_key(m)==f.specs[0]['key'])
                 view.inspect_macro(macro);view.edit_selected_macro();app.update()
-                editor=next(w for w in app.winfo_children() if isinstance(w,tk.Toplevel))
+                editor=view.macro_panel.frame
                 fields=[w for w in descendants(editor) if isinstance(w,tk.Entry)]
                 entry=fields[f.specs[0]['line']];entry.delete(0,'end');entry.insert(0,'/ma ')
                 entry.focus_force();entry.event_generate('<Tab>');app.update()
@@ -202,14 +202,14 @@ class PhraseUITests(unittest.TestCase):
                 listing.focus_force();listing.event_generate('<Return>');app.update()
                 button(editor,'変更案を確認').invoke();app.update()
                 preview=next(w for w in app.winfo_children() if isinstance(w,tk.Toplevel) and '作業データ' in w.title())
-                button(preview,'作業データに適用').invoke();app.update()
+                preview.accept_button.invoke();app.update()
                 plan=f.preview();self.assertIn(bytes.fromhex('FD02010201FD'),plan.files[0].changes[0].replacement)
                 before=f.bytes();button(app,'変更を保存…').invoke();app.update()
                 saving=next(w for w in app.winfo_children() if isinstance(w,tk.Toplevel) and '一括保存' in w.title())
                 self.assertEqual(f.bytes(),before)
                 save=f.editor.save_combined
                 with patch.object(application,'load_snapshot',side_effect=lambda _:f.load()),patch.object(f.editor,'save_combined',side_effect=lambda plan,root:save(plan,base/'backups')):
-                    button(saving,'バックアップして').invoke();app.update()
+                    saving.accept_button.invoke();app.update()
                 self.assertFalse(errors,errors);self.assertFalse(f.editor.session.dirty)
                 f.reopen();self.assertIsNone(f.editor.blocked);self.assertFalse(f.editor.session.dirty)
             finally:app.destroy()

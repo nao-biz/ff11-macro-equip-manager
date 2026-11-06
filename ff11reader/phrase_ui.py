@@ -1,4 +1,5 @@
 """Keyboard phrase picker and token-aware entry adapter."""
+from .theme import BG, FG, PANEL, SELECT
 import tkinter as tk
 from tkinter import ttk
 from .text_editing import replace_range
@@ -50,7 +51,7 @@ class PhraseEntry:
     def open(self,event=None):
         if self.popup and self.popup.winfo_exists():self.popup.lift();return 'break'
         start,end=self.selection()
-        popup=self.popup=tk.Toplevel(self.entry,background='#080f22')
+        popup=self.popup=tk.Toplevel(self.entry,background=BG)
         popup.title('定型文を選択');popup.geometry('720x480');popup.transient(self.entry.winfo_toplevel())
         ttk.Label(popup,text='名前・読みで検索　／　カテゴリを選んで絞り込み',padding=10).pack(anchor='w')
         ttk.Label(popup,text='大分類',padding=(10,0)).pack(anchor='w')
@@ -62,10 +63,10 @@ class PhraseEntry:
         categories=ttk.Combobox(popup,textvariable=category,values=('すべて',),state='disabled')
         categories.pack(fill='x',padx=10,pady=(0,8))
         query=tk.StringVar()
-        search=tk.Entry(popup,textvariable=query,bg='#101b38',fg='#edf1fa',insertbackground='white')
+        search=tk.Entry(popup,textvariable=query,bg=PANEL,fg=FG,insertbackground=FG)
         search.pack(fill='x',padx=10)
         frame=ttk.Frame(popup);frame.pack(fill='both',expand=True,padx=10,pady=8)
-        listing=tk.Listbox(frame,bg='#101b38',fg='#edf1fa',selectbackground='#354b7a',exportselection=False)
+        listing=tk.Listbox(frame,bg=PANEL,fg=FG,selectbackground=SELECT,exportselection=False)
         scrollbar=ttk.Scrollbar(frame,command=listing.yview);listing.configure(yscrollcommand=scrollbar.set)
         scrollbar.pack(side='right',fill='y');listing.pack(side='left',fill='both',expand=True)
         status=ttk.Label(popup,padding=10);status.pack(anchor='w')

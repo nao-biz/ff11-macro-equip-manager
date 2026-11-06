@@ -1,4 +1,5 @@
 """Equipment bonus panel; domain owns arithmetic and eligibility."""
+from .theme import BG, FG, PANEL, SELECT
 import tkinter as tk
 from tkinter import ttk
 from .equipment_stats import summarize, BASE
@@ -9,11 +10,11 @@ class EquipmentSummary:
         self.frame=ttk.Frame(parent)
         ttk.Label(self.frame,text='装備の加算値',font=('MS Gothic',13,'bold')).pack(anchor='w',pady=(0,6))
         values=ttk.Frame(self.frame);values.pack(fill='both',expand=True)
-        self.body=tk.Text(values,height=18,width=44,bg='#101b38',fg='#edf1fa',
+        self.body=tk.Text(values,height=12,width=32,bg=PANEL,fg=FG,
                           font=('MS Gothic',10),wrap='word',relief='flat',padx=10,pady=8,state='disabled')
         bar=ttk.Scrollbar(values,command=self.body.yview);self.body.configure(yscrollcommand=bar.set)
         bar.pack(side='right',fill='y');self.body.pack(fill='both',expand=True)
-        self.note=ttk.Label(self.frame,text='',wraplength=340)
+        self.note=ttk.Label(self.frame,text='',wraplength=290)
         self.note.pack(anchor='w',pady=4)
         ttk.Button(self.frame,text='集計の内訳…',command=self.details).pack(anchor='e',pady=(0,8))
         self.result=None
@@ -33,8 +34,8 @@ class EquipmentSummary:
     def hide(self):self.frame.pack_forget()
     def details(self):
         if self.result is None:return
-        window=tk.Toplevel(self.frame,background='#080f22');window.title('装備加算値の内訳');window.geometry('650x500')
-        text=tk.Text(window,bg='#101b38',fg='#edf1fa',wrap='word',padx=12,pady=12)
+        window=tk.Toplevel(self.frame,background=BG);window.title('装備加算値の内訳');window.geometry('650x500')
+        text=tk.Text(window,bg=PANEL,fg=FG,wrap='word',padx=12,pady=12)
         bar=ttk.Scrollbar(window,command=text.yview);text.configure(yscrollcommand=bar.set)
         bar.pack(side='right',fill='y');text.pack(fill='both',expand=True)
         text.insert('end','集計対象\n'+('\n'.join(f'{source}: {line}' for source,line in self.result.included) or 'なし'))
@@ -44,8 +45,8 @@ class EquipmentSummary:
 
 def operation_menu(parent,buttons):
     """Menu delegates to existing ActionButtons, preserving state and busy behavior."""
-    menu=tk.Menu(parent,tearoff=False,bg='#101b38',fg='#edf1fa',activebackground='#354b7a')
-    groups={name:tk.Menu(menu,tearoff=False,bg='#101b38',fg='#edf1fa',activebackground='#354b7a') for name in ('編集','確認・補正','個体情報','作業')}
+    menu=tk.Menu(parent,tearoff=False,bg=PANEL,fg=FG,activebackground=SELECT)
+    groups={name:tk.Menu(menu,tearoff=False,bg=PANEL,fg=FG,activebackground=SELECT) for name in ('編集','確認・補正','個体情報','作業')}
     entries=[]
     for button in buttons:
         label=button.cget('text')

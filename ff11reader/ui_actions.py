@@ -1,4 +1,5 @@
 """Explicit busy actions for heavy UI operations."""
+from .theme import ACCENT, SELECT
 from contextlib import contextmanager
 import tkinter as tk
 from tkinter import ttk
@@ -17,7 +18,7 @@ class BusyState:
                 for child in widget.winfo_children():visit(child)
             except tk.TclError:pass
         if self.notice is None or not self.notice.winfo_exists():
-            self.notice=tk.Label(self.root,bg='#354b7a',fg='#fff3c4',padx=24,pady=12,font=('MS Gothic',12,'bold'),relief='ridge',borderwidth=2)
+            self.notice=tk.Label(self.root,bg=SELECT,fg=ACCENT,padx=24,pady=12,font=('MS Gothic',12,'bold'),relief='ridge',borderwidth=2)
         self.notice.configure(text=self.message)
         self.notice.place(relx=.5,y=8,anchor='n');self.notice.lift()
         visit(self.root)
@@ -84,6 +85,10 @@ class ActionButton(ttk.Button):
     def __init__(self,master=None,*,command=None,busy=False,busy_message="処理中です…",**kwargs):
         self._action=command;self._busy=busy;self._busy_message=busy_message
         super().__init__(master,command=self._run,**kwargs)
+        self.bind('<Destroy>',self._release_action,add='+')
+
+    def _release_action(self,event):
+        if event.widget is self:self._action=None
 
     def _run(self):
         if self._action is None:return

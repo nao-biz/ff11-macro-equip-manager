@@ -124,6 +124,7 @@
 
 ## アプリ内通知・応答・計測
 
+- D-18 / DP-01〜05: [workspace_ui.py](../ff11reader/workspace_ui.py)で本体の画面構成、[theme.py](../ff11reader/theme.py)で本体・モック共通のテーマ、[macro_editor_ui.py](../ff11reader/macro_editor_ui.py)と[workspace_state.py](../ff11reader/workspace_state.py)で画面内入力・表示位置の保持を管理する。[test_workspace_ui.py](../tests/test_workspace_ui.py)でEX-U06〜08・10〜11、候補復元・検索・入力競合・失敗後の再試行・キャラ切替を合成GUI検証する。EX-U09は同テストと`test_dialogs.py`で確認する。
 - `dialogs.py`に通知・確認・入力を集約。初回Map後に通知することで起動時の未表示を解消。短文は本文量に合わせ、長文は上限でスクロールする。[test_dialogs.py](../tests/test_dialogs.py)で初回表示・取消・入れ子・サイズ・フォーカス復帰を検証。実機の通知とサイズはユーザー確認済み。
 - `ui_actions.ActionButton(busy=True)`で保存・保存プレビュー・編集適用などに待機表示を明示指定。通常のUIイベントへのフックは撤去。`tests/test_ui_actions.py`で軽い操作に待機処理が入らないこと、キー実行、入れ子・例外・子ウィンドウ破棄・ダイアログ入力待ちを検証。
 - `tracing.py`は操作ID・親子区間・所要時間・成否を記録。ログは`work/logs/timings.jsonl`、約2MBで過去3世代を保持。ゲーム保存内部の詳細区間は残件。
@@ -133,11 +134,13 @@
 
 - `ffe9e8d`のコミット前: `FF11_RUN_INTEGRATION=1`で全体176件中175件成功・実ゲーム用1件スキップ。保存先は合成データ。
 - 初期フォーカス変更（`f7c69de`）: 定型文・読み・アイテムの関連19件成功。その後、ユーザーがTabから大分類を選ぶ操作を確認。
-- この文書整理では、上記の結果と現行ソースを照合した。コード・テスト・ゲームデータは変更せず、新しい実行結果は追加していない。
+- 2026-11-06の本体UI反映: 合成GUIとモックを含む全334件中333件成功・実ゲーム用1件スキップ。正本63件の検査も成功。合成データで本体を起動し、3タブ、4×4配置、右側候補、6行入力、はい／いいえの確認を目視確認した。保存前の復旧記録を一度に確定する修正も含む。
 
 [Example Test仕様](../tests/specs/example-tests.md)・[Property Test仕様](../tests/specs/property-tests.md)は要件から導いた検証仕様。[ローカル形式](reference/local-formats.md)・[調査根拠](reference/sources.json)はバイナリ処理の根拠として参照する。
 
 ## 保存時の権限要求（SAVE-003/005/006）
+
+保存前の復旧記録はD-05に従い、作業ファイルの版を含めて`DraftStore.save`で一度に確定する。`test_draft_store.CheckpointReplacementTests`で、一時的な置換拒否後の回復、拒否継続時の原本・作業保持と再試行を検証する。
 
 `edit_application._save_checkpoint` → `elevation.execute_with_permission` → `save_helper.py`。マクロ・装備セットの画面保存で共通使用する。権限不足かつ全原本未変更の場合にUACを要求し、補助プロセスで既存保存関数を再実行する。要求はハッシュ照合付きJSON。親側は完了記録・バックアップ・保存後バイトを検証する。`tests/test_elevation.py`で両保存形式、取消・再試行、要求改変、競合、結果欠落からの復旧、Windows起動APIへの引数を合成データとモックで検証。実際のUAC表示・承認後のゲーム保存は未確認。
 
