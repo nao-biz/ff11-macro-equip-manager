@@ -169,6 +169,10 @@ VIEW-002の追加表示: `augment_presentation.path_label` と `inventory_ui.ite
 
 VIEW-005: `equipment_stats.py` の加算集計、`equipment_summary_ui.py` の右上パネル・操作メニュー、`codecs.item_records` の説明文読込。`tests/test_equipment_stats.py` と合成GUIで検証。条件付き効果・Pathからの能力展開・最終キャラステータスは集計対象外。
 
-VIEW-005の全プロパティ集計: `test_all_named_numeric_properties_and_decimals` で固定リスト外の名称・スキル・負数・割合・小数・別名を検証。
+VIEW-005の既存集計範囲: `test_all_named_numeric_properties_and_decimals` で固定リスト外の名称・スキル・負数・割合・小数・一部の既知別名を検証。引用符付きの英語と日本語の意味による統合、単位省略への対応は未充足（EX-EVAL01）。
 
 VIEW-005の表示順: `equipment_stats_presentation.py` の用途別固定順を `tests/test_equipment_stats_presentation.py` で検証する。
+
+VIEW-006 / DP-02・DP-06: `prototypes/equipment_review.py`で、4×4枠の下に候補・右に常時集計を置く案を検討する。`prototypes/test_equipment_review.py`が候補の比較・解除・適用・Undo、検索と切替、未取得、全項目への到達、1440×900と1320×840での43項目の可視性・位置・文字幅を合成GUIで検証する（EX-EVAL02〜06）。入力・メモリ内の再計算・描画はUIスレッド、ゲームI/Oは未接続。日本語へ対応付け済みの合成入力を既存の集計処理へ渡しており、英語正規化の検証ではない。配置・主要項目は採用待ち、本体は未対応。
+
+2026-11-06の装備評価モック: 仕様管理・既存集計と表示・旧新モック・共通ワーカーの関連46テスト成功、正本64件の参照検査成功。実画面で候補選択時の差分と未取得表示を確認した。主要項目追加後、モックの7テストで43項目の配置・現在値・候補値・差分を再確認した。
