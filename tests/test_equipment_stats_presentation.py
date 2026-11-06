@@ -1,33 +1,25 @@
 import unittest
-from ff11reader.equipment_stats_presentation import display_totals, compact_properties
+from dataclasses import replace
+from ff11reader.equipment_stats import EquipmentStats
+from ff11reader.equipment_stats_presentation import GROUPS, comparison, display_totals
 
 
 class EquipmentStatsPresentationTests(unittest.TestCase):
-    def test_order_is_stable_and_preserves_all_values(self):
-        names=['HP','STR','命中','魔命','防','短剣スキル','回復魔法スキル','盾スキル',
-               '移動速度','リジェネ','未知能力A','未知能力B']
-        rows=[(name,'',index) for index,name in enumerate(names)]
-        self.assertEqual(display_totals(list(reversed(rows))),rows)
-        changed=[(name,'',100-index) for index,name in enumerate(names)]
-        self.assertEqual(display_totals(list(reversed(changed))),changed)
-        self.assertCountEqual(display_totals(rows),rows)
+    def test_stable_groups_preserve_additional_properties_and_units(self):
+        names = [n for _, _, metrics in GROUPS for n, _, _ in metrics]
+        rows = [(name, '', index) for index, name in enumerate(names)]
+        rows += [('非常に長い名前の追加能力', '', 7), ('HP', '%', 5)]
+        ordered = display_totals(rows[::-1])
+        self.assertCountEqual(ordered, rows)
+        self.assertEqual(ordered[:2], [('HP', '', 0), ('HP', '%', 5)])
+        changed = [(n, u, -v) for n, u, v in rows]
+        self.assertEqual([(n, u) for n, u, _ in display_totals(changed)], [(n, u) for n, u, _ in ordered])
 
-    def test_units_stay_adjacent(self):
-        rows=[('HP','%',5),('命中','',20),('HP','',50)]
-        self.assertEqual(display_totals(rows),[('HP','',50),('HP','%',5),('命中','',20)])
-
-    def test_requested_order_and_compact_rows(self):
-        names=['攻','命中','飛攻','飛命','魔攻','魔命','防','回避','魔防','魔回避',
-               '被ダメージ','被物理ダメージ','被魔法ダメージ','ヘイスト','敵対心',
-               'ダブルアタック','トリプルアタック','ストアTP','モクシャ',
-               'ウェポンスキルのダメージ','連携ボーナス','マジックバーストダメージ']
-        rows=[(name,'',-5 if name.startswith('被') else 10) for name in names]
-        self.assertEqual(display_totals(rows[::-1]),rows)
-        lines=compact_properties(rows[::-1])
-        self.assertLess(len(lines),len(rows))
-        self.assertEqual(lines[0].split(),['攻撃','+10','命中','+10'])
-        self.assertIn('WSダメージ +10','\n'.join(lines))
-        self.assertIn('MBダメージ +10','\n'.join(lines))
-        self.assertIn('被物理ダメージ -5','\n'.join(lines))
-        long='非常に長い名前の未知のプロパティ'
-        self.assertIn(long+' +1',compact_properties([(long,'',1)]))
+    def test_comparison_reports_unknown_without_inventing_zero_delta(self):
+        current = EquipmentStats((('魔命', '', 20), ('被物理ダメージ', '%', -10)), (), ())
+        trial = EquipmentStats((('魔命', '', 35), ('被物理ダメージ', '%', -12)), (), ())
+        self.assertEqual(comparison(current, trial)['魔命', ''], ('20', '35', '+15'))
+        self.assertEqual(comparison(current, trial)['被物理ダメージ', '%'], ('-10%', '-12%', '-2%'))
+        self.assertEqual(comparison(current)['魔命', ''], ('20', '—', '—'))
+        self.assertEqual(comparison(current, replace(trial, incomplete=True))['魔命', ''][-1], '未確定')
+        self.assertEqual(comparison(replace(current, incomplete=True), trial)['魔命', ''][-1], '未確定')

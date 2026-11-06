@@ -43,6 +43,10 @@ def restore(view, state):
         view.commands.anchor, view.commands.focus = anchor, focus
         view.commands.paint()
     view.app.update_idletasks()
+    if mode != 'マクロ':
+        # Panedwindow otherwise retains the previous tab's sash allocation.
+        shift = view.right_panel.winfo_width() - view.right_panel.winfo_reqwidth()
+        view.body.sashpos(1, view.body.sashpos(1) + shift)
     (view.macro_tree if mode == 'マクロ' else view.nav).yview_moveto(state.get('nav_y', 0))
     view.canvas.yview_moveto(state.get('canvas_y', 0))
 
@@ -50,17 +54,26 @@ def restore(view, state):
 def layout(view):
     """Keep the same outer workspace while giving macro input the full width."""
     macro=view.mode.get()=='マクロ'
+    equipment=view.mode.get()=='装備セット'
+    view.equipment_candidates_panel.pack_forget()
+    view.slot_edit_button.pack_forget()
+    view.selection_status.pack_forget()
+    if not equipment:view.selection_status.pack(fill='x',after=view.tabs)
     right=str(view.right_panel)
     if macro:
         if right in view.body.panes():view.body.forget(view.right_panel)
         view.canvas.configure(height=170)
         view.canvas_area.pack_configure(fill='x',expand=False)
-        view.slot_edit_button.pack_forget()
         view.legend.pack_forget()
     else:
-        if right not in view.body.panes():view.body.add(view.right_panel,weight=0)
-        view.canvas_area.pack_configure(fill='both',expand=True)
+        if right not in view.body.panes():view.body.add(view.right_panel,weight=1)
+        view.right_panel.configure(width=650 if equipment else 330)
+        view.body.pane(view.right_panel,weight=0)
+        view.canvas.configure(width=490 if equipment else 560,height=352)
+        view.canvas_area.pack_configure(fill='x' if equipment else 'both',expand=not equipment)
         view.legend.pack(side='bottom',fill='x',before=view.body)
-        if view.mode.get()=='装備セット':view.slot_edit_button.pack(anchor='w',pady=8)
-        else:view.slot_edit_button.pack_forget()
+        if equipment:
+            view.side_content.pack_forget()
+            view.equipment_candidates_panel.pack(fill='both',expand=True,pady=(4,0))
+        else:view.side_content.pack(fill='both',expand=True)
     view.tabs.refresh()

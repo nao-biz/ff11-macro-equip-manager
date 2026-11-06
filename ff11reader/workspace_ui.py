@@ -10,18 +10,15 @@ from .macro_editor_ui import MacroPanel
 def build(view):
     app = view.app
     app.title('FF11 ワークスペース')
-    app.geometry('1320x840')
-    app.minsize(1100, 800)
+    app.geometry('1440x900')
+    app.minsize(1320, 840)
     install(app)
     header = ttk.Frame(app, padding=(18, 6))
     header.pack(fill='x')
     ttk.Label(header, text='FF11 Macro & Equip', font=('Yu Gothic UI', 14, 'bold')).pack(side='left')
-    view.draft_label = ttk.Label(header, style='Muted.TLabel')
-    view.draft_label.pack(side='right')
-    toolbar = ttk.Frame(app, padding=(18, 0, 18, 8))
-    toolbar.pack(fill='x')
-    ttk.Label(toolbar, text='キャラクター').pack(side='left', padx=(0, 8))
-    view.character_choice = ttk.Combobox(toolbar, state='readonly', width=28, values=view.character_labels())
+    toolbar = header
+    ttk.Label(toolbar, text='キャラクター').pack(side='left', padx=(20, 8))
+    view.character_choice = ttk.Combobox(toolbar, state='readonly', width=22, values=view.character_labels())
     view.character_choice.pack(side='left')
     view.character_choice.bind('<<ComboboxSelected>>', view.change_character)
     ActionButton(toolbar, busy=True, text='表示名を登録', command=view.rename).pack(side='left', padx=8)
@@ -36,15 +33,15 @@ def build(view):
     view.selection_status.pack(fill='x')
     view.body = ttk.Panedwindow(app, orient='horizontal')
     view.body.pack(fill='both', expand=True, padx=12, pady=4)
-    left = ttk.Frame(view.body, padding=8, width=200)
+    left = ttk.Frame(view.body, padding=6, width=150)
     center = view.center = ttk.Frame(view.body, padding=8)
-    view.right_panel = ttk.Frame(view.body, padding=8, width=330)
+    view.right_panel = ttk.Frame(view.body, padding=6, width=650)
     view.right_panel.pack_propagate(False)
     for panel, weight in ((left, 0), (center, 1), (view.right_panel, 0)):
         view.body.add(panel, weight=weight)
     view.nav_title = ttk.Label(left, font=('Yu Gothic UI', 11, 'bold'))
     view.nav_title.pack(anchor='w', pady=(0, 8))
-    view.nav = tk.Listbox(left, width=22, activestyle='none', exportselection=False,
+    view.nav = tk.Listbox(left, width=17, activestyle='none', exportselection=False,
                          borderwidth=0, font=('Yu Gothic UI', 10), bg=PANEL, fg=FG,
                          highlightthickness=0, selectbackground=SELECT, selectforeground=ACCENT)
     view.nav_scroll = ttk.Scrollbar(left, command=view.nav.yview)
@@ -90,6 +87,7 @@ def build(view):
     view.slot_edit_button = ActionButton(center, busy=True, text='選択枠を編集',
                                         command=view.edit_selected_slot, state='disabled')
     view.slot_edit_button.pack(anchor='w', pady=8)
+    view.equipment_candidates_panel = ttk.Frame(center)
     hidden = ttk.Frame(app)
     entries = [
         ('links_button', 'マクロと装備セットの参照確認', view.show_macro_links),
@@ -112,7 +110,7 @@ def build(view):
     view.side_content = ttk.Frame(view.right_panel)
     view.side_content.pack(fill='both', expand=True)
     right = view.side_content
-    view.equipment_summary = EquipmentSummary(right)
+    view.equipment_summary = EquipmentSummary(view.right_panel)
     view.detail_heading = ttk.Label(right, text='アイテム / 詳細', font=('Yu Gothic UI', 12, 'bold'))
     view.detail_heading.pack(anchor='w', pady=(0, 8))
     view.detail = tk.Text(right, width=34, height=8, wrap='word', font=('Yu Gothic UI', 10),
@@ -138,6 +136,8 @@ def build(view):
     bottom.pack(side='bottom',fill='x')
     view.footer = ttk.Label(bottom, text='対象を選択して、内容を確認・編集できます。', style='Muted.TLabel')
     view.footer.pack(side='left', fill='x', expand=True)
+    view.draft_label = ttk.Label(bottom, style='Muted.TLabel')
+    view.draft_label.pack(side='left', padx=8)
     view.save_button = ActionButton(bottom, busy=True, text='変更を保存…', style='Primary.TButton',
                                    command=view.preview_combined_save)
     view.save_button.pack(side='right', padx=(10, 0))

@@ -632,5 +632,20 @@
       "extdata augment system 4 decodes path/rank; augment strings may contain path only"
     ],
     "caution": "Live branch API checked; addon not installed or run against a real game. Full stat text is limited by extdata decoder."
+  },
+  {
+    "id": "S-AUG-NAMES",
+    "type": "public implementation",
+    "repo": "Windower/Lua",
+    "blob_sha": "b2744e791b7779a49167411cc4a8c27dc3052088",
+    "accessed": "2026-11-06",
+    "urls": [
+      "https://github.com/Windower/Lua/blob/live/addons/libs/extdata.lua"
+    ],
+    "supports": [
+      "augment_values contains quoted stat names and alternative spellings",
+      "string_augment adds percent sign only when percent is set; some percentage properties omit it"
+    ],
+    "caution": "Source establishes exported strings; Japanese name/unit mappings and UI are verified using synthetic inputs."
   }
 ]

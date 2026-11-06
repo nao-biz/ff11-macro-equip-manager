@@ -146,22 +146,23 @@ class MacroWorkspaceTests(WorkspaceMixin,MoveFixture):
 
 @unittest.skipUnless(os.environ.get('FF11_RUN_INTEGRATION')=='1','Synthetic Tk checks')
 class EquipmentWorkspaceTests(WorkspaceMixin,SlotFixture):
-    def test_right_candidates_keep_filter_and_return_to_summary_after_apply(self):
+    def test_inline_candidates_keep_filter_and_summary_during_apply(self):
         view=self.open_view();view.open_slot_editor(view.selected.slots[0]);self.app.update()
         picker=view.slot_editor
-        self.assertIs(picker.window.master,view.right_panel);self.assertFalse(view.side_content.winfo_ismapped())
+        self.assertIs(picker.window.master,view.equipment_candidates_panel)
+        self.assertTrue(view.equipment_summary.frame.winfo_ismapped())
         picker.query.set('剣');picker.filter();picker.action.set('equip');picker.listing.selection_set('1')
         self.app.update()
         self.assertEqual(picker.preview_button.winfo_height(),picker.preview_button.winfo_reqheight())
-        self.assertLessEqual(picker.preview_button.winfo_rooty()+picker.preview_button.winfo_height(),view.right_panel.winfo_rooty()+view.right_panel.winfo_height())
+        self.assertLessEqual(picker.preview_button.winfo_rooty()+picker.preview_button.winfo_height(),view.center.winfo_rooty()+view.center.winfo_height())
         state=picker.input_state();view.tabs.select('インベントリ');view.tabs.select('装備セット');self.app.update()
         self.assertEqual(view.slot_editor.input_state(),state)
-        view.slot_editor.cancel();self.app.update();self.assertIsNone(view.slot_editor)
+        view.slot_editor.cancel();self.app.update();self.assertIsNone(view.equipment_summary.trial_result)
         self.assertTrue(view.equipment_summary.frame.winfo_ismapped())
         view.open_slot_editor(view.selected.slots[0]);picker=view.slot_editor
-        picker.action.set('equip');picker.listing.selection_set('0');picker.preview_button.invoke()
+        picker.listing.selection_set('0');self.app.update();picker.preview_button.invoke()
         self.preview_window().accept_button.invoke();self.app.update()
-        self.assertIsNone(view.slot_editor);self.assertTrue(view.equipment_summary.frame.winfo_ismapped())
+        self.assertIsNone(view.equipment_summary.trial_result);self.assertTrue(view.equipment_summary.frame.winfo_ismapped())
         self.assertEqual(view.character.equipsets[0].slots[0].item_id,0x4001)
         view.undo_fix();self.assertEqual(view.character.equipsets[0].slots[0].item_id,100)
 

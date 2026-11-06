@@ -23,8 +23,8 @@ def validate_selection(character, items, slot):
     if slot.name not in items.get(slot.item_id,{}).get('equip_slots',()):raise ValueError('この部位に装備できるアイテムを選んでください。')
 
 
-def edit_slot(character, items, equipment, name, action, selection=None):
-    from .editing import Edit, Change
+def preview_slot(equipment, name, action, selection=None):
+    """Build an unsaved candidate for evaluation without touching Editor state."""
     if name not in SLOT_NAMES or action not in ('keep','remove','equip'):raise ValueError('部位または動作が不正です。')
     before=equipment.slots[SLOT_NAMES.index(name)]
     if action=='equip':
@@ -37,5 +37,11 @@ def edit_slot(character, items, equipment, name, action, selection=None):
     slots=list(equipment.slots);slots[SLOT_NAMES.index(name)]=after
     updated=replace(equipment,slots=tuple(slots))
     validate_transition(equipment,updated,'equipsets')
-    validate_selection(character,items,after)
+    return updated
+
+
+def edit_slot(character, items, equipment, name, action, selection=None):
+    from .editing import Edit, Change
+    updated=preview_slot(equipment,name,action,selection)
+    validate_selection(character,items,updated.slots[SLOT_NAMES.index(name)])
     return Edit('装備枠を編集',(Change(character.folder_id,'equipsets',(equipment.number,),equipment,updated),))

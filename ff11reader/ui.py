@@ -367,12 +367,12 @@ class ReaderWindow:
   self.candidate_menu.delete(0,'end')
   for label,command in actions:self.candidate_menu.add_command(label=label,command=command)
   self.candidate_button.configure(state='normal' if actions else 'disabled',text=f'候補の場所を見る ({len(actions)})' if actions else '候補の場所を見る')
- def card(self,index,title,caption,command,item=None,state=None,badge=None,compact=False,annotation=None):
+ def card(self,index,title,caption,command,item=None,state=None,badge=None,compact=False,annotation=None,equipment=False):
   label,bg,fg=ACTION_STYLE[state] if state is not None else ('',PANEL,MUTED)
   from .theme import GEAR_HEIGHT
-  height=48 if compact else GEAR_HEIGHT
-  caption_y=32 if compact else 74
-  badge_y=96
+  height=48 if compact else 78 if equipment else GEAR_HEIGHT
+  caption_y=32 if compact else 38 if equipment else 74
+  badge_y=66 if equipment else 96
   frame=tk.Canvas(self.cards,bg=bg,highlightbackground=fg,highlightthickness=1,borderwidth=0,width=48 if compact else 142,height=height)
   frame.normal_border=fg
   columns=10 if compact else 4
@@ -381,10 +381,10 @@ class ReaderWindow:
   self.cards.columnconfigure(index%columns,weight=1)
   border=frame.create_rectangle(2,2,140,height-3,outline=BORDER)
   title_id=frame.create_text(70,14,text=title,fill=fg,font=('MS Gothic',10,'bold'))
-  photo=self.icon(item) if item is not None else None
+  photo=self.icon(item) if item is not None and not equipment else None
   if photo:photo=photo.subsample(2,2);frame.photo=photo
   image_id=None
-  if not compact:
+  if not compact and not equipment:
    image_id=frame.create_image(70,40,image=photo) if photo else frame.create_text(70,40,text='—',fill=fg,font=('MS Gothic',16))
   annotation_id=None
   caption_id=frame.create_text(70,caption_y,text=caption,fill=FG,width=128,font=('MS Gothic',9))
@@ -406,16 +406,17 @@ class ReaderWindow:
   if previous is not None and previous.winfo_exists():previous.configure(highlightbackground=previous.normal_border,highlightthickness=1)
   self.active_card=frame;frame.configure(highlightbackground=ACCENT,highlightthickness=1);command()
  def render_equipment(self,equipset):
+  self.selected=equipset
   self.equipment_summary.show(equipset,self.snapshot.items,self.augment_observations.get(self.character.folder_id),self.detail_heading)
   self.active_slot=None;self.slot_edit_button.configure(state='disabled')
   self.heading.configure(text=self.equipset_label(equipset.number))
   refs=self.macro_links.for_set(equipset.number)
   summary=f'マクロ参照: {len(refs)}行' if refs else 'マクロ参照なし'
-  self.subtitle.configure(text='空の装備セット' if is_empty(equipset) else summary+' · 枠をダブルクリックして編集')
+  self.subtitle.configure(text=summary+' · 枠を選んで候補を比較')
   slots={s.name:s for s in equipset.slots}
   for i,key in enumerate(GRID):
    s=slots[key];caption=self.item_name(s.item_id) if s.action=='equip' else {'keep':'変更しない','remove':'装備を外す'}.get(s.action,'未知の動作')
-   self.card_widgets[key]=self.card(i,SLOTS[key],caption,lambda slot=s:self.inspect_slot(slot),s.item_id if s.action=='equip' else None,present_slot(s,equipset.number,self.fix_plan).status,badge=self.augment_path(s) if s.action=='equip' else '')
+   self.card_widgets[key]=self.card(i,SLOTS[key],caption,lambda slot=s:self.inspect_slot(slot),s.item_id if s.action=='equip' else None,present_slot(s,equipset.number,self.fix_plan).status,badge=self.augment_path(s) if s.action=='equip' else '',equipment=True)
    self.card_widgets[key].bind('<Double-Button-1>',lambda event,slot=s:self.open_slot_editor(slot))
   counts=Counter(ACTION_STYLE[present_slot(s,equipset.number,self.fix_plan).status][0] for s in equipset.slots if s.action=='equip')
   body='\n'.join(f'{k}: {v}枠' for k,v in counts.items())
@@ -426,7 +427,10 @@ class ReaderWindow:
    else:body+='マクロ参照なし'
   body+='\n\n枠をダブルクリックして編集できます。補正は「操作」から変更案を確認できます。'
   self.show_detail('装備セット '+self.equipset_label(equipset.number),body)
+  self.activate_card(self.card_widgets['main'],lambda:self.inspect_slot(slots['main']))
  def inspect_slot(self,slot):
+  card=self.card_widgets.get(slot.name)
+  if card is not None and card is not self.active_card:self.activate_card(card,lambda:None)
   if self.slot_editor is not None and self.active_slot!=slot.name:self.close_slot_editor()
   self.active_slot=slot.name;self.slot_edit_button.configure(state='disabled' if self.editor.blocked else 'normal')
   a=slot.item_reference;view=present_slot(slot,self.selected.number,self.fix_plan)
@@ -444,7 +448,9 @@ class ReaderWindow:
   actions=[(f'{BAGS.get(b,b)} / {i} の候補を見る',lambda bag=b,index=i:self.open_inventory(bag,index)) for b,i in a.candidates]
   title=self.equipset_label(self.selected.number)+'\n'+SLOTS.get(slot.name,slot.name)+' / '+self.item_name(slot.item_id)
   primary=f'{label}\n\n{view.instruction}'
-  if slot.action=='equip':primary+='\n\n'+self.augment_text(slot)
+  if slot.action=='equip':
+   primary+='\n\n装備本体\n'+(self.snapshot.items.get(slot.item_id,{}).get('description') or '説明が未取得')
+   primary+='\n\n'+self.augment_text(slot)
   if view.change:
    x=view.change
    primary+=f'\n\n変更前\n{BAGS.get(x.before[0],x.before[0])} / {x.before[1]}\n\n変更案\n{BAGS[x.after[0]]} / {x.after[1]}'
@@ -454,6 +460,7 @@ class ReaderWindow:
    primary+='\n\n候補\n'+'\n'.join(f'{BAGS.get(b,b)} / {i}' for b,i in a.candidates)
   text+='\n\n補足\n照合条件: 収納・内部位置・種類ID。候補は読み取れたインベントリから検索します。保存情報の更新タイミングは調査中です。'
   self.show_detail(title,primary,actions[:8] if view.status in ('multiple','needs_review','fixable') else (),evidence=text)
+  if not self.editor.blocked:self.edit_selected_slot()
  def render_macros(self,address):
   self.active_macro=None;self.edit_button.configure(state='disabled');self.equipment_name_button.configure(state='disabled');self.move_button.configure(state='disabled');self.active_slot=None;self.slot_edit_button.configure(state='disabled')
   book,palette=address;self.heading.configure(text=f'ブック {book} / パレット {palette}');self.subtitle.configure(text='マクロを選んで名前と6行を編集します。')
@@ -538,7 +545,9 @@ class ReaderWindow:
   return f'装備する: {self.item_name(item)} (ID {item}) / {BAGS.get(bag,bag)} / 内部位置 {index}'
  def edit_selected_slot(self):
   if self.mode.get()!='装備セット' or not self.selected or not self.active_slot:return
-  from .equipment_ui import SlotEditor
+  if self.slot_editor is not None and self.slot_editor.slot_name==self.active_slot:return
+  from .equipment_picker_ui import EquipmentPicker
+  from .equipment_editing import preview_slot
   number=self.selected.number;name=self.active_slot;folder=self.character.folder_id
   slot=next(s for s in self.selected.slots if s.name==name)
   rows=background(self.app,self.editor.equipment_candidates,folder,name)
@@ -546,15 +555,35 @@ class ReaderWindow:
    try:edit=background(self.app,self.editor.prepare_equipment_slot_edit,folder,number,name,action,selection)
    except ValueError as e:dialogs.showerror('入力内容',str(e),parent=parent);return
    self.preview_edit(edit,lambda:self.editor.apply(edit),on_applied=self.close_slot_editor)
-  self.close_slot_editor();self.side_content.pack_forget()
-  self.slot_editor=SlotEditor(self.right_panel,self.equipset_label(number)+' / '+SLOTS[name],slot,rows,self.snapshot.items,BAGS,preview,augment_text=self.augment_text,embedded=True,on_cancel=self.close_slot_editor,augment_path=self.augment_path)
+  def compare(action,selection,label):
+   candidate=preview_slot(self.selected,name,action,selection)
+   self.equipment_summary.show_candidate(candidate,label)
+  self.close_slot_editor()
+  self.slot_editor=EquipmentPicker(self.equipment_candidates_panel,SLOTS[name]+'の候補',slot,rows,self.snapshot.items,BAGS,preview,
+   on_select=compare,on_cancel=self.equipment_summary.clear_candidate,on_details=self.show_equipment_detail,augment_path=self.augment_path)
  def open_slot_editor(self,slot):
   self.inspect_slot(slot)
-  if not self.editor.blocked:self.edit_selected_slot()
+  if self.slot_editor:self.slot_editor.listing.focus_set()
  def close_slot_editor(self):
   if self.slot_editor is not None:
-   self.slot_editor.window.destroy();self.slot_editor=None
-  self.side_content.pack(fill='both',expand=True)
+   self.slot_editor.destroy();self.slot_editor=None
+  self.equipment_summary.clear_candidate()
+ def show_equipment_detail(self):
+  window=tk.Toplevel(self.app,background=BG);window.title('装備・判定の詳細');window.geometry('780x650')
+  if self.candidate_menu.index('end') is not None:
+   ttk.Menubutton(window,text='候補の場所を見る',menu=self.candidate_menu).pack(anchor='e',padx=12,pady=6)
+  text=tk.Text(window,wrap='word',bg=PANEL,fg=FG,padx=12,pady=12)
+  scroll=ttk.Scrollbar(window,command=text.yview);text.configure(yscrollcommand=scroll.set)
+  scroll.pack(side='right',fill='y');text.pack(fill='both',expand=True)
+  text.insert('end',self.detail.get('1.0','end'))
+  if self.evidence:text.insert('end','\n\n判定の詳細\n'+self.evidence[1])
+  if self.slot_editor:
+   action,identity=self.slot_editor.chosen()
+   if action=='equip':
+    row=next(r for r in self.character.inventory if (r.item_id,r.container,r.index)==identity)
+    description=self.snapshot.items.get(row.item_id,{}).get('description') or '説明が未取得'
+    text.insert('end','\n\n選択中の候補\n'+self.item_name(row.item_id)+'\n'+description+'\n'+self.augment_text(row))
+  text.configure(state='disabled');window.bind('<Escape>',lambda e:window.destroy())
  def edit_selected_equipment_name(self):
   if self.mode.get()!='装備セット' or not self.selected:return
   number=self.selected.number;character=self.character.folder_id

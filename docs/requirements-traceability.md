@@ -167,12 +167,12 @@ VIEW-003 / D-15: [ui_tasks.py](../ff11reader/ui_tasks.py)の共通ワーカー�
 
 VIEW-002の追加表示: `augment_presentation.path_label` と `inventory_ui.item_row` を `ui.py` から利用。`tests/test_augment_ui.py` で枠内Path、表示切替、行クリック、表示方式の維持を合成GUIで確認。
 
-VIEW-005: `equipment_stats.py` の加算集計、`equipment_summary_ui.py` の右上パネル・操作メニュー、`codecs.item_records` の説明文読込。`tests/test_equipment_stats.py` と合成GUIで検証。条件付き効果・Pathからの能力展開・最終キャラステータスは集計対象外。
+VIEW-005 / D-17: `equipment_stats.py`が装備・個体の加算値を集計し、`equipment_stat_names.py`が既知の英語名称と省略単位を日本語の項目へ正規化する。原文・未対応の効果は内訳に保持する。根拠は[能力名と単位](reference/augment-stat-names.md)。`tests/test_equipment_stats.py`と`tests/test_equipment_stat_names.py`で意味・単位・引用符・II・未知表記・原文を検証する（EX-EVAL01）。
 
-VIEW-005の既存集計範囲: `test_all_named_numeric_properties_and_decimals` で固定リスト外の名称・スキル・負数・割合・小数・一部の既知別名を検証。引用符付きの英語と日本語の意味による統合、単位省略への対応は未充足（EX-EVAL01）。
+VIEW-006 / D-17・D-18: `equipment_picker_ui.py`の部位別候補を4×4枠の下に、`equipment_summary_ui.py`の集計を右へ常時表示する。主要43項目・分類・比較値の表示は`equipment_stats_presentation.py`で管理し、モックと定義を共有する。候補の一時比較は作業・原本を変更せず、確定は既存の変更案確認と共通ワーカーへ渡す。
 
-VIEW-005の表示順: `equipment_stats_presentation.py` の用途別固定順を `tests/test_equipment_stats_presentation.py` で検証する。
-
-VIEW-006 / DP-02・DP-06: `prototypes/equipment_review.py`で、4×4枠の下に候補・右に常時集計を置く案を検討する。`prototypes/test_equipment_review.py`が候補の比較・解除・適用・Undo、検索と切替、未取得、全項目への到達、1440×900と1320×840での43項目の可視性・位置・文字幅を合成GUIで検証する（EX-EVAL02〜06）。入力・メモリ内の再計算・描画はUIスレッド、ゲームI/Oは未接続。日本語へ対応付け済みの合成入力を既存の集計処理へ渡しており、英語正規化の検証ではない。配置・主要項目は採用待ち、本体は未対応。
+`tests/test_equipment_review_ui.py`が日本語の装備説明＋英語オグメからの現在値・候補値・差分、適用・Undo/Redo・未取得、1440×900と1320×840の文字幅・全項目・操作ボタン、失敗後の入力保持と再試行を検証する（EX-EVAL02〜06）。`tests/test_workspace_ui.py`でタブ往復、`tests/test_equipment_slots.py`で保存導線、`tests/test_equipment_stats_presentation.py`で追加項目・別単位の保持と未確定の差分を検証する。実データでの再確認は未実施。
 
 2026-11-06の装備評価モック: 仕様管理・既存集計と表示・旧新モック・共通ワーカーの関連46テスト成功、正本64件の参照検査成功。実画面で候補選択時の差分と未取得表示を確認した。主要項目追加後、モックの7テストで43項目の配置・現在値・候補値・差分を再確認した。
+
+2026-11-06の本体反映: 合成GUI・モックを含む全347テストを実行し346件成功、実ゲーム読込1件をスキップ。Tkテストの破棄済み画面をUIスレッドで解放するよう修正した。目視で見つけたタブ往復後の集計幅の縮小を修正し、往復を含むレイアウト検証と既存操作の12テストが成功。本体の集計・候補比較・内訳を目視確認し、最小1320×840でタブ往復後の表示も確認した。正本64件の参照検査成功。実ゲームファイルへの書込みは行っていない。

@@ -1,5 +1,6 @@
 """Real Tk event-loop tests with synthetic work; no installed game access."""
 from contextvars import ContextVar
+import gc
 import os
 from threading import Event, get_ident
 import time
@@ -28,7 +29,11 @@ class BackgroundTests(unittest.TestCase):
         self.app.geometry('480x240');self.errors=[]
         self.app.report_callback_exception=lambda *args:self.errors.append(args)
         self.entry=tk.Entry(self.app);self.entry.pack();self.app.update()
-        self.addCleanup(self.app.destroy)
+
+    def tearDown(self):
+        self.app.destroy()
+        del self.entry, self.app
+        gc.collect()
 
     def test_work_thread_context_and_error_cleanup(self):
         owner=get_ident();marker=ContextVar('test_marker');token=marker.set('same-operation')

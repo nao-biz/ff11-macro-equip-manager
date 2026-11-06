@@ -164,7 +164,7 @@ class EquipmentReviewTests(unittest.TestCase):
         self.assertEqual(len(windows), 1)
         view = next(w for w in windows[0].winfo_children()[0].winfo_children() if isinstance(w, tk.Text))
         self.assertIn('"Mag. Acc."+20', view.get('1.0', 'end'))
-        self.assertIn('魔命+20', view.get('1.0', 'end'))
+        self.assertEqual(self.values(('魔命', '')), ['320', '335', '+15'])
         windows[0].destroy()
 
 

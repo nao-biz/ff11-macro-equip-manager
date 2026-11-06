@@ -296,9 +296,7 @@ class EquipmentReviewMock:
                        item.label + f'\nワードローブ1 / 位置 {item.position}\n\n装備本体\n'
                        + (item.description or '未取得') + '\n\nオーグメント原文\n'
                        + ('\n'.join(item.raw_augments) or '未取得')
-                       + '\n\n集計用の確認値（このモックの合成入力）\n'
-                       + ('\n'.join(item.normalized_augments) or '未取得')
-                       + '\n\n英語原文の正規化処理は本体に未実装。ここでは対応値を明示した合成入力を使用。')
+                       + '\n\n日本語の能力値と集計の根拠は「全項目・内訳」で確認できます。')
 
     def report_text(self):
         lines = []

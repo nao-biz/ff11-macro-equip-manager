@@ -169,7 +169,7 @@ class SlotUITests(SlotFixture):
             with patch('ff11reader.ui.Editor',return_value=self.editor):view=ReaderWindow(app,self.source)
             view.nav.selection_set(0);view.select_navigation();view.inspect_slot(view.selected.slots[0]);view.slot_edit_button.invoke();app.update()
             edit=view.slot_editor;self.assertEqual(len(edit.visible),2)
-            edit.query.set('剣');edit.filter();edit.action.set('equip');edit.toggle();edit.listing.selection_set('0');edit.preview_button.invoke();app.update()
+            edit.query.set('剣');edit.filter();edit.listing.selection_set('0');app.update();edit.preview_button.invoke();app.update()
             preview=[w for w in app.winfo_children() if isinstance(w,tk.Toplevel) and w is not edit.window][-1]
             detail=next(w for w in preview.winfo_children() if isinstance(w,tk.Text)).get('1.0','end')
             self.assertIn('剣',detail);self.assertIn('モグ金庫',detail)

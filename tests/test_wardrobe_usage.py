@@ -1,5 +1,6 @@
 from dataclasses import asdict,replace
 from pathlib import Path
+import gc
 import os
 import tempfile
 import unittest
@@ -12,6 +13,10 @@ from tests.test_editing import snapshot,text,TEMP_ROOT
 
 
 class WardrobeUsageTests(unittest.TestCase):
+    def tearDown(self):
+        # Destroyed Tk cycles must be released before the next test starts a worker.
+        gc.collect()
+
     def test_scope_and_both_reference_sources(self):
         s=snapshot('/equip body Robe 2');c=s.characters[0]
         s.items.update({101:{'name':'Hat'},102:{'name':'Unused'}})
