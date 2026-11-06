@@ -2,7 +2,7 @@
 from collections import Counter
 from datetime import datetime
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, filedialog
 from . import dialogs
 from .ui_actions import ActionButton
 from .ui_tasks import background
@@ -42,6 +42,7 @@ GRID='main sub range ammo head neck ear1 ear2 body hands ring1 ring2 back waist 
 class ReaderWindow:
  def __init__(self, app, snapshot, *, editor=None):
   self.app=app;self.snapshot=snapshot;self.photos={};self.card_widgets={};self.navigation=[];self.selected=None
+  self.augment_observations={}
   self.editor=editor if editor is not None else Editor(snapshot)
   if editor is None:self.snapshot=self.editor.snapshot()
   self.active_macro=None
@@ -98,6 +99,11 @@ class ReaderWindow:
   self.macro_tree.bind('<<TreeviewOpen>>',self.open_macro_book)
   self.heading=ttk.Label(center,text='',font=('MS Gothic',16,'bold'));self.heading.pack(anchor='w')
   self.subtitle=ttk.Label(center,text='');self.subtitle.pack(anchor='w',pady=(4,10))
+  self.inventory_layout=tk.StringVar(value='パネル')
+  self.inventory_switch=ttk.Frame(center)
+  ttk.Label(self.inventory_switch,text='表示').pack(side='left',padx=(0,8))
+  for layout in ('パネル','リスト'):
+   ttk.Radiobutton(self.inventory_switch,text=layout,value=layout,variable=self.inventory_layout,command=self.switch_inventory_layout,style='Game.TRadiobutton').pack(side='left',padx=(0,12))
   self.canvas=tk.Canvas(center,bg='#080f22',highlightthickness=0,width=650)
   scroll=ttk.Scrollbar(center,command=self.canvas.yview);self.canvas.configure(yscrollcommand=scroll.set)
   scroll.pack(side='right',fill='y');self.canvas.pack(fill='both',expand=True)
@@ -109,6 +115,7 @@ class ReaderWindow:
   ActionButton(right,busy=True,text='装備セットの参照位置を補正',command=self.preview_fixes).pack(fill='x',pady=(0,6))
   ActionButton(right,busy=True,text='マクロの収納番号を確認・補正',command=self.show_macro_inventory).pack(fill='x',pady=(0,6))
   ActionButton(right,busy=True,text='ワードローブの未参照アイテム',command=self.show_unused_wardrobe).pack(fill='x',pady=(0,6))
+  self.import_button=ActionButton(right,busy=True,text='個体情報を取り込む…',command=self.import_augments);self.import_button.pack(fill='x',pady=(0,6))
   self.active_slot=None
   self.slot_edit_button=ActionButton(right,busy=True,text='選択した装備枠を編集',command=self.edit_selected_slot,state='disabled');self.slot_edit_button.pack(fill='x',pady=(0,6))
   self.move_button=ActionButton(right,busy=True,text='選択した装備セットを移動…',command=self.move_selected_equipment,state='disabled');self.move_button.pack(fill='x',pady=(0,6))
@@ -117,9 +124,14 @@ class ReaderWindow:
   history=ttk.Frame(right);history.pack(fill='x',pady=(0,6))
   self.undo_button=ActionButton(history,busy=True,text='Undo',command=self.undo_fix);self.undo_button.pack(side='left',expand=True,fill='x')
   self.redo_button=ActionButton(history,busy=True,text='Redo',command=self.redo_edit);self.redo_button.pack(side='left',expand=True,fill='x')
-  self.draft_label=ttk.Label(right,text='');self.draft_label.pack(fill='x')
+  self.draft_label=ttk.Label(header,text='');self.draft_label.pack(side='right',padx=8)
   ActionButton(right,busy=True,text='作業ファイルを保管して編集をリセット',command=self.reset_edits).pack(fill='x',pady=(0,6))
-  ttk.Label(right,text='Item / Help',font=('MS Gothic',14,'bold')).pack(anchor='w',pady=(0,12))
+  from .equipment_summary_ui import EquipmentSummary, operation_menu
+  buttons=[w for w in right.winfo_children() if isinstance(w,ActionButton)]+[self.undo_button,self.redo_button]
+  self.operation_button,self.operation_menu=operation_menu(toolbar,buttons)
+  history.pack_forget()
+  self.equipment_summary=EquipmentSummary(right)
+  self.detail_heading=ttk.Label(right,text='アイテム / 詳細',font=('MS Gothic',14,'bold'));self.detail_heading.pack(anchor='w',pady=(0,12))
   self.detail=tk.Text(right,width=38,wrap='word',font=('MS Gothic',10),bg='#101b38',fg='#edf1fa',insertbackground='white',selectbackground='#354b7a',relief='sunken',borderwidth=1,padx=12,pady=12,state='disabled')
   self.detail.pack(fill='both',expand=True)
   self.detail.tag_configure('title',font=('MS Gothic',13,'bold'),foreground='#fff1c0')
@@ -136,6 +148,9 @@ class ReaderWindow:
   from .selection_ui import SelectionCommands
   self.commands=SelectionCommands(self)
   self.move_button.pack_forget()
+  from .augment_store import AugmentStore
+  self.augment_store=AugmentStore(self.editor.store.path.parent/'augment-observations')
+  self.restore_augments()
   if snapshot.characters:
    self.character_choice.current(next((i for i,c in enumerate(snapshot.characters) if c.equipment_references),0));self.change_character()
   else:self.show_detail('キャラクターなし','読み取れたキャラクターフォルダはありません。')
@@ -228,6 +243,35 @@ class ReaderWindow:
  def redo_edit(self):
   try:self.run_edit(self.editor.redo)
   except (OSError,ValueError) as e:dialogs.showerror('Redo',str(e),parent=self.app);return
+ def import_augments(self):
+  if not self.character:return
+  path=filedialog.askopenfilename(parent=self.app,title='個体情報JSONを選択',filetypes=[('個体情報','*.json')])
+  if not path:return
+  from .augment_import import load_observation
+  character=self.character
+  try:observation=background(self.app,load_observation,path,character,message='個体情報を読み込んでいます…')
+  except (OSError,ValueError) as e:
+   dialogs.showerror('個体情報の取り込み',str(e),parent=self.app);return
+  source=observation.export
+  message=f'出力元: {source.character_name} / ID {source.character_id} / サーバー {source.server}\n取得日時: {source.captured_at}\n取り込み先: {character.display_name or character.folder_id}\n\n位置と種類IDが一致した収納: {len(observation.accepted_bags)} / 17\n'
+  if observation.issues:message+='\n再取得が必要: '+', '.join(BAGS[b] for b,_ in observation.issues)+'\n'
+  message+='\nこのキャラクターの取得結果として取り込みますか？\n出力後に移動・強化した場合は再出力してください。同種類同士の入れ替えは照合で検出できません。'
+  if not dialogs.askyesno('出力元キャラを確認',message,parent=self.app,accept_label='取り込む'):return
+  try:background(self.app,self.augment_store.save,self.snapshot.installation_key,character.folder_id,observation.export,message='個体情報を保存しています…')
+  except (OSError,ValueError) as e:
+   dialogs.showerror('個体情報を保存できませんでした',str(e),parent=self.app);return
+  self.augment_observations[character.folder_id]=observation
+  self.footer.configure(text=f'{source.character_name} の個体情報を取り込みました（{source.captured_at}）。')
+  self.change_mode()
+ def restore_augments(self):
+  observations,errors=background(self.app,self.augment_store.restore,self.snapshot,message='保存した個体情報を確認しています…')
+  self.augment_observations=observations
+  if errors:
+   message='\n'.join(f'{folder}: {error}' for folder,error in errors.items())
+   dialogs.when_visible(self.app,lambda:dialogs.showwarning('個体情報を復元できませんでした',message,parent=self.app))
+ def augment_text(self,row):
+  from .augment_presentation import describe
+  return describe(self.augment_observations.get(self.character.folder_id),row)
  def reload_data(self):
   if not dialogs.askyesno('ゲームデータを再読み込み','全キャラの現在の作業を保管して、最新のゲームデータから編集を始めます。Undo／Redoの履歴も保管されます。',parent=self.app,accept_label='保管して再読み込み'):return
   folder=self.character.folder_id if self.character else None
@@ -235,6 +279,7 @@ class ReaderWindow:
   except (OSError,ValueError,RuntimeError) as e:
    dialogs.showerror('再読み込みできませんでした',str(e),parent=self.app);return
   self.snapshot=background(self.app,self.editor.snapshot);self.photos.clear();self.selected=None;self.active_macro=None
+  self.restore_augments()
   self.character_choice.configure(values=self.character_labels())
   if self.snapshot.characters:
    self.character_choice.current(next((i for i,c in enumerate(self.snapshot.characters) if c.folder_id==folder),0));self.change_character()
@@ -361,6 +406,8 @@ class ReaderWindow:
  def clear_cards(self):
   if hasattr(self,'commands'):self.commands.cards={}
   for w in self.cards.winfo_children():w.destroy()
+  self.inventory_switch.pack_forget()
+  self.equipment_summary.hide()
   self.card_widgets={};self.active_card=None
   for column in range(10):self.cards.columnconfigure(column,weight=0,minsize=0)
   self.canvas.yview_moveto(0)
@@ -412,9 +459,11 @@ class ReaderWindow:
   self.candidate_menu.delete(0,'end')
   for label,command in actions:self.candidate_menu.add_command(label=label,command=command)
   self.candidate_button.configure(state='normal' if actions else 'disabled',text=f'候補の場所を見る ({len(actions)})' if actions else '候補の場所を見る')
- def card(self,index,title,caption,command,item=None,state=None,badge=None,compact=False):
+ def card(self,index,title,caption,command,item=None,state=None,badge=None,compact=False,annotation=None):
   label,bg,fg=ACTION_STYLE[state] if state is not None else ('','#101e36','#8295b8')
-  height=88 if compact else 148
+  height=88 if compact else 168 if annotation else 148
+  caption_y=47 if compact else 132 if annotation else 112
+  badge_y=153 if annotation else 133
   frame=tk.Canvas(self.cards,bg=bg,highlightbackground=fg,highlightthickness=1,borderwidth=0,width=48 if compact else 142,height=height)
   frame.normal_border=fg
   columns=10 if compact else 4
@@ -427,12 +476,14 @@ class ReaderWindow:
   image_id=None
   if not compact:
    image_id=frame.create_image(70,57,image=photo) if photo else frame.create_text(70,57,text='—',fill=fg,font=('MS Gothic',16))
-  caption_id=frame.create_text(70,47 if compact else 112,text=caption,fill='#edf1fa',width=128,font=('MS Gothic',9))
-  badge_id=frame.create_text(70,133,text=badge or label,fill=fg,width=128,font=('MS Gothic',8)) if (badge or label) and not compact else None
+  annotation_id=frame.create_text(70,100,text=annotation,fill='#fff1bc',font=('MS Gothic',9,'bold')) if annotation and not compact else None
+  caption_id=frame.create_text(70,caption_y,text=caption,fill='#edf1fa',width=128,font=('MS Gothic',9))
+  badge_text=label if badge is None else badge
+  badge_id=frame.create_text(70,badge_y,text=badge_text,fill='#fff1bc' if badge is not None else fg,width=128,font=('MS Gothic',9)) if badge_text and not compact else None
   def resize(event):
    width=event.width
    frame.coords(border,2,2,width-3,height-3)
-   for node,y in [(title_id,14),(image_id,57),(caption_id,47 if compact else 112),(badge_id,133)]:
+   for node,y in [(title_id,14),(image_id,57),(annotation_id,100),(caption_id,caption_y),(badge_id,badge_y)]:
     if node is not None:frame.coords(node,width/2,y)
    frame.itemconfigure(caption_id,width=max(20,width-12))
    if badge_id is not None:frame.itemconfigure(badge_id,width=max(20,width-12))
@@ -445,6 +496,7 @@ class ReaderWindow:
   if previous is not None and previous.winfo_exists():previous.configure(highlightbackground=previous.normal_border,highlightthickness=1)
   self.active_card=frame;frame.configure(highlightbackground='#fff1bc',highlightthickness=1);command()
  def render_equipment(self,equipset):
+  self.equipment_summary.show(equipset,self.snapshot.items,self.augment_observations.get(self.character.folder_id),self.detail_heading)
   self.active_slot=None;self.slot_edit_button.configure(state='disabled')
   self.heading.configure(text=self.equipset_label(equipset.number))
   refs=self.macro_links.for_set(equipset.number)
@@ -453,7 +505,7 @@ class ReaderWindow:
   slots={s.name:s for s in equipset.slots}
   for i,key in enumerate(GRID):
    s=slots[key];caption=self.item_name(s.item_id) if s.action=='equip' else {'keep':'変更しない','remove':'装備を外す'}.get(s.action,'未知の動作')
-   self.card_widgets[key]=self.card(i,SLOTS[key],caption,lambda slot=s:self.inspect_slot(slot),s.item_id if s.action=='equip' else None,present_slot(s,equipset.number,self.fix_plan).status)
+   self.card_widgets[key]=self.card(i,SLOTS[key],caption,lambda slot=s:self.inspect_slot(slot),s.item_id if s.action=='equip' else None,present_slot(s,equipset.number,self.fix_plan).status,badge=self.augment_path(s) if s.action=='equip' else '')
   counts=Counter(ACTION_STYLE[present_slot(s,equipset.number,self.fix_plan).status][0] for s in equipset.slots if s.action=='equip')
   body='\n'.join(f'{k}: {v}枠' for k,v in counts.items())
   if not is_empty(equipset):
@@ -575,7 +627,7 @@ class ReaderWindow:
    try:edit=background(self.app,self.editor.prepare_equipment_slot_edit,folder,number,name,action,selection)
    except ValueError as e:dialogs.showerror('入力内容',str(e),parent=parent);return
    self.preview_edit(edit,lambda:self.editor.apply(edit),parent)
-  self.slot_editor=SlotEditor(self.app,self.equipset_label(number)+' / '+SLOTS[name],slot,rows,self.snapshot.items,BAGS,preview)
+  self.slot_editor=SlotEditor(self.app,self.equipset_label(number)+' / '+SLOTS[name],slot,rows,self.snapshot.items,BAGS,preview,augment_text=self.augment_text)
  def edit_selected_equipment_name(self):
   if self.mode.get()!='装備セット' or not self.selected:return
   number=self.selected.number;character=self.character.folder_id
@@ -775,17 +827,28 @@ class ReaderWindow:
     row=value.item;listing.insert('','end',iid=str(i),values=(BAGS[row.container],row.index,row.item_id,self.item_name(row.item_id)))
    if visible:listing.selection_set('0');select()
   choice.bind('<<ComboboxSelected>>',populate);populate()
+ def augment_path(self,row):
+  from .augment_presentation import path_label
+  return path_label(self.augment_observations.get(self.character.folder_id),row)
+ def switch_inventory_layout(self):
+  if self.mode.get()=='インベントリ' and self.character and isinstance(self.selected,int):
+   bag=self.selected;self.clear_cards();self.render_inventory(bag)
+ def inventory_row(self,ordinal,row):
+  from .inventory_ui import item_row
+  return item_row(self,ordinal,row,self.augment_path(row))
  def render_inventory(self,bag):
+  self.inventory_switch.pack(before=self.canvas,anchor='w',pady=(0,8))
   rows=[r for r in self.character.inventory if r.container==bag];self.heading.configure(text=BAGS[bag]);self.subtitle.configure(text=f'{len(rows)} アイテム')
   if not rows:ttk.Label(self.cards,text='インベントリ保存情報に表示できるアイテム行がありません。').grid(row=0,column=0,pady=20)
-  for i,row in enumerate(rows):self.card_widgets[row.index]=self.card(i,f'スロット {row.index}',self.item_name(row.item_id),lambda r=row:self.inspect_inventory(r),row.item_id,badge=f'ID {row.item_id}')
-  self.show_detail(BAGS[bag],f'取得状態: {self.character.inventory_coverage.get(bag,"未取得")}\n\n{len(rows)}行を表示しています。\n内部スロット順で表示しています。\n数量とオーグメントは取得不可。')
+  for i,row in enumerate(rows):
+   self.card_widgets[row.index]=self.inventory_row(i,row) if self.inventory_layout.get()=='リスト' else self.card(i,f'スロット {row.index}',self.item_name(row.item_id),lambda r=row:self.inspect_inventory(r),row.item_id,badge=f'ID {row.item_id}',annotation=self.augment_path(row))
+  self.show_detail(BAGS[bag],f'取得状態: {self.character.inventory_coverage.get(bag,"未取得")}\n\n{len(rows)}行を表示しています。\n内部スロット順で表示しています。\n個体情報は「個体情報を取り込む…」から追加できます。')
  def inspect_inventory(self,row):
   refs=[(e.number,s.name,s.item_reference) for e in self.character.equipsets for s in e.slots if s.action=='equip' and (s.container,s.index)==(row.container,row.index)]
-  text=f'種類ID: {row.item_id}\n収納: {BAGS[row.container]}\n内部スロット: {row.index}\n\n数量: 不明\nオーグメント: 取得不可\n\nこの保存位置を指定する装備セット\n'
+  text=f'種類ID: {row.item_id}\n収納: {BAGS[row.container]}\n内部スロット: {row.index}\n\n{self.augment_text(row)}\n\nこの保存位置を指定する装備セット\n'
   text+='\n'.join(f'{self.equipset_label(n)} / {SLOTS[key]}\n  {OBSERVATIONS.get(a.observation,a.observation)}' for n,key,a in refs) or 'なし'
   summary='\n'.join(f'{self.equipset_label(n)} / {SLOTS[key]}' for n,key,a in refs) or 'なし'
-  self.show_detail(self.item_name(row.item_id),f'{BAGS[row.container]} / {row.index}\n種類ID: {row.item_id}\n\n参照している装備セット\n{summary}',evidence=text)
+  self.show_detail(self.item_name(row.item_id),f'{BAGS[row.container]} / {row.index}\n種類ID: {row.item_id}\n\n{self.augment_text(row)}\n\n参照している装備セット\n{summary}',evidence=text)
  def open_inventory(self,bag,index):
   self.mode.set('インベントリ');self.change_mode();self.nav.selection_clear(0,'end');i=self.navigation.index(bag);self.nav.selection_set(i);self.nav.see(i);self.select_navigation()
   row=next((r for r in self.character.inventory if r.container==bag and r.index==index),None)

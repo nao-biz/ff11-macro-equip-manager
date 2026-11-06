@@ -1,0 +1,3 @@
+interface:
+  display_name: "要件・設計の保守"
+  short_description: "要件・採用設計・検証の対応を調べ、変更理由と影響を確認して更新する"

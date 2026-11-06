@@ -6,8 +6,9 @@ from .ui_actions import ActionButton
 
 
 class SlotEditor:
-    def __init__(self,parent,title,slot,rows,items,bags,on_preview):
+    def __init__(self,parent,title,slot,rows,items,bags,on_preview,augment_text=None):
         self.window=tk.Toplevel(parent,background='#080f22');self.window.title(title);self.window.geometry('820x560')
+        self.augment_text=augment_text or (lambda row: "個体情報: 未取り込み")
         self.rows=rows;self.visible=[];self.items=items;self.bags=bags;self.on_preview=on_preview
         ttk.Label(self.window,text=title,padding=12).pack(anchor='w')
         actions=ttk.Frame(self.window);actions.pack(fill='x',padx=12)
@@ -20,11 +21,14 @@ class SlotEditor:
         self.query=tk.StringVar();entry=ttk.Entry(search,textvariable=self.query);entry.pack(side='left',fill='x',expand=True,padx=8)
         ttk.Button(search,text='検索',command=self.filter).pack(side='left');entry.bind('<Return>',lambda e:self.filter())
         frame=ttk.Frame(self.window);frame.pack(fill='both',expand=True,padx=12,pady=8)
-        self.listing=ttk.Treeview(frame,columns=('name','id','bag','index'),show='headings',selectmode='browse',style='Macro.Treeview')
-        for key,label,width in [('name','アイテム名',290),('id','種類ID',80),('bag','収納',150),('index','内部位置',80)]:
+        self.listing=ttk.Treeview(frame,columns=('name','id','bag','index','augment'),show='headings',selectmode='browse',style='Macro.Treeview')
+        for key,label,width in [('name','アイテム名',190),('id','種類ID',80),('bag','収納',115),('index','内部位置',80),('augment','取得した個体情報',260)]:
             self.listing.heading(key,text=label);self.listing.column(key,width=width,anchor='w')
         bar=ttk.Scrollbar(frame,command=self.listing.yview);self.listing.configure(yscrollcommand=bar.set);bar.pack(side='right',fill='y');self.listing.pack(fill='both',expand=True)
-        ttk.Label(self.window,text='全収納の持ち物から、この部位に対応する装備を表示しています。オーグメントは取得できません。',padding=12,wraplength=760).pack(anchor='w')
+        ttk.Label(self.window,text='全収納の持ち物から、この部位に対応する装備を表示しています。個体情報は取得日時とともに表示します。',padding=12,wraplength=760).pack(anchor='w')
+        self.augment_detail=ttk.Label(self.window,text='',wraplength=760,padding=(12,4))
+        self.augment_detail.pack(fill='x')
+        self.listing.bind('<<TreeviewSelect>>',self.show_augment)
         self.count=ttk.Label(self.window);self.count.pack(anchor='w',padx=12)
         controls=ttk.Frame(self.window);controls.pack(fill='x',padx=12,pady=12)
         ttk.Button(controls,text='キャンセル',command=self.window.destroy).pack(side='right')
@@ -38,8 +42,12 @@ class SlotEditor:
         from .equipment_editing import search_rows
         self.visible=list(search_rows(self.rows,self.items,self.query.get()))
         self.listing.delete(*self.listing.get_children())
-        for i,row in enumerate(self.visible):self.listing.insert('','end',iid=str(i),values=(self.items.get(row.item_id,{}).get('name') or f'ID {row.item_id}',row.item_id,self.bags[row.container],row.index))
+        for i,row in enumerate(self.visible):self.listing.insert('','end',iid=str(i),values=(self.items.get(row.item_id,{}).get('name') or f'ID {row.item_id}',row.item_id,self.bags[row.container],row.index,self.augment_text(row).replace("\n", " / ")))
         self.count.configure(text=f'候補 {len(self.visible)}件')
+
+    def show_augment(self,event=None):
+        selected=self.listing.selection()
+        if selected:self.augment_detail.configure(text=self.augment_text(self.visible[int(selected[0])]))
 
     def toggle(self):
         self.listing.state(['!disabled'] if self.action.get()=='equip' else ['disabled'])

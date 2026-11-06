@@ -15,3 +15,7 @@ character-labels.tmp
 .env
 .env.*
 .DS_Store
+.spec-manager/
+
+# Windower inventory exports contain per-character data.
+addons/ff11export/data/

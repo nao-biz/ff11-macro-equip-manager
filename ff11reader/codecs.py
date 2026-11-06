@@ -102,7 +102,16 @@ def item_records(data, icon_ids=None):
             name_start=pos+offset+0x1C
             if pos+4+count*8<=name_start<len(b):
                 name=text(b[name_start:b.find(b'\0',name_start) if b'\0' in b[name_start:] else len(b)])
+        description=None
+        if count==2 and pos+20<=len(b):
+            desc_offset,desc_type=struct.unpack_from('<II',b,pos+12)
+            desc_start=pos+desc_offset+0x1C
+            desc_end=b.find(b'\0',desc_start) if 0<=desc_start<len(b) else -1
+            if desc_type==0 and pos+20<=desc_start<desc_end:
+                decoded=text(b[desc_start:desc_end])
+                if decoded.state=='cp932':description=decoded.display
         items[item]={'name':name.display if name else None,
+                     'description':description,
                      'name_state':name.state if name else 'unknown',
                      'type':struct.unpack_from('<H',b,10)[0],
                      'equip_slots':tuple(s for n,s in enumerate(SLOTS) if struct.unpack_from('<H',b,0x12)[0]&(1<<n)) if 0x2800<=item<0x7000 else (),

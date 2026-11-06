@@ -1,51 +1,51 @@
 # 要件と実装・検証の対応
 
-2026-10-29、コミット`f7c69de`を基準に、保存時の権限要求の追加と、この会話での実機確認まで反映した索引。動作の正本は[requirements.md](../requirements.md)、内部の制約は[設計条件](design-constraints.md)。将来要件のコード欄は関連する既存基盤を示す。
+要件IDから既存コード・テスト・確認記録へ進むための索引。確認時期と範囲は各項目に記載する。保証する結果は[要件](README.md#仕様を調べる)、採用中の方式は[設計条件](README.md#仕様を調べる)。将来要件のコード欄は関連する既存基盤を示す。
 
-実装状態・合成テスト・実機確認を分けて記載する。今回の文書整理ではテストを再実行していない。過去の監査で解消した問題は回帰テストへの対応として残し、当時の予定・途中経過は現在の残件に置き換えた。
+実装状態・合成テスト・実機確認を分けて記載する。過去の実行結果は記録時点の証拠として扱い、変更対象の検証状況を確認する。キー・配置・内部方式の検証は当時の採用設計に対する結果であり、設計変更時は対応するD項目と検証仕様を見直す。
 
 ## 要件からコード・テストへの索引
 
 | 要件 | 関連コード | 代表テスト | 確認範囲・不足 |
 |---|---|---|---|
 | SAFE-001 | [.gitignore](../.gitignore)、[file_transaction.py](../ff11reader/file_transaction.py) | [test_game_running_blocks_before_backup](../tests/test_macro_saving.py) | ゲーム終了条件を検証。Git除外と実機試験の承認は運用確認 |
-| [DATA-001](../requirements.md#data-001) | [adapters.py](../ff11reader/adapters.py)、[codecs.py](../ff11reader/codecs.py)、[domain.py](../ff11reader/domain.py)、[ui.py](../ff11reader/ui.py) | [DecodingTests.test_macro_addresses_and_raw_lines](../tests/test_reader.py) | デコードの部分検証。アカウント単位の整理は未実装 |
-| [DATA-002](../requirements.md#data-002) | [codecs.py](../ff11reader/codecs.py)、[dictionaries.py](../ff11reader/dictionaries.py)、[icons.py](../ff11reader/icons.py) | [DecodingTests.test_resolved_token_preserves_bytes_and_unknown_fallback](../tests/test_reader.py) | 文字解決を検証。アイコンは別の形式テストも参照 |
-| [DATA-003](../requirements.md#data-003) | [codecs.py](../ff11reader/codecs.py)、[domain.py](../ff11reader/domain.py) | [DecodingTests.test_inventory_never_invents_quantity_or_augments](../tests/test_reader.py) | 未取得値を捏造しないことを検証。取得機能は未実装 |
-| [DATA-004](../requirements.md#data-004) | [adapters.py](../ff11reader/adapters.py)、[references.py](../ff11reader/references.py) | [ReferenceTests.test_loaded_empty_and_missing_and_unreadable_are_distinct](../tests/test_references.py) | 参照判定を検証 |
-| [EQ-001](../requirements.md#eq-001) | [references.py](../ff11reader/references.py)、[domain.py](../ff11reader/domain.py) | [SlotStateTests.test_augments_do_not_affect_reference_state](../tests/test_slot_state.py) | 一致・優先順位はSlotStateTestsにも検証あり |
-| [EQ-002](../requirements.md#eq-002) | [fixes.py](../ff11reader/fixes.py)、[references.py](../ff11reader/references.py) | [FixTests.test_unique_target_in_every_storage_is_fixable](../tests/test_fixes.py) | 全収納の候補を検証 |
-| [EQ-003](../requirements.md#eq-003) | [fixes.py](../ff11reader/fixes.py)、[references.py](../ff11reader/references.py) | [FixTests.test_no_candidate_and_repeated_position_are_blocked](../tests/test_fixes.py) | 不足資料・キャラ分離は関連テストでも検証 |
-| [EQ-004](../requirements.md#eq-004) | [domain.py](../ff11reader/domain.py)、[references.py](../ff11reader/references.py)、[editing.py](../ff11reader/editing.py) | [FoundationTests.test_equipment_validation_and_derived_state_undo](../tests/test_edit_foundation.py) | 状態の再評価を検証 |
-| [LINK-001](../requirements.md#link-001) | [macro_links.py](../ff11reader/macro_links.py) | [MacroLinksTests.test_reference_with_trailing_options](../tests/test_macro_links.py) | 空・remove・未知は同モジュールの別テストで検証 |
-| [LINK-002](../requirements.md#link-002) | [macro_links.py](../ff11reader/macro_links.py)、[ui.py](../ff11reader/ui.py) | [MacroLinksTests.test_reverse_references_keep_addresses_and_lines](../tests/test_macro_links.py) | 参照位置を検証。画面上の読みやすさは手動確認 |
-| [LINK-003](../requirements.md#link-003) | [macro_links.py](../ff11reader/macro_links.py) | [MacroLinksTests.test_isolation_and_no_mutation](../tests/test_macro_links.py) | キャラ分離と非変更を検証 |
-| [MAC-001](../requirements.md#mac-001) | [macro_inventory.py](../ff11reader/macro_inventory.py) | [MacroInventoryTests.test_storage_mapping_and_suffix_preservation](../tests/test_editing.py) | 番号対応と後続部分を検証 |
-| [MAC-002](../requirements.md#mac-002) | [macro_inventory.py](../ff11reader/macro_inventory.py)、[presentation.py](../ff11reader/presentation.py) | [MacroInventoryTests.test_state_matrix](../tests/test_editing.py) | 状態の組合せを検証 |
-| [MAC-003](../requirements.md#mac-003) | [macro_inventory.py](../ff11reader/macro_inventory.py)、[editing.py](../ff11reader/editing.py) | [EditingTests.test_batch_undo_redo_branch_and_raw_preservation](../tests/test_editing.py) | 履歴と元表現を検証。番号生成はMAC-001も参照 |
-| [MAC-004](../requirements.md#mac-004) | [ui.py](../ff11reader/ui.py)、[edit_application.py](../ff11reader/edit_application.py) | [EditingUITests.test_edit_preview_undo_redo_fix_and_reopen](../tests/test_editing_ui.py) | 合成GUIの操作を検証。初期フィルターの専用検証は不足 |
-| [EDIT-001](../requirements.md#edit-001) | [editing.py](../ff11reader/editing.py)、[edit_application.py](../ff11reader/edit_application.py) | [EditingTests.test_fix_recomputed_and_no_game_save_dependency](../tests/test_editing.py) | 保存処理への非依存を検証 |
-| [EDIT-002](../requirements.md#edit-002) | [editing.py](../ff11reader/editing.py)、[edit_values.py](../ff11reader/edit_values.py) | [FoundationTests.test_invalid_batch_is_atomic_even_through_generic_apply](../tests/test_edit_foundation.py) | 汎用変更案を含めて検証 |
-| [EDIT-003](../requirements.md#edit-003) | [editing.py](../ff11reader/editing.py) | [EditingTests.test_batch_undo_redo_branch_and_raw_preservation](../tests/test_editing.py) | 共通履歴・無変更は関連テストでも検証 |
-| [EDIT-004](../requirements.md#edit-004) | [draft_store.py](../ff11reader/draft_store.py)、[edit_application.py](../ff11reader/edit_application.py) | [EditingTests.test_persistence_redo_conflict_and_failed_save](../tests/test_editing.py) | 保存失敗・再開・競合を検証 |
-| [EDIT-005](../requirements.md#edit-005) | [draft_store.py](../ff11reader/draft_store.py)、[edit_application.py](../ff11reader/edit_application.py) | [EditingTests.test_corrupt_draft_is_preserved](../tests/test_editing.py) | 古い作業の保管と新Snapshotでの再開はProperty Testでも検証。起動中の再読み込み・旧履歴保管・失敗時の状態保持はtest_reload.pyで検証。選択的引継ぎは将来対応 |
-| [EDIT-006](../requirements.md#edit-006) | [editing.py](../ff11reader/editing.py)、[edit_application.py](../ff11reader/edit_application.py)、[ui.py](../ff11reader/ui.py) | [EditingUITests.test_edit_preview_undo_redo_fix_and_reopen](../tests/test_editing_ui.py) | マクロ編集と[装備セット名の編集・履歴・保存](../tests/test_equipment_names.py)を合成データで検証。[装備枠の個別編集・部位別選択・履歴・保存](../tests/test_equipment_slots.py)も合成データで検証。2026-10-29にユーザーが各枠編集の保存後、ゲーム内で認識されることを確認済み。2026-10-29にユーザーが名前編集・Undo/Redoと保存後のゲーム内反映を確認済み |
-| [EDIT-007](../requirements.md#edit-007) | [phrases.py](../ff11reader/phrases.py)、[text_editing.py](../ff11reader/text_editing.py)、[phrase_ui.py](../ff11reader/phrase_ui.py)、[macro_text.py](../ff11reader/macro_text.py) | [test_phrase_editing.py](../tests/test_phrase_editing.py) | 通常定型文・アイテム名の検索、読み、カテゴリ階層、初期フォーカス、ID保持を実装。2026-10-29に実機確認まで完了。詳細は下記「定型文入力」を参照 |
-| [SAVE-001](../requirements.md#save-001) | [save_plan.py](../ff11reader/save_plan.py)、[macro_saving.py](../ff11reader/macro_saving.py)、[equipment_saving.py](../ff11reader/equipment_saving.py)、[ui.py](../ff11reader/ui.py) | [MacroSavingTests.test_unrelated_manual_edits_are_retained](../tests/test_macro_saving.py) | Fix限定保存と保留に加え、[test_manual_macro_saving.py](../tests/test_manual_macro_saving.py)で名前・各行の一般保存を検証。[test_equipment_names.py](../tests/test_equipment_names.py)で装備セット名の単独保存・Fixとの混在・保留を検証 |
-| [SAVE-002](../requirements.md#save-002) | [macro_saving.py](../ff11reader/macro_saving.py)、[equipment_saving.py](../ff11reader/equipment_saving.py)、[file_transaction.py](../ff11reader/file_transaction.py) | [MacroSavingTests.test_stale_macro_inventory_and_plan_tamper_rejected](../tests/test_macro_saving.py) | マクロの競合を検証。装備保存にも同等テストあり |
-| [SAVE-003](../requirements.md#save-003) | [file_transaction.py](../ff11reader/file_transaction.py) | [EquipmentSavingTests.test_candidate_changes_and_staging_failure](../tests/test_equipment_saving.py) | 装備保存の準備失敗を検証 |
-| [SAVE-004](../requirements.md#save-004) | [macro_saving.py](../ff11reader/macro_saving.py)、[saving.py](../ff11reader/saving.py)、[codecs.py](../ff11reader/codecs.py) | [MacroSavingTests.test_token_zero_bytes_japanese_padding_and_length_limit](../tests/test_macro_saving.py) | [macro_text.py](../ff11reader/macro_text.py)で手編集のCP932・上限・既存定型文保持も検証。通常定型文・アイテム名の新規挿入とID保持は合成保存で検証。通常定型文とアイテム名のゲーム内表示・使用はユーザー確認済み |
-| [SAVE-005](../requirements.md#save-005) | [file_transaction.py](../ff11reader/file_transaction.py)、[edit_application.py](../ff11reader/edit_application.py) | [EquipmentSavingTests.test_failed_rollback_keeps_pending_and_blocks_edits](../tests/test_equipment_saving.py) | 復旧待ちを検証。外部更新は復元テストも参照 |
-| [SAVE-006](../requirements.md#save-006) | [edit_application.py](../ff11reader/edit_application.py)、[draft_store.py](../ff11reader/draft_store.py) | [MacroSavingTests.test_draft_checkpoint_failure_recovers_on_restart](../tests/test_macro_saving.py) | 同期失敗を検証。保存後Undoは保存テストでも検証 |
-| [VIEW-001](../requirements.md#view-001) | [ui.py](../ff11reader/ui.py) | — | 収納順と全17収納の選択を合成GUIで確認。2026-11-02、ユーザー確認済み。専用自動テストなし |
-| [VIEW-002](../requirements.md#view-002) | [ui.py](../ff11reader/ui.py)、[presentation.py](../ff11reader/presentation.py) | [PresentationTests.test_four_main_actions](../tests/test_presentation.py) | 状態表示の分類を検証。視覚品質は手動確認 |
-| [VIEW-003](../requirements.md#view-003) | [ui.py](../ff11reader/ui.py)、[dialogs.py](../ff11reader/dialogs.py) | [test_dialogs.py](../tests/test_dialogs.py) | 親画面内モーダル、取消・入力、フォーカスとgrabの復帰、長文、起動時の表示を合成Tkで検証。実機で起動通知・再読込操作・本文量に応じたサイズをユーザーが確認済み |
-| [VIEW-004](../requirements.md#view-004) | [paste_placement.py](../ff11reader/paste_placement.py)、[transfer_editing.py](../ff11reader/transfer_editing.py)、[selection_ui.py](../ff11reader/selection_ui.py)、[ui.py](../ff11reader/ui.py) | [test_paste_placement.py](../tests/test_paste_placement.py)、[test_selection_commands.py](../tests/test_selection_commands.py) | 配置判定、転送・削除、Undo/Redo、右クリック、入力欄との分離、共通保存を合成データで検証。2026-11-02、ユーザーが今回の変更のゲーム内動作を確認済み |
-| [WARD-001](../requirements.md#ward-001) | [wardrobe_usage.py](../ff11reader/wardrobe_usage.py) | [WardrobeUsageTests.test_scope_and_both_reference_sources](../tests/test_wardrobe_usage.py) | 参照元と対象収納を検証 |
-| [WARD-002](../requirements.md#ward-002) | [wardrobe_usage.py](../ff11reader/wardrobe_usage.py) | [WardrobeUsageTests.test_edit_and_undo_recompute_without_cross_character_references](../tests/test_wardrobe_usage.py) | 再計算とキャラ分離を検証 |
-| [FUT-001](../requirements.md#fut-001) | [equipment_moves.py](../ff11reader/equipment_moves.py)、[editing.py](../ff11reader/editing.py)、[combined_saving.py](../ff11reader/combined_saving.py)、[edit_application.py](../ff11reader/edit_application.py)、[ui.py](../ff11reader/ui.py) | [test_equipment_moves.py](../tests/test_equipment_moves.py): EX-MOVE01〜06、PT-32初期範囲 | 装備セット移動・参照更新・Undo/Redo・一括保存を合成データで確認。2026-11-02、ユーザーが保存後のゲーム内動作を確認済み。パレット・マクロのブック間移動と同一キャラ内コピー、複数選択は合成データで検証。2026-11-02、今回の追加範囲もユーザーがゲーム内動作を確認済み |
-| [FUT-002](../requirements.md#fut-002) | — | — | 未実装。参照セットの同時コピーと番号衝突の扱いは未決定 |
-| [FUT-003](../requirements.md#fut-003) | [macro_inventory.py](../ff11reader/macro_inventory.py) | — | /equipの参照判定は実装済み。定型文候補の名前検索は実装済み。種類IDによる参照調査と誤記検出は未実装で、範囲・判定規則は未決定 |
+| DATA-001 | [adapters.py](../ff11reader/adapters.py)、[codecs.py](../ff11reader/codecs.py)、[domain.py](../ff11reader/domain.py)、[ui.py](../ff11reader/ui.py) | [DecodingTests.test_macro_addresses_and_raw_lines](../tests/test_reader.py) | デコードの部分検証。アカウント単位の整理は未実装 |
+| DATA-002 | [codecs.py](../ff11reader/codecs.py)、[dictionaries.py](../ff11reader/dictionaries.py)、[icons.py](../ff11reader/icons.py) | [DecodingTests.test_resolved_token_preserves_bytes_and_unknown_fallback](../tests/test_reader.py) | 文字解決を検証。アイコンは別の形式テストも参照 |
+| DATA-003 | [出力アドオン](../addons/ff11export/ff11export.lua)、[取り込み](../ff11reader/augment_import.py)、[照合](../ff11reader/augment_observation.py) | [合成出力・取り込み](../tests/test_augment_import.py)、[合成GUI](../tests/test_augment_ui.py)、[個体情報の永続化](../tests/test_augment_store.py) | Lua 5.1で合成APIのJSON出力をPythonへ取り込み。2026-11-06、ユーザーがロスタムB/Cの出力・取り込みの実機確認完了を報告。個別の日本語・Rank・読込タイミングの検証記録は未記載 |
+| DATA-004 | [adapters.py](../ff11reader/adapters.py)、[references.py](../ff11reader/references.py) | [ReferenceTests.test_loaded_empty_and_missing_and_unreadable_are_distinct](../tests/test_references.py) | 参照判定を検証 |
+| EQ-001 | [references.py](../ff11reader/references.py)、[domain.py](../ff11reader/domain.py) | [SlotStateTests.test_augments_do_not_affect_reference_state](../tests/test_slot_state.py) | 一致・優先順位はSlotStateTestsにも検証あり |
+| EQ-002 | [fixes.py](../ff11reader/fixes.py)、[references.py](../ff11reader/references.py) | [FixTests.test_unique_target_in_every_storage_is_fixable](../tests/test_fixes.py) | 全収納の候補を検証 |
+| EQ-003 | [fixes.py](../ff11reader/fixes.py)、[references.py](../ff11reader/references.py) | [FixTests.test_no_candidate_and_repeated_position_are_blocked](../tests/test_fixes.py) | 不足資料・キャラ分離は関連テストでも検証 |
+| EQ-004 | [domain.py](../ff11reader/domain.py)、[references.py](../ff11reader/references.py)、[editing.py](../ff11reader/editing.py) | [FoundationTests.test_equipment_validation_and_derived_state_undo](../tests/test_edit_foundation.py) | 状態の再評価を検証 |
+| LINK-001 | [macro_links.py](../ff11reader/macro_links.py) | [MacroLinksTests.test_reference_with_trailing_options](../tests/test_macro_links.py) | 空・remove・未知は同モジュールの別テストで検証 |
+| LINK-002 | [macro_links.py](../ff11reader/macro_links.py)、[ui.py](../ff11reader/ui.py) | [MacroLinksTests.test_reverse_references_keep_addresses_and_lines](../tests/test_macro_links.py) | 参照位置を検証。画面上の読みやすさは手動確認 |
+| LINK-003 | [macro_links.py](../ff11reader/macro_links.py) | [MacroLinksTests.test_isolation_and_no_mutation](../tests/test_macro_links.py) | キャラ分離と非変更を検証 |
+| MAC-001 | [macro_inventory.py](../ff11reader/macro_inventory.py) | [MacroInventoryTests.test_storage_mapping_and_suffix_preservation](../tests/test_editing.py) | 番号対応と後続部分を検証 |
+| MAC-002 | [macro_inventory.py](../ff11reader/macro_inventory.py)、[presentation.py](../ff11reader/presentation.py) | [MacroInventoryTests.test_state_matrix](../tests/test_editing.py) | 状態の組合せを検証 |
+| MAC-003 | [macro_inventory.py](../ff11reader/macro_inventory.py)、[editing.py](../ff11reader/editing.py) | [EditingTests.test_batch_undo_redo_branch_and_raw_preservation](../tests/test_editing.py) | 履歴と元表現を検証。番号生成はMAC-001も参照 |
+| MAC-004 | [ui.py](../ff11reader/ui.py)、[edit_application.py](../ff11reader/edit_application.py) | [EditingUITests.test_edit_preview_undo_redo_fix_and_reopen](../tests/test_editing_ui.py) | 合成GUIの操作を検証。初期フィルターの専用検証は不足 |
+| EDIT-001 | [editing.py](../ff11reader/editing.py)、[edit_application.py](../ff11reader/edit_application.py) | [EditingTests.test_fix_recomputed_and_no_game_save_dependency](../tests/test_editing.py) | 保存処理への非依存を検証 |
+| EDIT-002 | [editing.py](../ff11reader/editing.py)、[edit_values.py](../ff11reader/edit_values.py) | [FoundationTests.test_invalid_batch_is_atomic_even_through_generic_apply](../tests/test_edit_foundation.py) | 汎用変更案を含めて検証 |
+| EDIT-003 | [editing.py](../ff11reader/editing.py) | [EditingTests.test_batch_undo_redo_branch_and_raw_preservation](../tests/test_editing.py) | 共通履歴・無変更は関連テストでも検証 |
+| EDIT-004 | [draft_store.py](../ff11reader/draft_store.py)、[edit_application.py](../ff11reader/edit_application.py) | [EditingTests.test_persistence_redo_conflict_and_failed_save](../tests/test_editing.py) | 保存失敗・再開・競合を検証 |
+| EDIT-005 | [draft_store.py](../ff11reader/draft_store.py)、[edit_application.py](../ff11reader/edit_application.py) | [EditingTests.test_corrupt_draft_is_preserved](../tests/test_editing.py) | 古い作業の保管と新Snapshotでの再開はProperty Testでも検証。起動中の再読み込み・旧履歴保管・失敗時の状態保持はtest_reload.pyで検証。選択的引継ぎは将来対応 |
+| EDIT-006 | [editing.py](../ff11reader/editing.py)、[edit_application.py](../ff11reader/edit_application.py)、[ui.py](../ff11reader/ui.py) | [EditingUITests.test_edit_preview_undo_redo_fix_and_reopen](../tests/test_editing_ui.py) | マクロ編集と[装備セット名の編集・履歴・保存](../tests/test_equipment_names.py)を合成データで検証。[装備枠の個別編集・部位別選択・履歴・保存](../tests/test_equipment_slots.py)も合成データで検証。2026-10-29にユーザーが各枠編集の保存後、ゲーム内で認識されることを確認済み。2026-10-29にユーザーが名前編集・Undo/Redoと保存後のゲーム内反映を確認済み |
+| EDIT-007 | [phrases.py](../ff11reader/phrases.py)、[text_editing.py](../ff11reader/text_editing.py)、[phrase_ui.py](../ff11reader/phrase_ui.py)、[macro_text.py](../ff11reader/macro_text.py) | [test_phrase_editing.py](../tests/test_phrase_editing.py) | 通常定型文・アイテム名の検索、読み、カテゴリ階層、初期フォーカス、ID保持を実装。2026-10-29に実機確認まで完了。詳細は下記「定型文入力」を参照 |
+| SAVE-001 | [save_plan.py](../ff11reader/save_plan.py)、[macro_saving.py](../ff11reader/macro_saving.py)、[equipment_saving.py](../ff11reader/equipment_saving.py)、[ui.py](../ff11reader/ui.py) | [MacroSavingTests.test_unrelated_manual_edits_are_retained](../tests/test_macro_saving.py) | Fix限定保存と保留に加え、[test_manual_macro_saving.py](../tests/test_manual_macro_saving.py)で名前・各行の一般保存を検証。[test_equipment_names.py](../tests/test_equipment_names.py)で装備セット名の単独保存・Fixとの混在・保留を検証 |
+| SAVE-002 | [macro_saving.py](../ff11reader/macro_saving.py)、[equipment_saving.py](../ff11reader/equipment_saving.py)、[file_transaction.py](../ff11reader/file_transaction.py) | [MacroSavingTests.test_stale_macro_inventory_and_plan_tamper_rejected](../tests/test_macro_saving.py) | マクロの競合を検証。装備保存にも同等テストあり |
+| SAVE-003 | [file_transaction.py](../ff11reader/file_transaction.py) | [EquipmentSavingTests.test_candidate_changes_and_staging_failure](../tests/test_equipment_saving.py) | 装備保存の準備失敗を検証 |
+| SAVE-004 | [macro_saving.py](../ff11reader/macro_saving.py)、[saving.py](../ff11reader/saving.py)、[codecs.py](../ff11reader/codecs.py) | [MacroSavingTests.test_token_zero_bytes_japanese_padding_and_length_limit](../tests/test_macro_saving.py) | [macro_text.py](../ff11reader/macro_text.py)で手編集のCP932・上限・既存定型文保持も検証。通常定型文・アイテム名の新規挿入とID保持は合成保存で検証。通常定型文とアイテム名のゲーム内表示・使用はユーザー確認済み |
+| SAVE-005 | [file_transaction.py](../ff11reader/file_transaction.py)、[edit_application.py](../ff11reader/edit_application.py) | [EquipmentSavingTests.test_failed_rollback_keeps_pending_and_blocks_edits](../tests/test_equipment_saving.py) | 復旧待ちを検証。外部更新は復元テストも参照 |
+| SAVE-006 | [edit_application.py](../ff11reader/edit_application.py)、[draft_store.py](../ff11reader/draft_store.py) | [MacroSavingTests.test_draft_checkpoint_failure_recovers_on_restart](../tests/test_macro_saving.py) | 同期失敗を検証。保存後Undoは保存テストでも検証 |
+| VIEW-001 | [ui.py](../ff11reader/ui.py) | — | 収納順と全17収納の選択を合成GUIで確認。2026-11-02、ユーザー確認済み。専用自動テストなし |
+| VIEW-002 | [ui.py](../ff11reader/ui.py)、[presentation.py](../ff11reader/presentation.py) | [PresentationTests.test_four_main_actions](../tests/test_presentation.py) | 状態表示の分類を検証。視覚品質は手動確認 |
+| VIEW-003 | [ui.py](../ff11reader/ui.py)、[dialogs.py](../ff11reader/dialogs.py) | [test_dialogs.py](../tests/test_dialogs.py) | 親画面内モーダル、取消・入力、フォーカスとgrabの復帰、長文、起動時の表示を合成Tkで検証。実機で起動通知・再読込操作・本文量に応じたサイズをユーザーが確認済み |
+| VIEW-004 | [paste_placement.py](../ff11reader/paste_placement.py)、[transfer_editing.py](../ff11reader/transfer_editing.py)、[selection_ui.py](../ff11reader/selection_ui.py)、[ui.py](../ff11reader/ui.py) | [test_paste_placement.py](../tests/test_paste_placement.py)、[test_selection_commands.py](../tests/test_selection_commands.py) | 配置判定、転送・削除、Undo/Redo、右クリック、入力欄との分離、共通保存を合成データで検証。2026-11-02、ユーザーが今回の変更のゲーム内動作を確認済み |
+| WARD-001 | [wardrobe_usage.py](../ff11reader/wardrobe_usage.py) | [WardrobeUsageTests.test_scope_and_both_reference_sources](../tests/test_wardrobe_usage.py) | 参照元と対象収納を検証 |
+| WARD-002 | [wardrobe_usage.py](../ff11reader/wardrobe_usage.py) | [WardrobeUsageTests.test_edit_and_undo_recompute_without_cross_character_references](../tests/test_wardrobe_usage.py) | 再計算とキャラ分離を検証 |
+| FUT-001 | [equipment_moves.py](../ff11reader/equipment_moves.py)、[editing.py](../ff11reader/editing.py)、[combined_saving.py](../ff11reader/combined_saving.py)、[edit_application.py](../ff11reader/edit_application.py)、[ui.py](../ff11reader/ui.py) | [test_equipment_moves.py](../tests/test_equipment_moves.py): EX-MOVE01〜06、PT-32初期範囲 | 装備セット移動・参照更新・Undo/Redo・一括保存を合成データで確認。2026-11-02、ユーザーが保存後のゲーム内動作を確認済み。パレット・マクロのブック間移動と同一キャラ内コピー、複数選択は合成データで検証。2026-11-02、今回の追加範囲もユーザーがゲーム内動作を確認済み |
+| FUT-002 | — | — | 未実装。参照セットの同時コピーと番号衝突の扱いは未決定 |
+| FUT-003 | [macro_inventory.py](../ff11reader/macro_inventory.py) | — | /equipの参照判定は実装済み。定型文候補の名前検索は実装済み。種類IDによる参照調査と誤記検出は未実装で、範囲・判定規則は未決定 |
 | OBS-001 | [tracing.py](../ff11reader/tracing.py)、[edit_application.py](../ff11reader/edit_application.py) | [test_tracing.py](../tests/test_tracing.py) | 親子の操作ID・所要時間・失敗・個人データ非記録を検証。ゲーム保存内部の詳細区間は未実装 |
 | PERF-001 | [edit_state.py](../ff11reader/edit_state.py)、[draft_store.py](../ff11reader/draft_store.py)、[ui.py](../ff11reader/ui.py) | [test_persistent_edit_state.py](../tests/test_persistent_edit_state.py)、[benchmark_editor.py](../experiments/benchmark_editor.py) | 所有権・共有・作業保存失敗を検証。実機の応答はユーザー確認済み。数値基準は未確定 |
 
@@ -54,7 +54,6 @@
 | 要件 | 現在できること | 残件 |
 |---|---|---|
 | DATA-001 | キャラ別の閲覧・表示名・切替 | アカウント単位の整理 |
-| DATA-003 | 取得不可として扱い、参照一致条件から除外 | オーグメント取得は保留。メモリ読取の導入は別途合意 |
 | EDIT-005 | 起動中の最新読込、旧作業の保管と新規開始 | 差分の選択的引継ぎは将来対応。再読み込みUI・旧履歴保管・失敗時の状態保持を合成データで確認。実機確認待ち |
 | FUT-002 | キャラ別の参照判定 | キャラ間コピー。参照セットの同時コピーと番号衝突の扱いの確定 |
 | FUT-003 | /equipの参照判定、定型文候補の名前検索 | 種類IDによる参照調査、誤記検出。辞書未解決と未所持の区別・候補規則の確定 |
@@ -162,3 +161,11 @@ VIEW-003 / D-15: [ui_tasks.py](../ff11reader/ui_tasks.py)の共通ワーカー�
 2026-11-03: 共通ワーカー導入後、合成GUIを含む全262テストを実行し成功（実ゲーム読込テスト1件をスキップ）。全体実行中の長時間再読み込みは6.45秒、UIタイマー66回、最大間隔0.156秒。
 
 再発防止（D-15、EX-UIBG04）: [test_ui_execution.py](../tests/test_ui_execution.py)がUI経由の再読み込み・編集・Undo/Redo・保存プレビュー・保存・リセットの実行スレッドを検証する。[tests.yml](../.github/workflows/tests.yml)に合成GUIの専用ステップを追加し、長時間応答・入力排他・復帰と併せて毎回実行する。2026-11-03、CIと同じ17テストがローカルで成功。ワーカーを意図的に迂回した検証では、編集のUIスレッド実行を検出した。GitHub上の実行は次回プッシュ後に確認する。
+
+VIEW-002の追加表示: `augment_presentation.path_label` と `inventory_ui.item_row` を `ui.py` から利用。`tests/test_augment_ui.py` で枠内Path、表示切替、行クリック、表示方式の維持を合成GUIで確認。
+
+VIEW-005: `equipment_stats.py` の加算集計、`equipment_summary_ui.py` の右上パネル・操作メニュー、`codecs.item_records` の説明文読込。`tests/test_equipment_stats.py` と合成GUIで検証。条件付き効果・Pathからの能力展開・最終キャラステータスは集計対象外。
+
+VIEW-005の全プロパティ集計: `test_all_named_numeric_properties_and_decimals` で固定リスト外の名称・スキル・負数・割合・小数・別名を検証。
+
+VIEW-005の表示順: `equipment_stats_presentation.py` の用途別固定順を `tests/test_equipment_stats_presentation.py` で検証する。

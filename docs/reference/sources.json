@@ -614,5 +614,23 @@
     ],
     "caution": "Includes conflicting participant assumptions; line-position theory is not adopted as established fact.",
     "accessed": "2026-10-27"
+  },
+  {
+    "id": "S-AUG-EXPORT",
+    "type": "public API and implementation",
+    "accessed": "2026-11-03",
+    "urls": [
+      "https://github.com/Windower/Lua/wiki/FFXI-Functions",
+      "https://github.com/Windower/Lua/blob/live/addons/libs/extdata.lua",
+      "https://github.com/Windower/Lua/blob/live/addons/GearSwap/packet_parsing.lua",
+      "https://github.com/Windower/Lua/blob/live/addons/findAll/findAll.lua"
+    ],
+    "supports": [
+      "get_items returns bag/index/item ID/count/extdata",
+      "get_bag_info returns count/enabled/max",
+      "0x01D signals inventory loading completion; wait before reading",
+      "extdata augment system 4 decodes path/rank; augment strings may contain path only"
+    ],
+    "caution": "Live branch API checked; addon not installed or run against a real game. Full stat text is limited by extdata decoder."
   }
 ]
