@@ -5,10 +5,15 @@ from .tracing import span
 import json
 import os
 from pathlib import Path
+import time
 from uuid import uuid4
 from . import domain, editing
 
 TYPES = {cls.__name__: cls for cls in (domain.TextToken, domain.Text, domain.Macro, domain.Slot, domain.Equipset, domain.ItemReference, editing.Change, editing.Edit)}
+
+# Windows readers can briefly deny replacement even when the directory is writable.
+_REPLACE_DELAYS = (0, 0.01, 0.02, 0.04, 0.08, 0.16)
+_RETRYABLE_WINERRORS = {5, 32, 33}  # access denied, sharing violation, lock violation
 
 
 def encode(value):
@@ -60,6 +65,24 @@ class DraftStore:
 
     def _revision(self):
         return hashlib.sha256(self.path.read_bytes()).hexdigest() if self.path.exists() else None
+
+    def _check_revision(self):
+        if self._revision() != self.revision:
+            raise ValueError('別の画面で作業ファイルが更新されました。アプリを開き直してください。')
+
+    def _replace_draft(self, temp):
+        """Retry only replacement, keeping the caller's lock and prepared bytes."""
+        for attempt, delay in enumerate(_REPLACE_DELAYS):
+            if delay:
+                time.sleep(delay)
+            self._check_revision()
+            try:
+                temp.replace(self.path)
+                return
+            except OSError as error:
+                if (getattr(error, 'winerror', None) not in _RETRYABLE_WINERRORS
+                        or attempt == len(_REPLACE_DELAYS) - 1):
+                    raise
 
     def load(self, snapshot):
         session = editing.EditSession(snapshot)
@@ -144,8 +167,7 @@ class DraftStore:
         # Exclusive lock also prevents two app instances from overwriting a draft.
         handle = lock.open('x')
         try:
-            if self._revision() != self.revision:
-                raise ValueError('別の画面で作業ファイルが更新されました。アプリを開き直してください。')
+            self._check_revision()
             with span('draft.encode'):
                 self.prepare_baseline(session)
                 installation, sources = session.saved_header()
@@ -168,7 +190,7 @@ class DraftStore:
                     with archived.open("xb") as stream:
                         stream.write(self.path.read_bytes())
                         stream.flush(); os.fsync(stream.fileno())
-                temp.replace(self.path)
+                self._replace_draft(temp)
             finally:
                 temp.unlink(missing_ok=True)
             self.revision = self._revision()
