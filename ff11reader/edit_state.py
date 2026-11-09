@@ -5,7 +5,7 @@ from immutables import Map
 from .edit_values import key, value, snapshot_value
 from .references import assess_equipment
 from .loaded_files import LoadedFiles
-from .domain import Snapshot
+from .save_inputs import copy_save_input, required_item_ids
 
 _MISSING = object()
 
@@ -73,9 +73,8 @@ class SnapshotState:
 
     def record_addresses(self, folder, kind): return self._orders[folder, kind]
 
-    def equipment_item_ids(self, identities):
-        return {s.item_id for identity in identities if identity[1] == 'equipsets'
-                for s in self._entries[identity].slots if s.item_id}
+    def save_item_ids(self, folder, identities):
+        return required_item_ids(self._save_character(folder, identities))
 
     def source_index(self): return self._files
 
@@ -140,18 +139,14 @@ class SnapshotState:
             result._entries = entries.finish()
         return result
 
-    def save_input(self, folder, identities=None, item_ids=None):
+    def _save_character(self, folder, identities):
         character = next(c for c in self._template.characters if c.folder_id == folder)
         if identities is None:
             identities = {key for key in self._entries if key[0] == folder}
         records = {kind:[self._entries[folder,kind,address]
                          for address in self._orders[folder,kind]
                          if (folder,kind,address) in identities] for kind in ('macros','equipsets')}
-        character = replace(character, **records)
-        template = self._template
-        # Macro token resolution needs the item dictionary; equipment needs only its slot items.
-        if item_ids is None:
-            item_ids = {slot.item_id for e in records['equipsets'] for slot in e.slots if slot.item_id}
-        items = template.items if records['macros'] else {key:template.items[key] for key in item_ids if key in template.items}
-        return deepcopy(Snapshot(template.id, template.captured_at, [character], items,
-                                 template.sources, [], template.installation_key))
+        return replace(character, **records)
+
+    def save_input(self, folder, identities=None, item_ids=None):
+        return copy_save_input(self._template, self._save_character(folder, identities), item_ids)

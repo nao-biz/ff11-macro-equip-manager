@@ -122,7 +122,7 @@ class EditSession:
 
     def save_inputs(self, folder, identities):
         """Detached paired inputs plus the owned, persistent source index."""
-        item_ids = self._saved.equipment_item_ids(identities) | self._working.equipment_item_ids(identities)
+        item_ids = self._saved.save_item_ids(folder, identities) | self._working.save_item_ids(folder, identities)
         return (self._saved.save_input(folder, identities, item_ids),
                 self._working.save_input(folder, identities, item_ids), self._saved.source_index())
 

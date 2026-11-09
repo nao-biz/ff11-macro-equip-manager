@@ -61,12 +61,6 @@ def resolve_token(payload, phrases, items):
     if payload[0]==2:
         value=phrases.get(key)
         return value if value and not value.startswith('@') else None
-    if payload[0] in (7,9,10):
-        if payload[0]==9:
-            if payload[2]!=255: return None
-            key&=255
-        if payload[0]==10:
-            if payload[3]!=255: return None
-            key&=0xFF00
-        return items.get(key,{}).get('name')
-    return None
+    from .item_tokens import item_id_from_token
+    item_id = item_id_from_token(payload)
+    return items.get(item_id, {}).get('name') if item_id is not None else None
