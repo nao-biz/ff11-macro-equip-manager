@@ -1,0 +1,34 @@
+[
+  {
+    "macros": 400,
+    "operation": "edit_commit",
+    "editor.apply": 0.73,
+    "editor.snapshot": 1.37,
+    "ui.change_mode": 70.91,
+    "ui.refresh_edits": 159.63
+  },
+  {
+    "macros": 400,
+    "operation": "writeback",
+    "editor.apply": 0,
+    "editor.snapshot": 1.24,
+    "ui.change_mode": 60.45,
+    "ui.refresh_edits": 88.97
+  },
+  {
+    "macros": 4000,
+    "operation": "edit_commit",
+    "editor.apply": 0.71,
+    "editor.snapshot": 8.12,
+    "ui.change_mode": 164.94,
+    "ui.refresh_edits": 279.47
+  },
+  {
+    "macros": 4000,
+    "operation": "writeback",
+    "editor.apply": 0,
+    "editor.snapshot": 7.69,
+    "ui.change_mode": 162.98,
+    "ui.refresh_edits": 213.63
+  }
+]

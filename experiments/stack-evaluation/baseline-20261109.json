@@ -1,0 +1,718 @@
+{
+  "commit": "518f7464e93b87646ea0a9a37370e8d95d66414c",
+  "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+  "platform": "Windows-11-10.0.26300-SP0",
+  "scope": "Synthetic Tk UI event dispatch through actual Editor and filesystem; excludes OS input/display latency, real IME, installed game and cold startup.",
+  "cases": [
+    {
+      "macro_files": 20,
+      "macros": 400,
+      "characters": 1,
+      "inventory_rows": 0,
+      "rows": [
+        {
+          "operation": "edit_commit",
+          "iteration": 0,
+          "elapsed_ms": 309.1441000578925,
+          "max_event_gap_ms": 117.87490011192858,
+          "heartbeats": 7
+        },
+        {
+          "operation": "undo",
+          "iteration": 0,
+          "elapsed_ms": 273.10420002322644,
+          "max_event_gap_ms": 138.4196999715641,
+          "heartbeats": 7
+        },
+        {
+          "operation": "redo",
+          "iteration": 0,
+          "elapsed_ms": 260.9128999756649,
+          "max_event_gap_ms": 135.3589000646025,
+          "heartbeats": 7
+        },
+        {
+          "operation": "tab_inventory",
+          "iteration": 0,
+          "elapsed_ms": 78.64309998694807,
+          "max_event_gap_ms": 57.83840001095086,
+          "heartbeats": 2
+        },
+        {
+          "operation": "tab_macro",
+          "iteration": 0,
+          "elapsed_ms": 121.83339998591691,
+          "max_event_gap_ms": 93.50880002602935,
+          "heartbeats": 3
+        },
+        {
+          "operation": "save_preview",
+          "iteration": 0,
+          "elapsed_ms": 258.88179999310523,
+          "max_event_gap_ms": 71.95889996364713,
+          "heartbeats": 9
+        },
+        {
+          "operation": "writeback",
+          "iteration": 0,
+          "elapsed_ms": 1245.306900003925,
+          "max_event_gap_ms": 610.9929999802262,
+          "heartbeats": 31
+        },
+        {
+          "operation": "edit_commit",
+          "iteration": 1,
+          "elapsed_ms": 282.46850008144975,
+          "max_event_gap_ms": 101.22890002094209,
+          "heartbeats": 7
+        },
+        {
+          "operation": "undo",
+          "iteration": 1,
+          "elapsed_ms": 235.27439997997135,
+          "max_event_gap_ms": 109.59120001643896,
+          "heartbeats": 7
+        },
+        {
+          "operation": "redo",
+          "iteration": 1,
+          "elapsed_ms": 224.92300008889288,
+          "max_event_gap_ms": 111.11609998624772,
+          "heartbeats": 7
+        },
+        {
+          "operation": "tab_inventory",
+          "iteration": 1,
+          "elapsed_ms": 63.44070006161928,
+          "max_event_gap_ms": 44.70740002579987,
+          "heartbeats": 2
+        },
+        {
+          "operation": "tab_macro",
+          "iteration": 1,
+          "elapsed_ms": 121.79640005342662,
+          "max_event_gap_ms": 94.73749995231628,
+          "heartbeats": 3
+        },
+        {
+          "operation": "save_preview",
+          "iteration": 1,
+          "elapsed_ms": 307.58000002242625,
+          "max_event_gap_ms": 106.22249997686595,
+          "heartbeats": 11
+        },
+        {
+          "operation": "writeback",
+          "iteration": 1,
+          "elapsed_ms": 704.8741999315098,
+          "max_event_gap_ms": 103.87460002675653,
+          "heartbeats": 29
+        },
+        {
+          "operation": "edit_commit",
+          "iteration": 2,
+          "elapsed_ms": 289.47769990190864,
+          "max_event_gap_ms": 106.19199997745454,
+          "heartbeats": 7
+        },
+        {
+          "operation": "undo",
+          "iteration": 2,
+          "elapsed_ms": 231.87230003532022,
+          "max_event_gap_ms": 113.66380006074905,
+          "heartbeats": 7
+        },
+        {
+          "operation": "redo",
+          "iteration": 2,
+          "elapsed_ms": 229.88060000352561,
+          "max_event_gap_ms": 110.76099995989352,
+          "heartbeats": 7
+        },
+        {
+          "operation": "tab_inventory",
+          "iteration": 2,
+          "elapsed_ms": 72.44520005770028,
+          "max_event_gap_ms": 53.451000014320016,
+          "heartbeats": 2
+        },
+        {
+          "operation": "tab_macro",
+          "iteration": 2,
+          "elapsed_ms": 129.36399993486702,
+          "max_event_gap_ms": 99.09569995943457,
+          "heartbeats": 3
+        },
+        {
+          "operation": "save_preview",
+          "iteration": 2,
+          "elapsed_ms": 256.2110999133438,
+          "max_event_gap_ms": 80.50989999901503,
+          "heartbeats": 9
+        },
+        {
+          "operation": "writeback",
+          "iteration": 2,
+          "elapsed_ms": 692.1109000686556,
+          "max_event_gap_ms": 105.20590003579855,
+          "heartbeats": 30
+        },
+        {
+          "operation": "edit_commit",
+          "iteration": 3,
+          "elapsed_ms": 276.2301000766456,
+          "max_event_gap_ms": 102.74889995343983,
+          "heartbeats": 7
+        },
+        {
+          "operation": "undo",
+          "iteration": 3,
+          "elapsed_ms": 227.7660999679938,
+          "max_event_gap_ms": 111.16400000173599,
+          "heartbeats": 7
+        },
+        {
+          "operation": "redo",
+          "iteration": 3,
+          "elapsed_ms": 219.3376999348402,
+          "max_event_gap_ms": 106.07949993573129,
+          "heartbeats": 7
+        },
+        {
+          "operation": "tab_inventory",
+          "iteration": 3,
+          "elapsed_ms": 65.74989994987845,
+          "max_event_gap_ms": 47.157400054857135,
+          "heartbeats": 2
+        },
+        {
+          "operation": "tab_macro",
+          "iteration": 3,
+          "elapsed_ms": 131.12689997069538,
+          "max_event_gap_ms": 101.5934000024572,
+          "heartbeats": 3
+        },
+        {
+          "operation": "save_preview",
+          "iteration": 3,
+          "elapsed_ms": 259.5448000356555,
+          "max_event_gap_ms": 91.90360002685338,
+          "heartbeats": 9
+        },
+        {
+          "operation": "writeback",
+          "iteration": 3,
+          "elapsed_ms": 691.8837999692187,
+          "max_event_gap_ms": 102.73829998914152,
+          "heartbeats": 29
+        },
+        {
+          "operation": "edit_commit",
+          "iteration": 4,
+          "elapsed_ms": 282.5123999500647,
+          "max_event_gap_ms": 110.31689995434135,
+          "heartbeats": 6
+        },
+        {
+          "operation": "undo",
+          "iteration": 4,
+          "elapsed_ms": 230.63950007781386,
+          "max_event_gap_ms": 109.94900006335229,
+          "heartbeats": 7
+        },
+        {
+          "operation": "redo",
+          "iteration": 4,
+          "elapsed_ms": 225.75089999008924,
+          "max_event_gap_ms": 112.35170008148998,
+          "heartbeats": 7
+        },
+        {
+          "operation": "tab_inventory",
+          "iteration": 4,
+          "elapsed_ms": 63.74350003898144,
+          "max_event_gap_ms": 45.49449996557087,
+          "heartbeats": 2
+        },
+        {
+          "operation": "tab_macro",
+          "iteration": 4,
+          "elapsed_ms": 128.15230002161115,
+          "max_event_gap_ms": 100.663400022313,
+          "heartbeats": 3
+        },
+        {
+          "operation": "save_preview",
+          "iteration": 4,
+          "elapsed_ms": 262.50750001054257,
+          "max_event_gap_ms": 90.98119998816401,
+          "heartbeats": 8
+        },
+        {
+          "operation": "writeback",
+          "iteration": 4,
+          "elapsed_ms": 1033.524600090459,
+          "max_event_gap_ms": 378.26410005800426,
+          "heartbeats": 30
+        },
+        {
+          "operation": "edit_commit",
+          "iteration": 5,
+          "elapsed_ms": 275.4013000521809,
+          "max_event_gap_ms": 105.31620006076992,
+          "heartbeats": 6
+        },
+        {
+          "operation": "undo",
+          "iteration": 5,
+          "elapsed_ms": 220.93670000322163,
+          "max_event_gap_ms": 107.68979997374117,
+          "heartbeats": 7
+        },
+        {
+          "operation": "redo",
+          "iteration": 5,
+          "elapsed_ms": 219.37920001801103,
+          "max_event_gap_ms": 108.84749994147569,
+          "heartbeats": 6
+        },
+        {
+          "operation": "tab_inventory",
+          "iteration": 5,
+          "elapsed_ms": 64.48960001580417,
+          "max_event_gap_ms": 45.08720000740141,
+          "heartbeats": 2
+        },
+        {
+          "operation": "tab_macro",
+          "iteration": 5,
+          "elapsed_ms": 116.70460004825145,
+          "max_event_gap_ms": 87.80670003034174,
+          "heartbeats": 3
+        },
+        {
+          "operation": "save_preview",
+          "iteration": 5,
+          "elapsed_ms": 317.0200999593362,
+          "max_event_gap_ms": 102.12389996740967,
+          "heartbeats": 12
+        },
+        {
+          "operation": "writeback",
+          "iteration": 5,
+          "elapsed_ms": 674.816400045529,
+          "max_event_gap_ms": 105.49540002830327,
+          "heartbeats": 26
+        }
+      ],
+      "summary": [
+        {
+          "operation": "edit_commit",
+          "samples": 5,
+          "median_ms": 282.46850008144975,
+          "max_ms": 289.47769990190864,
+          "max_event_gap_ms": 110.31689995434135
+        },
+        {
+          "operation": "undo",
+          "samples": 5,
+          "median_ms": 230.63950007781386,
+          "max_ms": 235.27439997997135,
+          "max_event_gap_ms": 113.66380006074905
+        },
+        {
+          "operation": "redo",
+          "samples": 5,
+          "median_ms": 224.92300008889288,
+          "max_ms": 229.88060000352561,
+          "max_event_gap_ms": 112.35170008148998
+        },
+        {
+          "operation": "tab_inventory",
+          "samples": 5,
+          "median_ms": 64.48960001580417,
+          "max_ms": 72.44520005770028,
+          "max_event_gap_ms": 53.451000014320016
+        },
+        {
+          "operation": "tab_macro",
+          "samples": 5,
+          "median_ms": 128.15230002161115,
+          "max_ms": 131.12689997069538,
+          "max_event_gap_ms": 101.5934000024572
+        },
+        {
+          "operation": "save_preview",
+          "samples": 5,
+          "median_ms": 262.50750001054257,
+          "max_ms": 317.0200999593362,
+          "max_event_gap_ms": 106.22249997686595
+        },
+        {
+          "operation": "writeback",
+          "samples": 5,
+          "median_ms": 692.1109000686556,
+          "max_ms": 1033.524600090459,
+          "max_event_gap_ms": 378.26410005800426
+        }
+      ],
+      "callback_errors": [],
+      "assertions": "commit/undo/redo cursor, edit focus, tab target, clean save, saved bytes"
+    },
+    {
+      "macro_files": 200,
+      "macros": 4000,
+      "characters": 1,
+      "inventory_rows": 0,
+      "rows": [
+        {
+          "operation": "edit_commit",
+          "iteration": 0,
+          "elapsed_ms": 383.2012000493705,
+          "max_event_gap_ms": 194.00559994392097,
+          "heartbeats": 7
+        },
+        {
+          "operation": "undo",
+          "iteration": 0,
+          "elapsed_ms": 344.14549998473376,
+          "max_event_gap_ms": 210.23920003790408,
+          "heartbeats": 8
+        },
+        {
+          "operation": "redo",
+          "iteration": 0,
+          "elapsed_ms": 799.165099975653,
+          "max_event_gap_ms": 670.7397999707609,
+          "heartbeats": 7
+        },
+        {
+          "operation": "tab_inventory",
+          "iteration": 0,
+          "elapsed_ms": 100.5272000329569,
+          "max_event_gap_ms": 80.35090006887913,
+          "heartbeats": 2
+        },
+        {
+          "operation": "tab_macro",
+          "iteration": 0,
+          "elapsed_ms": 227.01229993253946,
+          "max_event_gap_ms": 196.52270001824945,
+          "heartbeats": 3
+        },
+        {
+          "operation": "save_preview",
+          "iteration": 0,
+          "elapsed_ms": 1084.153400035575,
+          "max_event_gap_ms": 97.68430003896356,
+          "heartbeats": 41
+        },
+        {
+          "operation": "writeback",
+          "iteration": 0,
+          "elapsed_ms": 3271.964200073853,
+          "max_event_gap_ms": 205.67049994133413,
+          "heartbeats": 128
+        },
+        {
+          "operation": "edit_commit",
+          "iteration": 1,
+          "elapsed_ms": 401.76769997924566,
+          "max_event_gap_ms": 190.9806999610737,
+          "heartbeats": 7
+        },
+        {
+          "operation": "undo",
+          "iteration": 1,
+          "elapsed_ms": 350.7755999453366,
+          "max_event_gap_ms": 214.86540010664612,
+          "heartbeats": 7
+        },
+        {
+          "operation": "redo",
+          "iteration": 1,
+          "elapsed_ms": 340.2170999906957,
+          "max_event_gap_ms": 209.52669996768236,
+          "heartbeats": 7
+        },
+        {
+          "operation": "tab_inventory",
+          "iteration": 1,
+          "elapsed_ms": 85.49500000663102,
+          "max_event_gap_ms": 64.98880009166896,
+          "heartbeats": 2
+        },
+        {
+          "operation": "tab_macro",
+          "iteration": 1,
+          "elapsed_ms": 236.40589998103678,
+          "max_event_gap_ms": 201.3388000195846,
+          "heartbeats": 3
+        },
+        {
+          "operation": "save_preview",
+          "iteration": 1,
+          "elapsed_ms": 1063.494100002572,
+          "max_event_gap_ms": 87.28630002588034,
+          "heartbeats": 39
+        },
+        {
+          "operation": "writeback",
+          "iteration": 1,
+          "elapsed_ms": 3356.0403001029044,
+          "max_event_gap_ms": 208.7984000099823,
+          "heartbeats": 121
+        },
+        {
+          "operation": "edit_commit",
+          "iteration": 2,
+          "elapsed_ms": 384.5854999963194,
+          "max_event_gap_ms": 197.24000000860542,
+          "heartbeats": 7
+        },
+        {
+          "operation": "undo",
+          "iteration": 2,
+          "elapsed_ms": 345.84059996996075,
+          "max_event_gap_ms": 211.41350001562387,
+          "heartbeats": 7
+        },
+        {
+          "operation": "redo",
+          "iteration": 2,
+          "elapsed_ms": 336.65149996522814,
+          "max_event_gap_ms": 207.35729997977614,
+          "heartbeats": 7
+        },
+        {
+          "operation": "tab_inventory",
+          "iteration": 2,
+          "elapsed_ms": 82.15000003110617,
+          "max_event_gap_ms": 65.93399995472282,
+          "heartbeats": 2
+        },
+        {
+          "operation": "tab_macro",
+          "iteration": 2,
+          "elapsed_ms": 235.83320004399866,
+          "max_event_gap_ms": 202.65270001254976,
+          "heartbeats": 3
+        },
+        {
+          "operation": "save_preview",
+          "iteration": 2,
+          "elapsed_ms": 1068.2065000291914,
+          "max_event_gap_ms": 91.80090005975217,
+          "heartbeats": 36
+        },
+        {
+          "operation": "writeback",
+          "iteration": 2,
+          "elapsed_ms": 3620.9305999800563,
+          "max_event_gap_ms": 233.77030005212873,
+          "heartbeats": 122
+        },
+        {
+          "operation": "edit_commit",
+          "iteration": 3,
+          "elapsed_ms": 406.9492999697104,
+          "max_event_gap_ms": 192.56329990457743,
+          "heartbeats": 7
+        },
+        {
+          "operation": "undo",
+          "iteration": 3,
+          "elapsed_ms": 853.9669999154285,
+          "max_event_gap_ms": 688.3211000822484,
+          "heartbeats": 9
+        },
+        {
+          "operation": "redo",
+          "iteration": 3,
+          "elapsed_ms": 329.0440000128001,
+          "max_event_gap_ms": 205.5557999992743,
+          "heartbeats": 7
+        },
+        {
+          "operation": "tab_inventory",
+          "iteration": 3,
+          "elapsed_ms": 78.68329994380474,
+          "max_event_gap_ms": 64.10950003191829,
+          "heartbeats": 2
+        },
+        {
+          "operation": "tab_macro",
+          "iteration": 3,
+          "elapsed_ms": 225.44319997541606,
+          "max_event_gap_ms": 196.24030007980764,
+          "heartbeats": 3
+        },
+        {
+          "operation": "save_preview",
+          "iteration": 3,
+          "elapsed_ms": 1075.1971999416128,
+          "max_event_gap_ms": 85.72400000412017,
+          "heartbeats": 35
+        },
+        {
+          "operation": "writeback",
+          "iteration": 3,
+          "elapsed_ms": 3845.9288000594825,
+          "max_event_gap_ms": 505.95849996898323,
+          "heartbeats": 114
+        },
+        {
+          "operation": "edit_commit",
+          "iteration": 4,
+          "elapsed_ms": 441.40520005021244,
+          "max_event_gap_ms": 218.745700083673,
+          "heartbeats": 7
+        },
+        {
+          "operation": "undo",
+          "iteration": 4,
+          "elapsed_ms": 416.8151000048965,
+          "max_event_gap_ms": 226.1990999104455,
+          "heartbeats": 10
+        },
+        {
+          "operation": "redo",
+          "iteration": 4,
+          "elapsed_ms": 410.8705000253394,
+          "max_event_gap_ms": 256.1084000626579,
+          "heartbeats": 8
+        },
+        {
+          "operation": "tab_inventory",
+          "iteration": 4,
+          "elapsed_ms": 112.12649999652058,
+          "max_event_gap_ms": 85.66789992619306,
+          "heartbeats": 2
+        },
+        {
+          "operation": "tab_macro",
+          "iteration": 4,
+          "elapsed_ms": 273.72399996966124,
+          "max_event_gap_ms": 229.91049999836832,
+          "heartbeats": 4
+        },
+        {
+          "operation": "save_preview",
+          "iteration": 4,
+          "elapsed_ms": 1092.0168000739068,
+          "max_event_gap_ms": 113.4891000110656,
+          "heartbeats": 41
+        },
+        {
+          "operation": "writeback",
+          "iteration": 4,
+          "elapsed_ms": 3361.8053999962285,
+          "max_event_gap_ms": 207.32150005642325,
+          "heartbeats": 113
+        },
+        {
+          "operation": "edit_commit",
+          "iteration": 5,
+          "elapsed_ms": 929.7855999320745,
+          "max_event_gap_ms": 736.567199928686,
+          "heartbeats": 7
+        },
+        {
+          "operation": "undo",
+          "iteration": 5,
+          "elapsed_ms": 364.7914999164641,
+          "max_event_gap_ms": 211.3793999888003,
+          "heartbeats": 8
+        },
+        {
+          "operation": "redo",
+          "iteration": 5,
+          "elapsed_ms": 349.70749996136874,
+          "max_event_gap_ms": 205.64460009336472,
+          "heartbeats": 7
+        },
+        {
+          "operation": "tab_inventory",
+          "iteration": 5,
+          "elapsed_ms": 78.81629990879446,
+          "max_event_gap_ms": 64.94940002448857,
+          "heartbeats": 2
+        },
+        {
+          "operation": "tab_macro",
+          "iteration": 5,
+          "elapsed_ms": 237.31710005085915,
+          "max_event_gap_ms": 201.90589991398156,
+          "heartbeats": 3
+        },
+        {
+          "operation": "save_preview",
+          "iteration": 5,
+          "elapsed_ms": 1076.9878000719473,
+          "max_event_gap_ms": 99.88740005064756,
+          "heartbeats": 39
+        },
+        {
+          "operation": "writeback",
+          "iteration": 5,
+          "elapsed_ms": 3385.202700039372,
+          "max_event_gap_ms": 225.76169995591044,
+          "heartbeats": 125
+        }
+      ],
+      "summary": [
+        {
+          "operation": "edit_commit",
+          "samples": 5,
+          "median_ms": 406.9492999697104,
+          "max_ms": 929.7855999320745,
+          "max_event_gap_ms": 736.567199928686
+        },
+        {
+          "operation": "undo",
+          "samples": 5,
+          "median_ms": 364.7914999164641,
+          "max_ms": 853.9669999154285,
+          "max_event_gap_ms": 688.3211000822484
+        },
+        {
+          "operation": "redo",
+          "samples": 5,
+          "median_ms": 340.2170999906957,
+          "max_ms": 410.8705000253394,
+          "max_event_gap_ms": 256.1084000626579
+        },
+        {
+          "operation": "tab_inventory",
+          "samples": 5,
+          "median_ms": 82.15000003110617,
+          "max_ms": 112.12649999652058,
+          "max_event_gap_ms": 85.66789992619306
+        },
+        {
+          "operation": "tab_macro",
+          "samples": 5,
+          "median_ms": 236.40589998103678,
+          "max_ms": 273.72399996966124,
+          "max_event_gap_ms": 229.91049999836832
+        },
+        {
+          "operation": "save_preview",
+          "samples": 5,
+          "median_ms": 1075.1971999416128,
+          "max_ms": 1092.0168000739068,
+          "max_event_gap_ms": 113.4891000110656
+        },
+        {
+          "operation": "writeback",
+          "samples": 5,
+          "median_ms": 3385.202700039372,
+          "max_ms": 3845.9288000594825,
+          "max_event_gap_ms": 505.95849996898323
+        }
+      ],
+      "callback_errors": [],
+      "assertions": "commit/undo/redo cursor, edit focus, tab target, clean save, saved bytes"
+    }
+  ]
+}
