@@ -15,7 +15,7 @@ jobs:
       - name: Enforce domain to UI boundary
         env:
           PYTHONPATH: work/architecture-tools
-        run: python -X utf8 -c "from importlinter.cli import lint_imports_command; lint_imports_command()" --config tools/architecture/contracts.ini --contract domain-ui --contract save-state-storage --contract macro-proposal --no-cache --no-logo
+        run: python -X utf8 -c "from importlinter.cli import lint_imports_command; lint_imports_command()" --config tools/architecture/contracts.ini --contract domain-ui --contract save-state-storage --contract macro-proposal --contract snapshot-loading --no-cache --no-logo
       - name: Enforce save coordinator public API usage
         env:
           PYTHONPATH: work/architecture-tools

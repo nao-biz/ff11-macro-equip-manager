@@ -206,7 +206,7 @@ class ManualMacroSavingTests(unittest.TestCase):
                 detail=next(w for w in window.winfo_children() if isinstance(w,tk.Text)).get('1.0','end')
                 self.assertIn('名前',detail);self.assertIn('/echo custom',detail);self.assertEqual(f.bytes(),before)
                 save=f.editor.save_combined
-                with patch.object(application,'load_snapshot',side_effect=lambda _:f.load()),patch.object(f.editor,'save_combined',side_effect=lambda plan,root:save(plan,base/'backups')):
+                with patch('ff11reader.snapshot_loading.load_macro_validation_snapshot',side_effect=lambda *args:f.load()),patch.object(f.editor,'save_combined',side_effect=lambda plan,root:save(plan,base/'backups')):
                     window.accept_button.invoke();app.update()
                 self.assertFalse(errors,errors);self.assertFalse(f.editor.session.dirty)
             finally:app.destroy()

@@ -230,7 +230,7 @@ class PhraseUITests(unittest.TestCase):
                 saving=next(w for w in app.winfo_children() if isinstance(w,tk.Toplevel) and 'ゲームへ書き戻す' in w.title())
                 self.assertEqual(f.bytes(),before)
                 save=f.editor.save_combined
-                with patch.object(application,'load_snapshot',side_effect=lambda _:f.load()),patch.object(f.editor,'save_combined',side_effect=lambda plan,root:save(plan,base/'backups')):
+                with patch('ff11reader.snapshot_loading.load_macro_validation_snapshot',side_effect=lambda *args:f.load()),patch.object(f.editor,'save_combined',side_effect=lambda plan,root:save(plan,base/'backups')):
                     saving.accept_button.invoke();app.update()
                 self.assertFalse(errors,errors);self.assertFalse(f.editor.session.dirty)
                 f.reopen();self.assertIsNone(f.editor.blocked);self.assertFalse(f.editor.session.dirty)

@@ -22,6 +22,24 @@ def discover():
     return roots
 
 
+def character_sources(root, macro_scope):
+    """Select files independently of their decoding, for UI or macro validation."""
+    allowed = None
+    if macro_scope is None:
+        folders = sorted((root/'USER').iterdir())
+    else:
+        folder_id, pages = macro_scope
+        if not re.fullmatch('[0-9a-fA-F]+', folder_id) or any(type(p) is not int or not 0 <= p < 400 for p in pages):
+            raise ValueError('マクロ再検証の読込範囲が不正です。')
+        folders = (root/'USER'/folder_id,)
+        allowed = set(codecs.BAGS) | {('mcr' + (str(p) if p else '') + '.dat') for p in pages}
+    for folder in folders:
+        if not folder.is_dir() or not re.fullmatch('[0-9a-fA-F]+', folder.name):
+            continue
+        paths = (p for p in sorted(folder.iterdir()) if allowed is None or p.name.lower() in allowed)
+        yield folder, (p for p in paths if p.is_file())
+
+
 class LocalReader:
     def __init__(self, root):
         self.root=Path(root).resolve(); self.sources=[]; self.diagnostics=[]; self.phrase_readings={}
@@ -108,14 +126,12 @@ class LocalReader:
             results.append(result)
         return RankCatalog(*results)
 
-    def load_characters(self, resolver=None):
+    def load_characters(self, resolver=None, *, macro_scope=None):
         result=[]
-        for folder in sorted((self.root/'USER').iterdir()):
-            if not folder.is_dir() or not re.fullmatch('[0-9a-fA-F]+',folder.name): continue
+        for folder, paths in character_sources(self.root, macro_scope):
             c=Character(folder.name); result.append(c)
             c.inventory_coverage={bag:'missing' for bag in codecs.BAGS.values()}
-            for path in sorted(folder.iterdir()):
-                if not path.is_file(): continue
+            for path in paths:
                 name=path.name.lower(); decoded=None
                 match=re.fullmatch(r'mcr([1-9][0-9]{0,2})?\.dat',name)
                 if match and int(match[1] or 0)<400:

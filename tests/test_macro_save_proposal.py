@@ -2,7 +2,7 @@ from copy import deepcopy
 from dataclasses import replace
 import unittest
 from unittest.mock import patch
-from ff11reader import application, macro_saving
+from ff11reader import macro_saving
 from ff11reader.domain import Character, Text
 from ff11reader.editing import macro_key
 from ff11reader.macro_save_proposal import replay_macro_proposal
@@ -68,7 +68,7 @@ class MacroSaveProposalTests(unittest.TestCase):
             target = fresh.characters[0].macros[index]
             fresh.characters[0].macros[index] = replace(target, title=replace(target.title, display='changed'))
             original = fixture.bytes()
-            with patch.object(application, 'load_snapshot', return_value=fresh) as reload:
+            with patch('ff11reader.snapshot_loading.load_macro_validation_snapshot', return_value=fresh) as reload:
                 with self.assertRaises(ValueError):
                     macro_saving.execute_macro_save(plan, base/'backups')
                 reload.assert_called_once()

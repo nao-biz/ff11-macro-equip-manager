@@ -202,7 +202,7 @@ class GameFixture:
 
     def save(self, plan):
         # Macro save's locked reread is redirected exclusively to this synthetic tree.
-        with patch.object(application, 'load_snapshot', side_effect=lambda root:self.load()):
+        with patch('ff11reader.snapshot_loading.load_macro_validation_snapshot', side_effect=lambda root,*scope:self.load()):
             return (self.editor.save_macros if self.kind=='macro' else self.editor.save_equipment)(plan,self.base/'backups')
 
     def reopen(self):

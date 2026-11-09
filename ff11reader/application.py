@@ -3,14 +3,13 @@ from datetime import datetime, timezone
 from uuid import uuid4
 import hashlib
 from pathlib import Path
-from dataclasses import replace
 from . import store
 from .adapters import LocalReader, discover
 from .domain import Snapshot
-from .dictionaries import resolve_token
 from .references import assess_equipment
-from .codecs import BAGS, text
+from .codecs import BAGS
 from .fixes import plan_fixes, apply_fixes
+from .snapshot_loading import resolve_macro_text, verify_sources
 
 
 def prepare_game_save(snapshot, character, number):
@@ -40,12 +39,8 @@ def load_snapshot(root):
     items=reader.load_items(icon_ids); phrases=reader.load_phrases()
     augment_names=reader.load_augment_names()
     rank_augments=reader.load_rank_augments()
-    resolver=lambda p:resolve_token(p,phrases,items)
-    for c in characters:
-        c.macros=[replace(m,lines=tuple(text(bytes.fromhex(l.raw_hex),resolver)
-                     if '{AT:' in l.display else l for l in m.lines)) for m in c.macros]
-    changed=reader.verify_unchanged()
-    if changed: raise RuntimeError('Sources changed during snapshot; reload: '+', '.join(changed))
+    resolve_macro_text(characters, phrases, items)
+    verify_sources(reader)
     for c in characters:
         sources={}
         for source in reader.sources:

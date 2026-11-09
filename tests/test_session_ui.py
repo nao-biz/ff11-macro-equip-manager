@@ -30,7 +30,7 @@ class SessionUITests(WorkspaceMixin, MoveFixture):
                 if path.parent == self.folder.resolve():
                     self.source.sources.append(dict(source, path=str(target / path.name)))
             self.editor = Editor(self.source, self.editor.state_path)
-            def load_both(root):
+            def load_both(root, *scope):
                 from ff11reader import codecs
                 from ff11reader.saving import digest
                 fresh = self.load()
@@ -43,7 +43,7 @@ class SessionUITests(WorkspaceMixin, MoveFixture):
                 fresh.sources.extend({'path': str(p.resolve()), 'sha256': digest(p.read_bytes())}
                                      for p in target.iterdir())
                 return fresh
-            reader = patch('ff11reader.application.load_snapshot', side_effect=load_both)
+            reader = patch('ff11reader.snapshot_loading.load_macro_validation_snapshot', side_effect=load_both)
             reader.start(); self.addCleanup(reader.stop)
         view = self.open_view()
         self.game = {p: p.read_bytes() for p in self.folder.parent.rglob('*.dat')}

@@ -34,6 +34,7 @@ class MoveFixture(unittest.TestCase):
             (self.folder/('mcr'+(str(page) if page else '')+'.dat')).write_bytes(checksum(raw))
         for module in ('saving','equipment_saving','macro_saving','combined_saving'):
             handle=patch(f'ff11reader.{module}.require_game_closed');handle.start();self.addCleanup(handle.stop)
+        handle=patch('ff11reader.snapshot_loading.load_macro_validation_snapshot',side_effect=lambda root,*scope:self.load());handle.start();self.addCleanup(handle.stop)
         handle=patch('ff11reader.application.load_snapshot',side_effect=lambda root:self.load());handle.start();self.addCleanup(handle.stop)
         handle=patch('ff11reader.adapters.LocalReader.load_phrases',return_value={0x201:'/equipset'});handle.start();self.addCleanup(handle.stop)
         self.source=self.load();self.editor=Editor(self.source,self.base/'draft.json')

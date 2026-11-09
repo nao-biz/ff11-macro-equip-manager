@@ -33,7 +33,7 @@ class MacroSavingTests(unittest.TestCase):
             (self.folder/name).write_bytes(checksum(data))
         self.addCleanup(patch.stopall)
         patch('ff11reader.adapters.LocalReader.load_phrases',return_value={}).start()
-        patch('ff11reader.application.load_snapshot',side_effect=lambda root:self.load()).start()
+        patch('ff11reader.snapshot_loading.load_macro_validation_snapshot',side_effect=lambda root,*scope:self.load()).start()
         patch('ff11reader.macro_saving.require_game_closed').start()
         patch('ff11reader.saving.require_game_closed').start()
         self.source=self.load();self.editor=Editor(self.source,self.base/'draft.json')

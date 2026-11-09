@@ -203,7 +203,7 @@ def prepare_macro_save(saved,working,folder,scope='storage-fix', *, source_index
 
 
 def validate_macro_plan(plan):
-    from .application import load_snapshot
+    from .snapshot_loading import load_macro_validation_snapshot
     if not plan.files:raise ValueError('保存対象がありません。')
     root=Path(plan.files[0].target).resolve().parent.parent.parent
     targets={Path(f.target).resolve() for f in plan.files}
@@ -214,7 +214,7 @@ def validate_macro_plan(plan):
         if p!=expected or not 0<=f.page<400:raise ValueError('保存先が不正です。')
     def validate(data):
         # Rebuild the domain proposal from the locked game data.
-        fresh=load_snapshot(root)
+        fresh=load_macro_validation_snapshot(root, plan.character, (f.page for f in plan.files))
         changes={(change.address,change.line):change for f in plan.files for change in f.changes}
         bases={address:base.hex() for f in plan.files for address,original,base in f.records}
         before,proposed=replay_macro_proposal(fresh,plan.character,changes,bases)
