@@ -2,7 +2,7 @@
 from .theme import ACCENT, BG, BORDER, DANGER, FG, PANEL, SELECT, WARNING
 import tkinter as tk
 from tkinter import ttk, font as tkfont
-from .window_placement import fit_to_screen, place, visible_area
+from .window_placement import fit_to_screen, place, visible_area, after_idle_alive
 
 
 class Modal:
@@ -168,7 +168,7 @@ def confirm_buttons(window,command,*,enabled=True):
         if not window.winfo_exists():return
         place(window)
         window.cancel_button.focus_set()
-    window.after_idle(position)
+    after_idle_alive(window,position)
     return window.accept_button
 
 
@@ -178,10 +178,10 @@ def when_visible(parent,callback):
     def invoke():
         if window.winfo_exists():callback()
     if window.winfo_viewable():
-        window.after_idle(invoke)
+        after_idle_alive(window,invoke)
         return
     def mapped(event):
         if event.widget is window:
             window.unbind('<Map>',binding)
-            window.after_idle(invoke)
+            after_idle_alive(window,invoke)
     binding=window.bind('<Map>',mapped,add='+')

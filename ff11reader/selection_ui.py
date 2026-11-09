@@ -90,6 +90,11 @@ class SelectionCommands:
         address = (macro.book, macro.palette, macro.bank, macro.key)
         self.cards[address] = widget
         self.attach(widget, lambda e:('macro', address))
+        widget.bind('<Return>',lambda e:(self.select('macro',address),self.view.macro_panel.restore_input_focus(1),'break')[-1])
+        def back(event):
+            if self.view.editor.transfer and self.view.editor.transfer.cut:return self.keypress(event)
+            self.view.macro_tree.focus_set();return 'break'
+        widget.bind('<Escape>',back)
         self.paint()
 
     def click(self, event, target):

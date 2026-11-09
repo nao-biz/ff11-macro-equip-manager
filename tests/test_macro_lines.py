@@ -55,6 +55,8 @@ class LineTests(MoveFixture):
             loaded=self.load().characters[0].macros[0]
             self.assertEqual(loaded.lines[2].tokens,original.tokens)
             self.editor.undo()
+            self.assertEqual(self.editor.snapshot().characters[0].macros[0].lines[1].tokens,original.tokens)
+            self.editor.undo()
             self.assertEqual(self.editor.snapshot().characters[0].macros[0].lines,self.source.characters[0].macros[0].lines)
         finally:app.destroy()
 
@@ -68,7 +70,7 @@ class LineTests(MoveFixture):
             view.commands.select('macro',(1,1,'ctrl',1));app.update()
             panel=view.macro_panel;entry=panel.entries[1];original=panel.controllers[0].value
             entry.focus_force();app.update()
-            for key,target in [('Down',2),('Right',3),('Left',2),('Up',1),('Up',1)]:
+            for key,target in [('Down',2),('Right',3),('Left',2),('Up',1),('Up',0),('Down',1)]:
                 app.focus_get().event_generate('<'+key+'>');app.update()
                 self.assertIs(app.focus_get(),panel.entries[target])
                 self.assertEqual(panel.active_line,target)

@@ -13,6 +13,10 @@ from ff11reader.ui import ReaderWindow
 
 
 class WorkspaceMixin:
+    def begin_name(self,panel):
+        if panel.editing_line is None:
+            with patch('ff11reader.macro_editor_ui.ime_composing',return_value=False):panel.toggle_line(0)
+
     def open_view(self):
         self.app=tk.Tk();self.app.tk=TkThreadGuard(self.app.tk)
         self.callbacks=[]
@@ -52,10 +56,10 @@ class MacroWorkspaceTests(WorkspaceMixin,MoveFixture):
         self.source.characters.append(other)
         self.editor=Editor(self.source,self.base/'characters.json')
         view=self.open_view();view.tabs.select('マクロ');panel=view.macro_panel
-        panel.entries[0].delete(0,'end');panel.entries[0].insert(0,'First')
+        self.begin_name(panel);panel.entries[0].delete(0,'end');panel.entries[0].insert(0,'First')
         view.character_choice.current(1);view.change_character()
         self.assertEqual(panel.entries[0].get(),'Test')
-        panel.entries[0].delete(0,'end');panel.entries[0].insert(0,'Second')
+        self.begin_name(panel);panel.entries[0].delete(0,'end');panel.entries[0].insert(0,'Second')
         view.character_choice.current(0);view.change_character()
         self.assertEqual(panel.entries[0].get(),'First')
         view.character_choice.current(1);view.change_character()
@@ -65,7 +69,7 @@ class MacroWorkspaceTests(WorkspaceMixin,MoveFixture):
         view=self.open_view();view.tabs.select('マクロ');self.app.update()
         panel=view.macro_panel;address=view.active_macro
         original_tokens=panel.controllers[3].value.tokens
-        panel.entries[0].delete(0,'end');panel.entries[0].insert(0,'Changed')
+        self.begin_name(panel);panel.entries[0].delete(0,'end');panel.entries[0].insert(0,'Changed')
         panel.entries[1].insert('end',' ')
         view.inspect_macro(view.character.macros[1]);view.tabs.select('装備セット')
         view.nav.selection_clear(0,'end');view.nav.selection_set(30);view.nav.activate(30);view.select_navigation()
@@ -80,11 +84,8 @@ class MacroWorkspaceTests(WorkspaceMixin,MoveFixture):
         self.assertAlmostEqual(view.nav.yview()[0],position,places=2)
         self.assertEqual(sizes,{n:(w.winfo_width(),w.winfo_height()) for n,w in view.tabs.buttons.items()})
         view.tabs.select('マクロ');self.assertEqual(view.active_macro,address)
-        panel.preview_button.invoke();self.app.update();preview=self.preview_window()
-        self.assertEqual(self.app.focus_get(),preview.cancel_button)
-        preview.cancel_button.invoke();self.app.update()
-        self.assertEqual(panel.entries[0].get(),'Changed');self.assertFalse(self.editor.edit_status()[2])
-        panel.preview_button.invoke();self.preview_window().accept_button.invoke();self.app.update()
+        panel.preview_button.invoke();self.app.update()
+        self.assertIsNone(self.app.grab_current())
         self.assertEqual(view.character.macros[0].title.display,'Changed')
         self.assertFalse(panel.has_pending());view.undo_fix()
         self.assertEqual(view.character.macros[0].title.display,'Test')
@@ -94,8 +95,10 @@ class MacroWorkspaceTests(WorkspaceMixin,MoveFixture):
         view=self.open_view();view.tabs.select('マクロ');self.app.update()
         fields=view.macro_panel.entries
         fields[1].focus_force();fields[1].icursor(3);fields[1].event_generate('<Down>');self.app.update()
-        self.assertIs(self.app.focus_get(),fields[2]);self.assertEqual(fields[2].index('insert'),3)
+        self.assertIs(self.app.focus_get(),fields[2]);self.assertEqual(view.macro_panel.active_line,2)
         fields[2].event_generate('<Up>');self.app.update();self.assertIs(self.app.focus_get(),fields[1])
+        with patch('ff11reader.macro_editor_ui.ime_composing',return_value=False):
+            fields[1].event_generate('<Return>');self.app.update()
         fields[1].event_generate('<Tab>');self.app.update()
         popup=view.macro_panel.controllers[0].popup
         self.assertTrue(popup.winfo_exists());popup.event_generate('<Escape>');self.app.update()
@@ -103,7 +106,7 @@ class MacroWorkspaceTests(WorkspaceMixin,MoveFixture):
 
     def test_pending_input_precedes_game_save_and_survives_failed_apply(self):
         view=self.open_view();view.tabs.select('マクロ');self.app.update()
-        panel=view.macro_panel;panel.entries[0].delete(0,'end');panel.entries[0].insert(0,'Changed')
+        panel=view.macro_panel;self.begin_name(panel);panel.entries[0].delete(0,'end');panel.entries[0].insert(0,'Changed')
         owner=get_ident();ticks=[]
         def failure(edit):
             self.assertNotEqual(get_ident(),owner);time.sleep(.08);raise OSError('synthetic failure')
@@ -120,19 +123,19 @@ class MacroWorkspaceTests(WorkspaceMixin,MoveFixture):
 
     def test_stale_input_rejected_and_revert_uses_latest_work(self):
         view=self.open_view();view.tabs.select('マクロ');self.app.update();panel=view.macro_panel
-        panel.entries[0].delete(0,'end');panel.entries[0].insert(0,'Input')
+        self.begin_name(panel);panel.entries[0].delete(0,'end');panel.entries[0].insert(0,'Input')
         macro=view.character.macros[0]
         edit=self.editor.prepare_macro_edit('abc',view.active_macro,'External',macro.lines)
         view.run_edit(lambda:self.editor.apply(edit))
-        with patch('ff11reader.ui.dialogs.showerror') as error:
-            panel.preview();error.assert_called_once()
+        panel.preview()
+        self.assertIn('変わりました',panel.status.cget('text'))
         self.assertEqual(panel.entries[0].get(),'Input')
         with patch('ff11reader.ui.dialogs.askyesno',return_value=True):panel.revert()
         self.assertEqual(panel.entries[0].get(),'External');self.assertFalse(panel.has_pending())
 
     def test_declining_exit_and_reset_keeps_inputs(self):
         view=self.open_view();view.tabs.select('マクロ');self.app.update();panel=view.macro_panel
-        panel.entries[0].insert('end','X')
+        self.begin_name(panel);panel.entries[0].insert('end','X')
         with patch('ff11reader.ui.dialogs.ask_save_changes',return_value=None), patch('ff11reader.ui.dialogs.askyesno',return_value=False) as question:
             view.close();view.reset_edits();self.assertEqual(question.call_count,1)
         self.assertEqual(panel.entries[0].get(),'TestX');self.assertTrue(self.app.winfo_exists())
@@ -158,7 +161,7 @@ class EquipmentWorkspaceTests(WorkspaceMixin,SlotFixture):
         self.assertTrue(view.equipment_summary.frame.winfo_ismapped())
         view.open_slot_editor(view.selected.slots[0]);picker=view.slot_editor
         picker.listing.selection_set('0');self.app.update();picker.preview_button.invoke()
-        self.preview_window().accept_button.invoke();self.app.update()
+        self.assertIsNone(self.app.grab_current())
         self.assertIsNone(view.equipment_summary.trial_result);self.assertTrue(view.equipment_summary.frame.winfo_ismapped())
         self.assertEqual(view.character.equipsets[0].slots[0].item_id,0x4001)
         view.undo_fix();self.assertEqual(view.character.equipsets[0].slots[0].item_id,100)

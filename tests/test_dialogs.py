@@ -21,6 +21,15 @@ class WindowPlacementTests(unittest.TestCase):
 
 @unittest.skipUnless(os.environ.get('FF11_RUN_INTEGRATION')=='1','Enable synthetic Tk checks')
 class DialogTests(unittest.TestCase):
+    def test_destroy_before_idle_cancels_position_and_focus(self):
+        self.app.tk.eval('set ui_bgerrors {}; proc bgerror {message} {lappend ::ui_bgerrors $message}')
+        window=tk.Toplevel(self.app)
+        dialogs.confirm_buttons(window,lambda:None)
+        dialogs.after_idle_alive(window,window.focus_set)
+        window.destroy()
+        self.app.update()
+        self.assertEqual(self.app.tk.eval('set ui_bgerrors'),'')
+
     def test_diff_buttons_remain_visible_when_content_exceeds_window(self):
         window=tk.Toplevel(self.app);window.geometry('400x260')
         body=tk.Text(window,height=40,width=100);body.pack(fill='both',expand=True)

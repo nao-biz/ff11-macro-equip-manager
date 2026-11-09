@@ -51,6 +51,7 @@ class SessionUITests(WorkspaceMixin, MoveFixture):
 
     def enter_name(self, title):
         self.view.tabs.select('マクロ'); self.app.update()
+        self.begin_name(self.view.macro_panel)
         entry = self.view.macro_panel.entries[0]
         entry.delete(0, 'end'); entry.insert(0, title); self.app.update()
 

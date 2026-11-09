@@ -70,7 +70,7 @@ def place(window):
 
 def fit_to_screen(window):
     def schedule():
-        window.after_idle(lambda: place(window) if window.winfo_exists() else None)
+        after_idle_alive(window, lambda: place(window))
     if window.winfo_viewable():
         schedule()
     else:
@@ -79,3 +79,24 @@ def fit_to_screen(window):
                 window.unbind('<Map>', binding)
                 schedule()
         binding = window.bind('<Map>', mapped, add='+')
+
+
+def after_idle_alive(widget, callback):
+    """Cancel deferred UI work when its owning widget is destroyed."""
+    root = widget._root()
+    job = None
+    binding = None
+    def destroy(event):
+        nonlocal job
+        if event.widget is widget and job is not None:
+            root.after_cancel(job)
+            job = None
+    def invoke():
+        nonlocal job
+        job = None
+        if widget.winfo_exists():
+            widget.unbind('<Destroy>', binding)
+            callback()
+    binding = widget.bind('<Destroy>', destroy, add='+')
+    job = root.after_idle(invoke)
+    return job

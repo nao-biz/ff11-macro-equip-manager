@@ -53,7 +53,7 @@ class ExecutionBoundaryTests(MoveFixture):
                 view.save_button.invoke()
                 preview=app.grab_current()
                 self.assertIsInstance(preview,tk.Toplevel)
-                save=next(w for w in preview.winfo_children() if isinstance(w,ttk.Button))
+                save=preview.accept_button
                 save.invoke()
                 self.assertFalse(self.editor.session.dirty)
                 view.reset_edits()

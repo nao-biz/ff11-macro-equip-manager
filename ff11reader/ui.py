@@ -357,6 +357,23 @@ class ReaderWindow:
   value=(int(parts[1]),int(parts[2]))
   if event is not None and self.selected==value:return
   self.clear_cards();self.selected=value;self.render_macros(value)
+ def enter_navigation(self):
+  if self.mode.get()=='マクロ':
+   self.select_macro_palette()
+   if self.commands.cards:
+    address=next(iter(self.commands.cards));self.commands.select('macro',address)
+    self.commands.cards[address].focus_set()
+  elif self.mode.get()=='装備セット':
+   self.select_navigation()
+   if self.card_widgets:self.card_widgets[self.active_slot or 'main'].focus_set()
+  else:
+   self.select_navigation()
+   if self.card_widgets:
+    index=next(iter(self.card_widgets))
+    row=next(r for r in self.character.inventory if r.container==self.selected and r.index==index)
+    self.activate_card(self.card_widgets[index],lambda:self.inspect_inventory(row))
+  return 'break'
+
  def select_navigation(self,event=None):
   selection=self.nav.curselection()
   if not selection:return
@@ -369,8 +386,15 @@ class ReaderWindow:
   else:self.render_inventory(value)
  def show_evidence(self):
   if not self.evidence:return
+  previous=self.app.focus_get()
   title,body=self.evidence
   window=tk.Toplevel(self.app,background=BG);window.title('詳細 / '+title);window.geometry('780x650')
+  def close(event=None):
+   window.destroy()
+   if previous and previous.winfo_exists():previous.focus_set()
+   return 'break'
+  window.bind('<Escape>',close);window.protocol('WM_DELETE_WINDOW',close)
+  dialogs.after_idle_alive(window,window.focus_set)
   dialogs.fit_to_screen(window)
   text=tk.Text(window,wrap='word',bg=PANEL,fg=FG,font=('MS Gothic',11),padx=14,pady=14)
   bar=ttk.Scrollbar(window,command=text.yview);text.configure(yscrollcommand=bar.set);bar.pack(side='right',fill='y');text.pack(fill='both',expand=True)
@@ -419,6 +443,7 @@ class ReaderWindow:
  def activate_card(self,frame,command):
   previous=getattr(self,'active_card',None)
   if previous is not None and previous.winfo_exists():previous.configure(highlightbackground=previous.normal_border,highlightthickness=1)
+  frame.focus_set()
   self.active_card=frame;frame.configure(highlightbackground=ACCENT,highlightthickness=1);command()
  def render_equipment(self,equipset):
   self.selected=equipset
@@ -433,6 +458,7 @@ class ReaderWindow:
    s=slots[key];caption=self.item_name(s.item_id) if s.action=='equip' else {'keep':'変更しない','remove':'装備を外す'}.get(s.action,'未知の動作')
    self.card_widgets[key]=self.card(i,SLOTS[key],caption,lambda slot=s:self.inspect_slot(slot),s.item_id if s.action=='equip' else None,present_slot(s,equipset.number,self.fix_plan).status,badge=self.augment_path(s) if s.action=='equip' else '',equipment=True)
    self.card_widgets[key].bind('<Double-Button-1>',lambda event,slot=s:self.open_slot_editor(slot))
+   self.bind_card_navigation(self.card_widgets[key],key,'equipment')
   counts=Counter(ACTION_STYLE[present_slot(s,equipset.number,self.fix_plan).status][0] for s in equipset.slots if s.action=='equip')
   body='\n'.join(f'{k}: {v}枠' for k,v in counts.items())
   if not is_empty(equipset):
@@ -443,6 +469,39 @@ class ReaderWindow:
   body+='\n\n枠をダブルクリックして編集できます。補正は「操作」から変更案を確認できます。'
   self.show_detail('装備セット '+self.equipset_label(equipset.number),body)
   self.activate_card(self.card_widgets['main'],lambda:self.inspect_slot(slots['main']))
+ def restore_card_focus(self,key):
+  if self.commands.focus_job:
+   self.app.after_cancel(self.commands.focus_job);self.commands.focus_job=None
+  card=self.card_widgets.get(key)
+  if card is not None:card.focus_set()
+
+ def bind_card_navigation(self,widget,key,kind):
+  widget.configure(takefocus=True)
+  def select(target):
+   if kind=='equipment':
+    slot=next(s for s in self.selected.slots if s.name==target)
+    self.inspect_slot(slot)
+   else:
+    row=next(r for r in self.character.inventory if r.container==self.selected and r.index==target)
+    self.activate_card(self.card_widgets[target],lambda:self.inspect_inventory(row))
+   self.card_widgets[target].focus_set()
+  def navigate(event):
+   keys=list(GRID) if kind=='equipment' else list(self.card_widgets)
+   columns=4 if kind=='equipment' or self.inventory_layout.get()!='リスト' else 1
+   index=keys.index(key);row,col=divmod(index,columns)
+   dr,dc={'Up':(-1,0),'Down':(1,0),'Left':(0,-1),'Right':(0,1)}[event.keysym]
+   nr,nc=row+dr,col+dc;target=nr*columns+nc
+   if nr>=0 and 0<=nc<columns and 0<=target<len(keys):select(keys[target])
+   return 'break'
+  for direction in ('Up','Down','Left','Right'):widget.bind('<'+direction+'>',navigate)
+  def decide(event):
+   select(key)
+   if kind=='equipment':self.open_slot_editor(next(s for s in self.selected.slots if s.name==key))
+   else:self.show_evidence()
+   return 'break'
+  widget.bind('<Return>',decide)
+  widget.bind('<Escape>',lambda e:(self.nav.focus_set(),'break')[1])
+
  def inspect_slot(self,slot):
   card=self.card_widgets.get(slot.name)
   if card is not None and card is not self.active_card:self.activate_card(card,lambda:None)
@@ -532,7 +591,7 @@ class ReaderWindow:
    return
   window=tk.Toplevel(self.app,background=BG);window.title('ゲームへ書き戻す');window.geometry('980x700')
   dialogs.fit_to_screen(window)
-  window.transient(self.app);window.grab_set();window.bind('<Escape>',lambda e:window.destroy());window.after_idle(window.focus_set)
+  window.transient(self.app);window.grab_set();window.bind('<Escape>',lambda e:window.destroy());dialogs.after_idle_alive(window,window.focus_set)
   window.bind('<Destroy>',lambda e:self.commands.schedule_focus_restore() if e.widget==window else None)
   ttk.Label(window,text=f'{len(plans)}キャラの変更 · {sum(len(p.files) for p in plans)}ファイル',padding=12).pack(anchor='w')
   ttk.Label(window,text='表示した全キャラのゲームファイルを上書きします。変更前をバックアップし、失敗したキャラの書込みは復元します。\nFF11とPlayOnlineが終了している状態で、書き戻してよいですか？',padding=12,wraplength=900).pack(anchor='w')
@@ -587,12 +646,18 @@ class ReaderWindow:
    except (ValueError,OSError) as e:dialogs.showerror('装備の変更',str(e),parent=self.app);return
    self.close_slot_editor()
    self.refresh_edits()
+   self.restore_card_focus(name)
   def compare(action,selection,label):
    candidate=preview_slot(self.selected,name,action,selection)
    self.equipment_summary.show_candidate(candidate,label,next(s for s in candidate.slots if s.name==name))
   self.close_slot_editor()
   self.slot_editor=EquipmentPicker(self.equipment_candidates_panel,SLOTS[name]+'の候補',slot,rows,self.snapshot.items,BAGS,preview,
    on_select=compare,on_cancel=self.equipment_summary.clear_candidate,on_details=self.show_equipment_detail,augment_path=self.augment_path)
+  def back(event):
+   self.slot_editor.cancel();self.card_widgets[name].focus_set();return 'break'
+  self.slot_editor.listing.bind('<Escape>',back)
+  self.slot_editor.entry.bind('<Escape>',back)
+  self.slot_editor.listing.bind('<Return>',lambda e:(self.slot_editor.preview_button.invoke(),'break')[1])
  def open_slot_editor(self,slot):
   self.inspect_slot(slot)
   if self.slot_editor:self.slot_editor.listing.focus_set()
@@ -631,7 +696,7 @@ class ReaderWindow:
  def preview_edit(self,edit,apply,parent=None,*,on_applied=None,after_close=None):
   window=tk.Toplevel(self.app,background=BG);window.title(edit.label+' / 作業データ');window.geometry('900x600')
   dialogs.fit_to_screen(window)
-  window.transient(self.app);window.grab_set();window.bind('<Escape>',lambda e:window.destroy());window.after_idle(window.focus_set)
+  window.transient(self.app);window.grab_set();window.bind('<Escape>',lambda e:window.destroy());dialogs.after_idle_alive(window,window.focus_set)
   window.bind('<Destroy>',lambda e:self.commands.schedule_focus_restore() if e.widget==window else None)
   ttk.Label(window,text='表示した変更を作業データへ適用します。適用後はUndoで戻せます。\nゲームへは「ゲームへ書き戻す」から反映します。作業データを変更してよいですか？',padding=12,wraplength=820).pack(anchor='w')
   text=tk.Text(window,bg=PANEL,fg=FG,wrap='word',padx=12,pady=12)
@@ -826,6 +891,7 @@ class ReaderWindow:
   if not rows:ttk.Label(self.cards,text='インベントリ保存情報に表示できるアイテム行がありません。').grid(row=0,column=0,pady=20)
   for i,row in enumerate(rows):
    self.card_widgets[row.index]=self.inventory_row(i,row) if self.inventory_layout.get()=='リスト' else self.card(i,f'スロット {row.index}',self.item_name(row.item_id),lambda r=row:self.inspect_inventory(r),row.item_id,badge=f'ID {row.item_id}',annotation=self.augment_path(row))
+   self.bind_card_navigation(self.card_widgets[row.index],row.index,'inventory')
   self.show_detail(BAGS[bag],f'取得状態: {self.character.inventory_coverage.get(bag,"未取得")}\n\n{len(rows)}行を表示しています。\n内部スロット順で表示しています。\n個体情報は「個体情報を取り込む…」から追加できます。')
  def inspect_inventory(self,row):
   from .item_properties import describe_item
