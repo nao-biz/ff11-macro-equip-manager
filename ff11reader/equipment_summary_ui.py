@@ -167,7 +167,7 @@ class EquipmentSummary:
         text.configure(yscrollcommand=bar.set)
         bar.pack(side='right', fill='y'); text.pack(fill='both', expand=True)
         text.insert('1.0', self.details_text()); text.configure(state='disabled')
-        window.bind('<Escape>', lambda e: window.destroy())
+        dialogs.child_navigation(window, text)
 
 
 def operation_menu(parent,buttons):

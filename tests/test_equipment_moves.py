@@ -166,14 +166,14 @@ class MoveUITests(MoveFixture):
             next(w for w in window.winfo_children() if isinstance(w,ttk.Button)).invoke();app.update()
             preview=windows()[-1];detail=next(w for w in preview.winfo_children() if isinstance(w,tk.Text)).get('1.0','end')
             self.assertIn('045',detail);self.assertIn('/equipset 045',detail)
-            next(w for w in preview.winfo_children() if isinstance(w,ttk.Button)).invoke();app.update()
+            preview.accept_button.invoke();app.update()
             view.undo_fix();app.update();self.assertFalse(self.editor.has_pending_move('abc'))
             view.redo_edit();view.preview_equipment_save();app.update()
             joint=windows()[-1];self.assertIn('ゲームへ書き戻す',joint.title())
             for p,raw in self.original.items():self.assertEqual(p.read_bytes(),raw)
             save=self.editor.save_combined
             with patch.object(self.editor,'save_combined',side_effect=lambda plan,root:save(plan,self.base/'backups')):
-                next(w for w in joint.winfo_children() if isinstance(w,ttk.Button)).invoke()
+                joint.accept_button.invoke()
             app.update();self.assertFalse(errors,errors);self.assertFalse(self.editor.session.dirty)
         finally:app.destroy()
 

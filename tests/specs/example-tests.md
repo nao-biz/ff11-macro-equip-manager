@@ -438,3 +438,9 @@ D-20の操作モックは`prototypes.test_interaction_mock`で検証する。適
 2026-11-09 UI-G01〜05は本体実装に伴い通常の成功テストへ移行。行確定後のキーによるUndo/Redoとフォーカス保持、確定失敗後の編集継続・再試行、一覧→装備枠→候補→Esc復帰の受入経路を追加する。既知未達を指した上のexpectedFailure記載は監査時点の履歴とする。
 
 D-20: 文字編集中のCtrl+Z/Yは入力内の履歴を操作し、Editorの履歴件数は変えない。Enter確定後のCtrl+Zで編集全体を復元できることを`test_text_undo_is_separate_from_published_history`で確認する。ウィンドウ破棄前の遅延処理解除は`test_destroy_before_idle_cancels_position_and_focus`でTk背景エラーも検出する。
+
+### 補助画面まで含むUI監査
+
+VIEW-008 / D-19: `test_auxiliary_windows_escape_restores_caller`で装備移動、装備詳細、マクロ収納参照、マクロと装備セットの参照、未参照アイテム、集計内訳の6画面を開き、Escで閉じて呼出元へ戻ることを検証する。`test_input_enter_and_escape_respect_composition`で名前入力のEnter確定とIME変換中のEnter/Escを、`test_candidate_search_keeps_composition_enter_and_escape`で定型文検索を検証する。IME状態の差替えテストであり実IME操作とは区別する。
+
+GUI有効の全件検証は `FF11_RUN_INTEGRATION=1`、`FF11_RUN_GAME_INTEGRATION=0` で `python -m unittest discover -s tests -v` を実行する。通常CIのGUIジョブにも装備移動・装備保存・マクロ保存の確認ボタン経路を含める。

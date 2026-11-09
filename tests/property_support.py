@@ -57,6 +57,9 @@ def isolated():
             stack.enter_context(patch.object(window_placement, 'work_area', return_value=(0, 0, 1920, 1080)))
             stack.enter_context(patch.object(window_placement, 'place', return_value=None))
             stack.enter_context(patch.object(dialogs, 'place', return_value=None))
+            # IME state is simulated inside filesystem-isolated GUI tests.
+            for module in ('dialogs','phrase_ui','macro_editor_ui'):
+                stack.enter_context(patch('ff11reader.'+module+'.ime_composing',return_value=False))
             # No process enumeration, installation discovery, resources or native locking.
             for module in (saving, macro_saving, equipment_saving, combined_saving):
                 stack.enter_context(patch.object(module, 'require_game_closed', return_value=None))

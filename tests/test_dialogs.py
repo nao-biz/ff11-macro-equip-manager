@@ -92,6 +92,19 @@ class DialogTests(unittest.TestCase):
         modal=dialogs.Modal(self.app,'確認','本文','confirm')
         self.app.after(10,modal.ok_button.invoke);self.assertTrue(modal.wait())
 
+    def test_input_enter_and_escape_respect_composition(self):
+        modal=dialogs.Modal(self.app,'入力','名前','input','元')
+        self.app.update();modal.entry.focus_force();self.app.update()
+        with patch('ff11reader.dialogs.ime_composing',return_value=True):
+            modal.entry.event_generate('<Return>');self.app.update()
+            self.assertTrue(modal.layer.winfo_exists())
+            modal.entry.event_generate('<Escape>');self.app.update()
+            self.assertTrue(modal.layer.winfo_exists())
+        with patch('ff11reader.dialogs.ime_composing',return_value=False):
+            self.app.after(10,lambda:modal.entry.event_generate('<Return>'))
+            self.assertEqual(modal.wait(),'元')
+        self.assertIs(self.app.focus_get(),self.behind)
+
     def test_input_empty_value_and_cancel(self):
         modal=dialogs.Modal(self.app,'入力','本文','input','元の名前')
         modal.entry.delete(0,'end')

@@ -1,4 +1,5 @@
 """Shared modal overlays rendered inside the application's own windows."""
+from .input_methods import ime_composing
 from .theme import ACCENT, BG, BORDER, DANGER, FG, PANEL, SELECT, WARNING
 import tkinter as tk
 from tkinter import ttk, font as tkfont
@@ -52,7 +53,17 @@ class Modal:
             widget.bind('<Tab>',lambda e:self.cycle(1))
             widget.bind('<Shift-Tab>',lambda e:self.cycle(-1))
             widget.bind('<ISO_Left_Tab>',lambda e:self.cycle(-1))
-        # Enter is accepted only on an explicit button, not in an IME input field.
+        if self.entry:
+            def accept_input(event):
+                if not ime_composing(self.entry):self.finish(self.entry.get())
+                return 'break'
+            def cancel_input(event):
+                if not ime_composing(self.entry):self.cancel()
+                return 'break'
+            self.entry.bind('<Return>',accept_input)
+            self.entry.bind('<Escape>',cancel_input)
+        # Confirmation bodies never execute on Return.
+
         for button in (choice_buttons or [self.ok_button,self.cancel_button])+[copy]:
             if button:button.bind('<Return>',lambda e,b=button:(b.invoke(),'break')[1])
         self.layer.bind('<Configure>',self.schedule_layout)
@@ -185,3 +196,31 @@ def when_visible(parent,callback):
             window.unbind('<Map>',binding)
             after_idle_alive(window,invoke)
     binding=window.bind('<Map>',mapped,add='+')
+
+
+def child_navigation(window, focus=None):
+    """Shared Escape/close and caller focus for auxiliary windows."""
+    parent=window.master.winfo_toplevel()
+    previous=parent.focus_get()
+    window.transient(parent)
+    def close(event=None):
+        window.destroy()
+        if previous is not None and previous.winfo_exists():previous.focus_set()
+        return 'break'
+    window.bind('<Escape>',close)
+    window.protocol('WM_DELETE_WINDOW',close)
+    def prepare():
+        def descendants(parent):
+            for child in parent.winfo_children():
+                yield child
+                yield from descendants(child)
+        children=list(descendants(window))
+        for child in children:
+            if isinstance(child,(tk.Button,ttk.Button)):
+                child.bind('<Return>',lambda e,b=child:(b.invoke(),'break')[1])
+        target=focus
+        if target is None:
+            target=next((child for child in children if isinstance(child,(tk.Entry,ttk.Combobox,tk.Listbox,ttk.Treeview,tk.Text))),window)
+        target.focus_set()
+    after_idle_alive(window,prepare)
+    return close

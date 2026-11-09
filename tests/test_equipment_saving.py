@@ -174,7 +174,7 @@ class EquipmentSavingTests(unittest.TestCase):
             detail=next(w for w in window.winfo_children() if isinstance(w,tk.Text)).get('1.0','end')
             self.assertIn('001  Test',detail);self.assertIn('021  Test',detail)
             for f in self.plan.files:self.assertEqual(Path(f.target).read_bytes(),f.original)
-            button=next(w for w in window.winfo_children() if isinstance(w,ttk.Button))
+            button=window.accept_button
             with patch.object(self.editor,'save_equipment',side_effect=lambda p,root:save(p,self.base/'backups')):button.invoke()
             app.update();self.assertFalse(errors,errors);self.assertFalse(self.editor.session.dirty)
             for f in self.plan.files:self.assertEqual(Path(f.target).read_bytes(),f.replacement)

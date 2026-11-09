@@ -135,6 +135,29 @@ class PhraseTests(unittest.TestCase):
 
 @unittest.skipUnless(os.environ.get('FF11_RUN_INTEGRATION')=='1','Enable synthetic Tk checks')
 class PhraseUITests(unittest.TestCase):
+    def test_candidate_search_keeps_composition_enter_and_escape(self):
+        import tkinter as tk
+        from ff11reader.phrase_ui import PhraseEntry
+        from ff11reader.phrases import PhraseCatalog
+        from ff11reader.domain import Text
+        app=tk.Tk()
+        try:
+            entry=tk.Entry(app);entry.pack()
+            controller=PhraseEntry(entry,Text('', '', 'draft', ()),PhraseCatalog({0x1B70:'イレース'}))
+            controller.open();app.update();popup=controller.popup
+            search=next(w for w in popup.winfo_children() if type(w)==tk.Entry)
+            search.focus_force();app.update()
+            with patch('ff11reader.phrase_ui.ime_composing',return_value=True):
+                search.event_generate('<Return>');app.update()
+                self.assertIs(app.focus_get(),search)
+                search.event_generate('<Escape>');app.update()
+                self.assertTrue(popup.winfo_exists())
+            with patch('ff11reader.phrase_ui.ime_composing',return_value=False):
+                search.event_generate('<Escape>');app.update()
+            self.assertIsNone(controller.popup)
+            self.assertIs(app.focus_get(),entry)
+        finally:app.destroy()
+
     def tearDown(self):
         # Release destroyed Tk cycles on their owner before another test starts a worker.
         import gc

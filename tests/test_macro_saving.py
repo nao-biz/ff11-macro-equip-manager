@@ -151,7 +151,7 @@ class MacroSavingTests(unittest.TestCase):
             detail=next(w for w in window.winfo_children() if isinstance(w,tk.Text)).get('1.0','end')
             self.assertIn('/equip body Robe 1 <wait 2>',detail)
             for f in self.plan.files:self.assertEqual(Path(f.target).read_bytes(),f.original)
-            button=next(w for w in window.winfo_children() if isinstance(w,ttk.Button))
+            button=window.accept_button
             with patch.object(self.editor,'save_macros',side_effect=lambda p,root:save(p,self.base/'backups')):button.invoke()
             app.update()
             self.assertFalse(view.editor.session.dirty);self.assertFalse(errors,errors)

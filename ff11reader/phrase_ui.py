@@ -1,5 +1,6 @@
 """Keyboard phrase picker and token-aware entry adapter."""
 from . import dialogs
+from .input_methods import ime_composing
 from .theme import BG, FG, PANEL, SELECT
 import tkinter as tk
 from tkinter import ttk
@@ -123,9 +124,11 @@ class PhraseEntry:
             for phrase in matches:listing.insert('end',f'{phrase.name}  —  {phrase.category}  [{phrase.identity}]')
             if matches:listing.selection_set(0)
             status.configure(text=f'{len(matches)}件' if matches else '候補がありません。検索語を変えてください。')
-        def close(*_):
+        def close(event=None):
+            if event is not None and ime_composing(popup.focus_get() or self.entry):return 'break'
             popup.destroy();self.popup=None;self.entry.focus_set();return 'break'
-        def focus_list(*_):
+        def focus_list(event=None):
+            if event is not None and ime_composing(search):return 'break'
             if matches:listing.focus_set()
             return 'break'
         def choose(*_):

@@ -183,3 +183,26 @@ class CommonUIAcceptanceTests(MoveFixture):
             self.key(entry,'Return')
         self.assertEqual(self.editor.edit_status()[0],1)
         self.key(entry,'Control-z');self.assertEqual(panel.controllers[0].value.display,before.display)
+
+    def test_auxiliary_windows_escape_restores_caller(self):
+        view=self.open_view('装備セット')
+        methods=[view.move_selected_equipment,view.show_equipment_detail,
+                 view.show_macro_inventory,view.show_macro_links,view.show_unused_wardrobe,
+                 view.equipment_summary.details]
+        for method in methods:
+            with self.subTest(window=method.__name__):
+                origin=view.card_widgets['main']
+                origin.focus_force();self.app.update()
+                method();self.app.update()
+                windows=[w for w in self.app.winfo_children() if isinstance(w,tk.Toplevel)]
+                # Summary window may be parented under its panel.
+                if not windows:
+                    def descendants(widget):
+                        for child in widget.winfo_children():
+                            yield child
+                            yield from descendants(child)
+                    windows=[w for w in descendants(self.app) if isinstance(w,tk.Toplevel)]
+                self.assertEqual(len(windows),1)
+                self.key(windows[0],'Escape')
+                self.assertFalse(windows[0].winfo_exists())
+                self.assertIs(self.app.focus_get(),origin)

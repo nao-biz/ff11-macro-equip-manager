@@ -569,6 +569,7 @@ class ReaderWindow:
   choices=[f'{e.number:03}' for e in self.character.equipsets if e.number!=source and vacant(e)]
   if not choices:dialogs.showwarning('移動先','名前が空または既定名で、全枠が「変更しない」の移動先がありません。',parent=self.app);return
   window=tk.Toplevel(self.app,background=BG);window.title('装備セットを移動');window.geometry('540x220')
+  dialogs.child_navigation(window)
   dialogs.fit_to_screen(window)
   ttk.Label(window,text=f'移動元: {self.equipset_label(source)}',padding=12).pack(anchor='w')
   ttk.Label(window,text='移動先（空名または既定名・全枠が「変更しない」）',padding=12).pack(anchor='w')
@@ -667,6 +668,7 @@ class ReaderWindow:
   self.equipment_summary.clear_candidate()
  def show_equipment_detail(self):
   window=tk.Toplevel(self.app,background=BG);window.title('装備・判定の詳細');window.geometry('780x650')
+  dialogs.child_navigation(window)
   dialogs.fit_to_screen(window)
   if self.candidate_menu.index('end') is not None:
    ttk.Menubutton(window,text='候補の場所を見る',menu=self.candidate_menu).pack(anchor='e',padx=12,pady=6)
@@ -681,7 +683,7 @@ class ReaderWindow:
     row=next(r for r in self.character.inventory if (r.item_id,r.container,r.index)==identity)
     description=self.snapshot.items.get(row.item_id,{}).get('description') or '説明が未取得'
     text.insert('end','\n\n選択中の候補\n'+self.item_name(row.item_id)+'\n'+description+'\n'+self.augment_text(row))
-  text.configure(state='disabled');window.bind('<Escape>',lambda e:window.destroy())
+  text.configure(state='disabled')
  def edit_selected_equipment_name(self):
   if self.mode.get()!='装備セット' or not self.selected:return
   number=self.selected.number;character=self.character.folder_id
@@ -740,6 +742,7 @@ class ReaderWindow:
   all_refs=background(self.app,assess_macro_inventory,c,self.snapshot.items)
   refs=[]
   window=tk.Toplevel(self.app,background=BG);window.title('マクロの収納番号を確認・補正');window.geometry('1050x700')
+  dialogs.child_navigation(window)
   dialogs.fit_to_screen(window)
   ttk.Label(window,text='選択中のキャラクターの /equip を照合 · Fixは収納番号を追加・変更',padding=10).pack(anchor='w')
   filter_choice=ttk.Combobox(window,state='readonly',values=('Fix可能のみ','すべての参照'),width=24)
@@ -774,6 +777,7 @@ class ReaderWindow:
    self.macro_tree.selection_set(item);self.macro_tree.see(item);self.select_macro_palette()
    self.inspect_macro(next(m for m in self.character.macros if macro_key(m)==address));window.destroy()
   ttk.Button(buttons,text='マクロを開く',command=open_macro).pack(side='left')
+  listing.bind('<Return>',lambda event:(open_macro(),'break')[1])
   def populate(event=None):
    nonlocal refs
    refs=[r for r in all_refs if filter_choice.current()==1 or r.replacement is not None]
@@ -794,6 +798,7 @@ class ReaderWindow:
   if not c:return
   report=background(self.app,inspect_macro_set_links,self.snapshot,c)
   window=tk.Toplevel(self.app,background=BG);window.title('マクロと装備セットの参照確認');window.geometry('950x620')
+  dialogs.child_navigation(window)
   dialogs.fit_to_screen(window)
   ttk.Label(window,text='読み取ったマクロの /equipset・/lockstyleset を、同じキャラの装備セットと照合します。',padding=10).pack(anchor='w')
   ttk.Label(window,text='一覧で選択して「開く」を押すと、対象へ移動します。',padding=10).pack(anchor='w')
@@ -826,11 +831,13 @@ class ReaderWindow:
     window.destroy()
    ttk.Button(frame,text='選択した対象を開く',command=open_selected,state='normal' if rows else 'disabled').pack(pady=8)
    listing.bind('<Double-Button-1>',lambda event,command=open_selected:command())
+   listing.bind('<Return>',lambda event,command=open_selected:(command(),'break')[1])
  def show_unused_wardrobe(self):
   c=self.character
   if not c:return
   report=background(self.app,inspect_wardrobe_usage,self.snapshot,c)
   window=tk.Toplevel(self.app,background=BG);window.title('ワードローブの未参照アイテム');window.geometry('1000x680')
+  dialogs.child_navigation(window)
   dialogs.fit_to_screen(window)
   counts=Counter(r.state for r in report)
   ttk.Label(window,text=f'{c.display_name or c.folder_id} · ワードローブ1〜8 · 未参照 {counts["unreferenced"]} / 参照候補あり {counts["possible"]} / 確認保留 {counts["incomplete"]}',padding=10).pack(anchor='w')
@@ -860,6 +867,7 @@ class ReaderWindow:
    self.open_inventory(row.container,row.index);window.destroy()
   open_button=ttk.Button(window,text='インベントリで開く',command=open_selected);open_button.pack(pady=(0,10))
   listing.bind('<Double-Button-1>',lambda event:open_selected())
+  listing.bind('<Return>',lambda event:(open_selected(),'break')[1])
   def populate(event=None):
    nonlocal visible
    state=('unreferenced','possible','incomplete')[choice.current()]
