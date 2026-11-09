@@ -1,0 +1,23 @@
+name: Architecture measurements
+on: [push, pull_request]
+jobs:
+  measure:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --target work/architecture-tools -r tools/architecture/requirements.txt
+      - run: python -m pip install -r requirements-test.txt
+      - run: python -X utf8 -B tools/architecture/measure.py
+      - name: Enforce domain to UI boundary
+        env:
+          PYTHONPATH: work/architecture-tools
+        run: python -X utf8 -c "from importlinter.cli import lint_imports_command; lint_imports_command()" --config tools/architecture/contracts.ini --contract domain-ui --no-cache --no-logo
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: architecture-measurements
+          path: work/architecture-baseline/

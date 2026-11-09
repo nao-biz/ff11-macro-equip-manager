@@ -16,6 +16,7 @@ from .text_editing import remap_text
 from .editing import macro_key
 from .macro_inventory import assess_macro_inventory, parse_equip
 from .saving import digest, locked_read, atomic_replace, require_game_closed
+from .loaded_files import LoadedFiles
 from .file_transaction import execute_batch, write_json
 from .save_plan import DeferredChange, deferred_text, require_same_targets
 
@@ -113,14 +114,14 @@ def patch_file(original,page,changes,records=()):
     return bytes(out)
 
 
-def prepare_macro_save(saved,working,folder,scope='storage-fix'):
+def prepare_macro_save(saved,working,folder,scope='storage-fix', *, source_index=None):
     if scope not in ('storage-fix','all'):raise ValueError('保存範囲が不正です。')
     from .adapters import LocalReader
     from .dictionaries import resolve_token
     original=next(c for c in saved.characters if c.folder_id==folder)
     edited=next(c for c in working.characters if c.folder_id==folder)
     require_same_targets(original,edited)
-    records={Path(s['path']).resolve():s for s in saved.sources}
+    records=(source_index if source_index is not None else LoadedFiles(saved.sources)).records()
     parent=next((p.parent for p in records if p.parent.name==folder and p.parent.parent.name.upper()=='USER'),None)
     if parent is None or not re.fullmatch('[0-9a-fA-F]+',folder):raise ValueError('キャラクターの保存先を確認してください。')
     root=parent.parent.parent

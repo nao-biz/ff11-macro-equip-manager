@@ -1,0 +1,232 @@
+{
+  "versions": {
+    "import-linter": "2.16",
+    "grimp": "3.19",
+    "pylint": "4.1.3",
+    "radon": "6.0.1"
+  },
+  "scope": [
+    "ff11reader",
+    "spec_manager"
+  ],
+  "modules": 75,
+  "import_edges": 234,
+  "tool_exit_codes": {
+    "pylint": 12,
+    "contracts": 1
+  },
+  "warnings": {
+    "too-many-branches": 25,
+    "too-many-statements": 19,
+    "too-many-instance-attributes": 16,
+    "protected-access": 63,
+    "too-many-public-methods": 4,
+    "duplicate-code": 3,
+    "cyclic-import": 4
+  },
+  "protected_access_files": [
+    [
+      "ff11reader\\save_state.py",
+      42
+    ],
+    [
+      "ff11reader\\edit_state.py",
+      7
+    ],
+    [
+      "ff11reader\\ui_tasks.py",
+      5
+    ],
+    [
+      "ff11reader\\ui_actions.py",
+      4
+    ],
+    [
+      "ff11reader\\phrase_ui.py",
+      3
+    ],
+    [
+      "ff11reader\\editing.py",
+      1
+    ],
+    [
+      "ff11reader\\window_placement.py",
+      1
+    ]
+  ],
+  "function_count": 577,
+  "complexity_ranks": {
+    "A": 386,
+    "B": 93,
+    "C": 58,
+    "E": 8,
+    "D": 27,
+    "F": 5
+  },
+  "complex_functions": [
+    {
+      "path": "ff11reader/macro_saving.py",
+      "line": 117,
+      "name": "prepare_macro_save",
+      "complexity": 85,
+      "rank": "F",
+      "kind": "Function"
+    },
+    {
+      "path": "ff11reader/macro_text.py",
+      "line": 39,
+      "name": "patch_text",
+      "complexity": 59,
+      "rank": "F",
+      "kind": "Function"
+    },
+    {
+      "path": "spec_manager/catalog.py",
+      "line": 81,
+      "name": "shape_issues",
+      "complexity": 45,
+      "rank": "F",
+      "kind": "Function"
+    },
+    {
+      "path": "ff11reader/transfer_editing.py",
+      "line": 80,
+      "name": "plan_paste",
+      "complexity": 44,
+      "rank": "F",
+      "kind": "Function"
+    },
+    {
+      "path": "ff11reader/equipment_saving.py",
+      "line": 164,
+      "name": "prepare_equipment_save",
+      "complexity": 41,
+      "rank": "F",
+      "kind": "Function"
+    },
+    {
+      "path": "ff11reader/wardrobe_usage.py",
+      "line": 18,
+      "name": "inspect_wardrobes",
+      "complexity": 35,
+      "rank": "E",
+      "kind": "Function"
+    },
+    {
+      "path": "ff11reader/equipment_summary_ui.py",
+      "line": 94,
+      "name": "EquipmentSummary.render",
+      "complexity": 34,
+      "rank": "E",
+      "kind": "Function"
+    },
+    {
+      "path": "ff11reader/file_transaction.py",
+      "line": 14,
+      "name": "execute_batch",
+      "complexity": 34,
+      "rank": "E",
+      "kind": "Function"
+    },
+    {
+      "path": "ff11reader/selection_ui.py",
+      "line": 139,
+      "name": "SelectionCommands.paint",
+      "complexity": 33,
+      "rank": "E",
+      "kind": "Function"
+    },
+    {
+      "path": "ff11reader/ui.py",
+      "line": 274,
+      "name": "ReaderWindow.change_mode",
+      "complexity": 33,
+      "rank": "E",
+      "kind": "Function"
+    }
+  ],
+  "highest_fan_out": [
+    [
+      "ff11reader.ui",
+      25
+    ],
+    [
+      "ff11reader.edit_application",
+      14
+    ],
+    [
+      "ff11reader.macro_saving",
+      14
+    ],
+    [
+      "ff11reader.application",
+      10
+    ],
+    [
+      "ff11reader.equipment_saving",
+      10
+    ],
+    [
+      "ff11reader.macro_editor_ui",
+      10
+    ],
+    [
+      "ff11reader.editing",
+      8
+    ],
+    [
+      "ff11reader.combined_saving",
+      7
+    ],
+    [
+      "ff11reader.save_state",
+      7
+    ],
+    [
+      "ff11reader.workspace_ui",
+      7
+    ]
+  ],
+  "highest_fan_in": [
+    [
+      "ff11reader.domain",
+      22
+    ],
+    [
+      "ff11reader.theme",
+      14
+    ],
+    [
+      "ff11reader.edit_values",
+      12
+    ],
+    [
+      "ff11reader.codecs",
+      11
+    ],
+    [
+      "ff11reader.saving",
+      9
+    ],
+    [
+      "ff11reader.ui_actions",
+      9
+    ],
+    [
+      "ff11reader.editing",
+      9
+    ],
+    [
+      "ff11reader.text_editing",
+      7
+    ],
+    [
+      "ff11reader.dialogs",
+      7
+    ],
+    [
+      "ff11reader.fixes",
+      5
+    ]
+  ]
+}

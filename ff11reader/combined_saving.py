@@ -4,6 +4,7 @@ from pathlib import Path
 import re
 from . import equipment_saving, macro_saving
 from .edit_values import value
+from .loaded_files import LoadedFiles
 from .saving import digest, require_game_closed, atomic_replace, locked_read
 from .file_transaction import execute_batch, write_json
 from .codecs import equipsets, macros
@@ -23,20 +24,19 @@ class CombinedSavePlan:
     def deferred(self):return (self.equipment.deferred if self.equipment else 0)+(self.macro.deferred if self.macro else 0)
 
 
-def prepare_combined_save(saved,working,folder,transfers):
+def prepare_combined_save(saved,working,folder,transfers, *, source_index=None):
+    source_index = source_index if source_index is not None else LoadedFiles(saved.sources)
     before=next(c for c in saved.characters if c.folder_id==folder)
     after=next(c for c in working.characters if c.folder_id==folder)
-    equipment=equipment_saving.prepare_equipment_save(saved,working,folder,'all',transfers) if transfers or any(value(a)!=value(b) for a,b in zip(before.equipsets,after.equipsets)) else None
-    macro=macro_saving.prepare_macro_save(saved,working,folder,'all') if any(value(a)!=value(b) for a,b in zip(before.macros,after.macros)) else None
+    equipment=equipment_saving.prepare_equipment_save(saved,working,folder,'all',transfers, source_index=source_index) if transfers or any(value(a)!=value(b) for a,b in zip(before.equipsets,after.equipsets)) else None
+    macro=macro_saving.prepare_macro_save(saved,working,folder,'all', source_index=source_index) if any(value(a)!=value(b) for a,b in zip(before.macros,after.macros)) else None
     dependencies=dict(equipment.dependencies) if equipment else {}
     if macro:dependencies.update(macro.dependencies)
     if equipment is None and macro is None:raise ValueError('保存する変更がありません。')
     parent=Path((equipment or macro).files[0].target).resolve().parent
-    for record in saved.sources:
-        path=Path(record['path']).resolve()
-        if path.parent==parent and re.fullmatch(r'mcr[0-9]*\.dat',path.name):
-            if digest(path.read_bytes())!=record['sha256']:raise ValueError('参照元のマクロが変わりました。再読み込みしてください。')
-            dependencies[str(path)]=record['sha256']
+    for path in source_index.children(parent):
+        if re.fullmatch(r'mcr[0-9]*\.dat',path.name):
+            dependencies[str(path)]=source_index.verify(path)
     if (equipment and equipment.deferred) or (macro and macro.deferred):raise ValueError('保存対象に含められない変更があります。')
     files=(equipment.files if equipment else ())+(macro.files if macro else ())
     members=tuple((f.target,digest(f.replacement)) for f in files)

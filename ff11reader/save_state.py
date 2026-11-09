@@ -5,52 +5,110 @@ save modules. This module owns the narrow bridge to EditSession's private state;
 owned mutable records are never returned to callers.
 """
 from copy import deepcopy, copy
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
 from .editing import macro_key
-from .domain import Text
+from .domain import Text, Snapshot
 from .codecs import equipsets
 from .saving import digest
 
 
-def scoped_snapshot(state, folder):
+from .loaded_files import storage_member
+
+
+@dataclass(frozen=True)
+class SaveRequest:
+    """Internal captured state and compacted net changes; history stays in the session."""
+    session: object
+    identities: frozenset
+
+    @classmethod
+    def capture(cls, session):
+        captured = session.fork()
+        saved, working = captured._saved, captured._working
+        if len(saved._semantic) != len(working._semantic) or any(key not in saved._semantic for key in working._semantic):
+            raise ValueError('保存モデルの構成が変わりました。再読み込みしてください。')
+        return cls(captured, frozenset(key for key in working._semantic
+            if working._semantic[key] != saved._semantic[key]))
+
+    def folders(self):
+        changed = {key[0] for key in self.identities}
+        return tuple(c.folder_id for c in self.session._working._template.characters
+                     if c.folder_id in changed or self.session.movement_origins(c.folder_id))
+
+    def members(self, folder):
+        result = {storage_member(key) for key in self.identities if key[0] == folder}
+        result.update((folder, 'equipsets', (target - 1) // 20)
+                      for target, source in self.session.movement_origins(folder))
+        return frozenset(result)
+
+    def validate_scope(self, plan):
+        actual = {(plan.character, kind, file.page)
+                  for kind, part in (('macros', plan.macro), ('equipsets', plan.equipment))
+                  if part for file in part.files}
+        if actual != self.members(plan.character):
+            raise ValueError('保存計画のファイル範囲が編集差分と一致しません。')
+
+    def prepare(self, folder):
+        from .combined_saving import prepare_combined_save as prepare
+        identities = {key for key in self.identities if key[0] == folder}
+        transfers = self.session.movement_origins(folder)
+        for target, source in transfers:
+            identities.update(((folder, 'equipsets', (target,)), (folder, 'equipsets', (source,))))
+        item_ids = {slot.item_id for state in (self.session._saved, self.session._working)
+                    for identity in identities if identity[1] == 'equipsets'
+                    for slot in state._entries[identity].slots if slot.item_id}
+        # Both sides must carry exactly the same identities for format validation.
+        plan = prepare(scoped_snapshot(self.session._saved, folder, identities, item_ids),
+                       scoped_snapshot(self.session._working, folder, identities, item_ids), folder, transfers, source_index=self.session._saved._files)
+        self.validate_scope(plan)
+        return plan
+
+
+def scoped_snapshot(state, folder, identities=None, item_ids=None):
     character = next(c for c in state._template.characters if c.folder_id == folder)
-    # Detach the selected character and shared metadata; never expose owned values.
-    return deepcopy(replace(state._template, characters=[state._character(character)]))
+    if identities is None:
+        identities = {key for key in state._entries if key[0] == folder}
+    records = {kind:[state._entries[folder,kind,address]
+                     for address in state._orders[folder,kind]
+                     if (folder,kind,address) in identities] for kind in ('macros','equipsets')}
+    character = replace(character, **records)
+    template = state._template
+    # Macro token resolution needs the item dictionary; equipment needs only its slot items.
+    if item_ids is None:
+        item_ids = {slot.item_id for e in records['equipsets'] for slot in e.slots if slot.item_id}
+    items = template.items if records['macros'] else {key:template.items[key] for key in item_ids if key in template.items}
+    return deepcopy(Snapshot(template.id, template.captured_at, [character], items,
+                             template.sources, [], template.installation_key))
 
 
 def prepare_combined_save(self, folder):
     if self.blocked: raise ValueError(self.blocked)
-    from .combined_saving import prepare_combined_save as prepare
-    return prepare(scoped_snapshot(self._session._saved, folder),
-                   scoped_snapshot(self._session._working, folder), folder,
-                   self._session.movement_origins(folder))
+    return SaveRequest.capture(self._session).prepare(folder)
 
 
 def prepare_writeback(self):
-    saved, working = self._session._saved, self._session._working
-    changed = {key[0] for key in working._semantic
-               if working._semantic[key] != saved._semantic[key]}
-    return tuple(self.prepare_combined_save(c.folder_id)
-                 for c in working._template.characters if c.folder_id in changed)
+    if self.blocked: raise ValueError(self.blocked)
+    request = SaveRequest.capture(self._session)
+    return tuple(request.prepare(folder) for folder in request.folders())
 
 
 def save_combined(self, preview, backup_root):
     from .combined_saving import execute_combined_save
     from .saving import require_game_closed
-    if preview != self.prepare_combined_save(preview.character):
+    if self.blocked: raise ValueError(self.blocked)
+    request = SaveRequest.capture(self._session)
+    if preview != request.prepare(preview.character):
         raise ValueError('編集内容が変わりました。保存プレビューを開き直してください。')
     require_game_closed()
-    session = self._session.fork()
+    session = request.session
     saved, working = session._saved, session._working
     folder = preview.character
     replacements = {}
     # Publish all semantic changes for this fully saved character, retaining other characters.
-    for kind in ('macros', 'equipsets'):
-        for address in working._orders[folder, kind]:
-            identity = folder, kind, address
-            if working._semantic[identity] != saved._semantic[identity]:
-                replacements[identity] = working._entries[identity]
+    for identity in request.identities:
+        if identity[0] == folder:
+            replacements[identity] = working._entries[identity]
     for file in (preview.equipment.files if preview.equipment else ()):
         for equipment in equipsets(file.replacement, file.page):
             replacements[folder, 'equipsets', (equipment.number,)] = equipment
@@ -75,10 +133,8 @@ def save_combined(self, preview, backup_root):
 
 def save_checkpoint(self, preview, backup_root, session, execute_save):
     state = copy(session._saved)
-    hashes = {Path(f.target).resolve(): digest(f.replacement) for f in preview.files}
-    sources = [dict(source, sha256=hashes[path]) if (path := Path(source['path']).resolve()) in hashes
-               else source for source in state._template.sources]
-    state._template = replace(state._template, sources=sources)
+    state._files = state._files.updated(preview.files)
+    state._template = replace(state._template, sources=state._files.sources())
     session._saved = state
     if self.journal.path.exists(): raise ValueError('前回のゲーム保存の復旧確認が必要です。')
     record = self.journal.begin(preview)

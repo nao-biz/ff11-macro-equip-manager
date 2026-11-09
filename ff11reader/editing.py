@@ -110,6 +110,7 @@ class EditSession:
     def view(self, previous=None): return self._working.export(previous)
     def character(self, folder): return self._working.read_character(folder)
     def item_catalog(self): return self._working.items()
+    def slot_edit_context(self, folder, selection): return self._working.slot_edit_context(folder, selection)
     def read(self, folder, kind, address): return self._working.read(folder,kind,address)
     def history_length(self): return len(self._history)
 

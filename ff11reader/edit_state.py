@@ -4,6 +4,7 @@ from dataclasses import fields, is_dataclass, replace
 from immutables import Map
 from .edit_values import key, value, snapshot_value
 from .references import assess_equipment
+from .loaded_files import LoadedFiles
 
 _MISSING = object()
 
@@ -41,6 +42,7 @@ class SnapshotState:
                 setattr(c, kind, [])
         self._token = object()
         self._template = template
+        self._files = LoadedFiles(template.sources)
         self._entries = Map(entries)
         self._orders = orders
         self._semantic = Map({k: value(v) for k, v in entries.items()})
@@ -72,6 +74,16 @@ class SnapshotState:
 
     def items(self): return deepcopy(self._template.items)
 
+    def slot_edit_context(self, folder, selection):
+        from .domain import Character
+        c = next(c for c in self._template.characters if c.folder_id == folder)
+        if not isinstance(selection, tuple) or len(selection) != 3:
+            return Character(folder), {}
+        item, container, index = selection
+        # Preserve duplicate positions so validation can still reject ambiguity.
+        rows = [r for r in c.inventory if (r.container, r.index) == (container, index)]
+        return Character(folder, inventory=deepcopy(rows)), deepcopy({item:self._template.items.get(item,{})})
+
     def _character(self, c):
         return replace(c, **{kind: [self._entries[c.folder_id, kind, address]
             for address in self._orders[c.folder_id, kind]] for kind in ('macros', 'equipsets')})
@@ -85,6 +97,7 @@ class SnapshotState:
         result = object.__new__(SnapshotState)
         result._token = object()
         result._template, result._orders, result._characters = self._template, self._orders, self._characters
+        result._files = self._files
         entries = self._entries.mutate()
         semantic = self._semantic.mutate()
         for identity, item in replacements.items():

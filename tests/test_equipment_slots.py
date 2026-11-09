@@ -54,6 +54,30 @@ class SlotFixture(unittest.TestCase):
 
 
 class SlotEditingTests(SlotFixture):
+    def test_save_context_keeps_new_item_dictionary_in_saved_side(self):
+        from ff11reader.save_state import SaveRequest, scoped_snapshot
+        self.edit('body', 'equip', (0x2801,8,7))
+        request = SaveRequest.capture(self.editor._session)
+        with patch('ff11reader.save_state.scoped_snapshot', wraps=scoped_snapshot) as copying:
+            request.prepare('abc')
+        for call in copying.call_args_list:
+            context = scoped_snapshot(*call.args)
+            self.assertIn('source_path', context.items[0x2801])
+
+    def test_slot_edit_does_not_copy_character_or_catalog(self):
+        from ff11reader.edit_state import SnapshotState
+        with patch.object(SnapshotState, 'read_character', side_effect=AssertionError('whole character')):
+            with patch.object(SnapshotState, 'items', side_effect=AssertionError('whole catalog')):
+                self.edit()
+        character, items = self.editor._session.slot_edit_context('abc', (0x4001,1,3))
+        self.assertEqual(len(character.inventory), 1)
+        self.assertEqual(set(items), {0x4001})
+        items[0x4001].clear()
+        character.inventory.clear()
+        character, items = self.editor._session.slot_edit_context('abc', (0x4001,1,3))
+        self.assertEqual(len(character.inventory), 1)
+        self.assertIn('equip_slots', items[0x4001])
+
     def test_candidates_all_storage_and_multi_slot_masks(self):
         c=self.source.characters[0]
         self.assertEqual([(r.container,r.index) for r in candidates(c,self.source.items,'main')],[(1,3),(8,6)])

@@ -14,6 +14,7 @@ from .edit_values import validate_slot, validate_transition
 from .equipment_editing import validate_selection
 from .fixes import plan_fixes, FixChange
 from .saving import digest, patch_equipment, locked_read, atomic_replace, require_game_closed
+from .loaded_files import LoadedFiles
 from .file_transaction import execute_batch, write_json
 from .save_plan import DeferredChange, deferred_text, require_same_targets
 
@@ -160,7 +161,7 @@ def transfer_data(parent,data,transfers):
     return result
 
 
-def prepare_equipment_save(saved, working, folder, scope='reference-fix', transfers=()):
+def prepare_equipment_save(saved, working, folder, scope='reference-fix', transfers=(), *, source_index=None):
     if scope not in ('reference-fix','all'):raise ValueError('保存範囲が不正です。')
     original=next(c for c in saved.characters if c.folder_id==folder)
     edited=next(c for c in working.characters if c.folder_id==folder)
@@ -189,7 +190,7 @@ def prepare_equipment_save(saved, working, folder, scope='reference-fix', transf
             grouped.setdefault((e.number-1)//20,[]).append(change)
     for target,source in transfers:grouped.setdefault((target-1)//20,[])
     if not grouped:raise ValueError('保存できる装備セットの変更がありません。先に変更案を作業データへ適用してください。'+('\n'+deferred_text(deferred) if deferred else ''))
-    records={Path(s['path']).resolve():s for s in saved.sources}
+    records=(source_index if source_index is not None else LoadedFiles(saved.sources)).records()
     parents={p.parent for p in records if p.parent.name==folder and p.parent.parent.name.upper()=='USER'}
     if len(parents)!=1 or not re.fullmatch('[0-9a-fA-F]+',folder):raise ValueError('保存先を特定できません。')
     parent=parents.pop();changes=tuple(c for group in grouped.values() for c in group)
