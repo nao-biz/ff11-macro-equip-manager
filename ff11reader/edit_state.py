@@ -6,12 +6,14 @@ from .edit_values import key, value, snapshot_value
 from .references import assess_equipment
 from .loaded_files import LoadedFiles
 from .save_inputs import copy_save_input, required_item_ids
+from .master_data import FrozenMapping, MasterData
 
 _MISSING = object()
 
 
 def detached(current, previous=_MISSING):
     """Reuse only the caller's detached values, never a stored mutable object."""
+    if isinstance(current, (FrozenMapping, MasterData)): return current
     if previous is not _MISSING and type(current) is type(previous) and current == previous:
         return previous
     if is_dataclass(current):

@@ -115,9 +115,15 @@ def main():
                 for item in receipt['files']:
                     assert hashlib.sha256((backup/item['backup']).read_bytes()).hexdigest() == item['before_sha256']
             start = time.perf_counter()
-            snapshot = load_snapshot(mirror)
+            snapshot = (load_snapshot(mirror, snapshot.master_data) if '--reuse-masters' in sys.argv
+                        else load_snapshot(mirror))
             reload_seconds = time.perf_counter()-start
             assert snapshot_value(snapshot) == expected
+            if '--reuse-masters' in sys.argv:
+                # Independent restart verifies disk contents without the shared master.
+                restarted = load_snapshot(mirror)
+                assert snapshot_value(restarted) == expected
+                assert restarted.items == snapshot.items and restarted.phrases == snapshot.phrases
             reopened = Editor(snapshot, base/f'reopened-{cycle}.json', root=mirror)
             assert not reopened.session.dirty and reopened.prepare_writeback() == ()
             assert reopened.session.history_length() == 0
@@ -132,7 +138,7 @@ def main():
     result = dict(source_files=len(original_hashes), characters=len(snapshot.characters),
                   macros=sum(len(c.macros) for c in snapshot.characters),
                   equipment_sets=sum(len(c.equipsets) for c in snapshot.characters),
-                  initial_load_seconds=initial_load, cycles=rows, source_copy_unchanged=True,
+                  initial_load_seconds=initial_load, reuse_masters='--reuse-masters' in sys.argv, cycles=rows, source_copy_unchanged=True,
                   guard_violations=violations, live_directory_access=False)
     (base/'results.json').write_text(json.dumps(result, indent=2), encoding='utf-8')
     print('RESULT '+str(base/'results.json'), flush=True)

@@ -18,6 +18,7 @@ class Editor:
             self.journal.recover(snapshot, self.state_path)
         except (OSError, ValueError, KeyError, TypeError, AttributeError, StopIteration) as exc:
             self.blocked = str(exc)
+        self._masters = snapshot.master_data
         self._session = EditSession(snapshot)
 
     @traced('editor.reload')
@@ -26,13 +27,17 @@ class Editor:
         if self.root is None:raise ValueError('読込元のインストール先が設定されていません。')
         if self.journal.path.exists():
             raise ValueError('ゲーム保存の復旧記録があります。アプリを開き直して復旧してください。')
-        fresh = load_snapshot(self.root)
+        fresh = (load_snapshot(self.root, self.master_data) if self.master_data is not None
+                 else load_snapshot(self.root))
         if fresh.installation_key != self._session.saved.installation_key:
             raise ValueError('読込元のインストール先が一致しません。')
         next_session = EditSession(fresh)
         self._session = next_session
         self.blocked = None
         self.clear_transfer()
+
+    @property
+    def master_data(self): return self._masters
 
     @property
     def transfer(self):return deepcopy(self._transfer)

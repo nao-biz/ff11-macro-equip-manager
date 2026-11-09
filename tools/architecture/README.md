@@ -41,3 +41,6 @@ save-inputs契約は保存入力の辞書選出・コピーからストレージ
 凝集性の意味（同じ理由で変更される処理か）は静的な点数から確定できない。属性数・メソッド数・複雑度・重複を責務分散や肥大化の候補として扱い、具体的な責務と照合する。依存数の多い共有ドメインや連携役を、数だけで不良としない。動的import、実行時の属性差替えや外部状態の共有には別の契約テストが必要。
 
 文書: [Import Linter](https://import-linter.readthedocs.io/en/v1.10.0/contract_types.html)、[Pylint protected-access](https://pylint.readthedocs.io/en/stable/user_guide/messages/warning/protected-access.html)、[Radon](https://radon.readthedocs.io/en/stable/api.html)。使用版の詳細はrequirements.txtと各ツールの出力を参照する。
+
+
+master-values契約は起動単位の読み取り専用マスター値からI/O・編集状態・アプリケーション・UIへの依存を禁止する。寿命とキャラクター情報更新の分離、保存時のハッシュ検証は`test_master_lifecycle`で確認する。

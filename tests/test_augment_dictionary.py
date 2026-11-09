@@ -55,12 +55,16 @@ class AugmentDictionaryTests(unittest.TestCase):
         (self.root/'FTABLE.DAT').write_bytes(b'')
         self.assertEqual(LocalReader(self.root).load_augment_names(), {})
 
-    def test_snapshot_and_editor_carry_dictionary_and_reload_latest_names(self):
+    def test_master_names_are_readonly_until_application_restart(self):
         with patch.object(LocalReader, 'load_items', return_value={}), patch.object(LocalReader, 'load_phrases', return_value={}):
             source = load_snapshot(self.root)
             editor = Editor(source, self.root/'draft.json', root=self.root)
-            detached = editor.snapshot(); detached.augment_names.clear()
+            detached = editor.snapshot()
+            with self.assertRaises(TypeError): detached.augment_names['new'] = 'changed'
             self.assertEqual(parse_line('New ability+12', editor.snapshot().augment_names), [('新能力', '', 12)])
             self.ja.write_bytes(dmsg({7: '更新能力%+d', 2: '命中%+d', 8: 'ヘイスト%+d'}))
             editor.reload()
-            self.assertEqual(parse_line('New ability+12', editor.snapshot().augment_names), [('更新能力', '', 12)])
+            self.assertIs(editor.snapshot().master_data, source.master_data)
+            self.assertEqual(parse_line('New ability+12', editor.snapshot().augment_names), [('新能力', '', 12)])
+            restarted = load_snapshot(self.root)
+            self.assertEqual(parse_line('New ability+12', restarted.augment_names), [('更新能力', '', 12)])

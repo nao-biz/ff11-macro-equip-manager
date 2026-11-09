@@ -55,7 +55,9 @@ class SaveInputTests(unittest.TestCase):
             before, after, _ = session.save_inputs('abc', session.changes_since_save())
             self.assertIn(0x1200, before.items)
             self.assertEqual(before.items, after.items)
-            self.assertNotIn(0x6001, before.items)
+            self.assertIs(before.items, original.master_data.items)
+            self.assertIs(after.items, before.items)
+            with self.assertRaises(TypeError): before.items[0x6001]['name'] = 'changed'
             plans = f.editor.prepare_writeback()
             self.assertEqual(plans[0], prepare_combined_save(session.saved, session.working, 'abc', ()))
             self.assertEqual(regenerated(original, plans[0].macro), plans[0].macro)

@@ -51,7 +51,7 @@ def serialize_change(change):
     return asdict(change)
 
 
-def execute_combined_save(plan,backup_root):
+def execute_combined_save(plan,backup_root, *, masters=None):
     require_game_closed()
     if plan.members!=tuple((f.target,digest(f.replacement)) for f in plan.files):raise ValueError('依存グループの保存対象が欠落または変更されています。')
     if not plan.files:raise ValueError('保存対象がありません。')
@@ -59,12 +59,12 @@ def execute_combined_save(plan,backup_root):
     checks=[];required={}
     if plan.equipment:
         if type(plan.equipment) is not equipment_saving.EquipmentSavePlan or plan.equipment.character!=plan.character or plan.equipment.scope!='all':raise ValueError('装備セットの保存範囲が不正です。')
-        equipment_root,validate_equipment=equipment_saving.validate_equipment_plan(plan.equipment)
+        equipment_root,validate_equipment=equipment_saving.validate_equipment_plan(plan.equipment,masters)
         if equipment_root!=root:raise ValueError('保存先が異なります。')
         checks.append(validate_equipment);required.update(plan.equipment.dependencies)
     if plan.macro:
         if type(plan.macro) is not macro_saving.MacroSavePlan or plan.macro.character!=plan.character or plan.macro.scope!='all':raise ValueError('参照マクロの保存範囲が不正です。')
-        macro_root,validate_macro=macro_saving.validate_macro_plan(plan.macro)
+        macro_root,validate_macro=macro_saving.validate_macro_plan(plan.macro,masters)
         if macro_root!=root:raise ValueError('保存先が異なります。')
         checks.append(validate_macro)
         for p,h in plan.macro.dependencies:

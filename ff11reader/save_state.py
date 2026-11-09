@@ -102,6 +102,11 @@ def save_combined(self, preview, backup_root):
 
 
 def save_checkpoint(self, preview, backup_root, session, execute_save):
+    from .snapshot_loading import verify_master_data
+    from functools import partial
+    verify_master_data(self.master_data)
+    if self.master_data is not None:
+        execute_save = partial(execute_save, masters=self.master_data)
     session.record_saved_files(preview.files)
     if self.journal.path.exists(): raise ValueError('前回のゲーム保存の復旧確認が必要です。')
     record = self.journal.begin(preview)

@@ -9,8 +9,8 @@ from .domain import Snapshot
 from .references import assess_equipment
 from .codecs import BAGS
 from .fixes import plan_fixes, apply_fixes
-from .snapshot_loading import resolve_macro_text, verify_sources
-from .resource_catalog import SHARED_RESOURCES
+from .snapshot_loading import (resolve_macro_text, verify_sources, load_master_data,
+                               master_sources, items_with_icons)
 
 
 def prepare_game_save(snapshot, character, number):
@@ -32,17 +32,16 @@ def installations():
     return [str(p) for p in discover()]
 
 
-def load_snapshot(root):
+def load_snapshot(root, masters=None):
     reader=LocalReader(root)
     characters=reader.load_characters()
     icon_ids={r.item_id for c in characters for r in c.inventory}
     icon_ids.update(s.item_id for c in characters for e in c.equipsets for s in e.slots if s.item_id)
-    items=reader.load_items(icon_ids); phrases=reader.load_phrases()
-    augment_names=reader.load_augment_names()
-    rank_augments=reader.load_rank_augments()
-    reader.observe_resources(SHARED_RESOURCES)
-    resolve_macro_text(characters, phrases, items)
+    if masters is None: masters = load_master_data(root, icon_ids)
+    items = items_with_icons(masters, icon_ids)
+    resolve_macro_text(characters, masters.phrases, items)
     verify_sources(reader)
+    master_sources(reader, masters)
     for c in characters:
         sources={}
         for source in reader.sources:
@@ -59,7 +58,7 @@ def load_snapshot(root):
     except (OSError,ValueError) as exc:
         reader.diagnostics.append({'code':'labels_unreadable','message':str(exc)})
     return Snapshot(str(uuid4()),datetime.now(timezone.utc).isoformat(),
-                    characters,items,reader.sources,reader.diagnostics,installation_key,phrases=phrases,phrase_readings=reader.phrase_readings,augment_names=augment_names,rank_augments=rank_augments)
+                    characters,items,reader.sources,reader.diagnostics,installation_key,phrases=masters.phrases,phrase_readings=masters.phrase_readings,augment_names=masters.augment_names,rank_augments=masters.rank_augments,master_data=masters)
 
 
 def set_character_label(snapshot,character,name):

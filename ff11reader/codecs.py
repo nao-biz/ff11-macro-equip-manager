@@ -112,6 +112,7 @@ def item_records(data, icon_ids=None):
                 decoded=text(b[desc_start:desc_end])
                 if decoded.state=='cp932':description=decoded.display
         items[item]={'name':name.display if name else None,
+                     'record_offset':start,
                      'description':description,
                      'name_state':name.state if name else 'unknown',
                      'type':struct.unpack_from('<H',b,10)[0],

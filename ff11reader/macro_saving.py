@@ -132,7 +132,8 @@ def prepare_macro_save(saved,working,folder,scope='storage-fix', *, source_index
         if any(text_value(a)!=text_value(b) for a,b in zip(
             (old[macro_key(m)].title,*old[macro_key(m)].lines),(m.title,*m.lines)))
         for a,b in zip(old[macro_key(m)].lines,m.lines))
-    reader=LocalReader(root);phrases=reader.load_phrases() if needs_dictionary else {}
+    reader=LocalReader(root)
+    phrases=(saved.master_data.phrases if saved.master_data is not None else reader.load_phrases()) if needs_dictionary else {}
     resolver=lambda token:resolve_token(token,phrases,saved.items)
     for source in reader.sources:
         p=Path(source['path']).resolve()
@@ -198,12 +199,16 @@ def prepare_macro_save(saved,working,folder,scope='storage-fix', *, source_index
     dependencies=[]
     for p in sorted(required):
         raw=p.read_bytes()
-        if p not in records or digest(raw)!=records[p]['sha256']:raise ValueError('読込元が変更されています。再読み込みしてください。')
+        if p not in records or digest(raw)!=records[p]['sha256']:
+            message = ('マスターデータが更新されています。アプリを再起動してください。'
+                       if saved.master_data is not None and not p.is_relative_to(root/'USER')
+                       else '読込元が変更されています。再読み込みしてください。')
+            raise ValueError(message)
         dependencies.append((str(p),digest(raw)))
     return MacroSavePlan(folder,tuple(files),tuple(dependencies),tuple(deferred),scope)
 
 
-def validate_macro_plan(plan):
+def validate_macro_plan(plan, masters=None):
     from .snapshot_loading import load_macro_validation_snapshot
     if not plan.files:raise ValueError('保存対象がありません。')
     root=Path(plan.files[0].target).resolve().parent.parent.parent
@@ -215,7 +220,8 @@ def validate_macro_plan(plan):
         if p!=expected or not 0<=f.page<400:raise ValueError('保存先が不正です。')
     def validate(data):
         # Rebuild the domain proposal from the locked game data.
-        fresh=load_macro_validation_snapshot(root, plan.character, (f.page for f in plan.files))
+        args=(root, plan.character, (f.page for f in plan.files))
+        fresh=load_macro_validation_snapshot(*args, masters) if masters is not None else load_macro_validation_snapshot(*args)
         changes={(change.address,change.line):change for f in plan.files for change in f.changes}
         bases={address:base.hex() for f in plan.files for address,original,base in f.records}
         before,proposed=replay_macro_proposal(fresh,plan.character,changes,bases)
@@ -224,9 +230,9 @@ def validate_macro_plan(plan):
     return root,validate
 
 
-def execute_macro_save(plan,backup_root):
+def execute_macro_save(plan,backup_root, *, masters=None):
     require_game_closed()
-    root,validate=validate_macro_plan(plan)
+    root,validate=validate_macro_plan(plan, masters)
     return execute_batch(plan,backup_root,root,validate,macros,'macro-edit' if plan.scope=='all' else 'macro-storage-fix','.ff11-macro-',
                          lambda c:{'address':c.address,'line':c.line,'before':c.before,'after':c.after,
                                    'before_token_ids':[t.identity for t in c.original_tokens or ()],

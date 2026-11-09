@@ -58,7 +58,28 @@ def dependency_paths(parent, targets, changes, catalogs):
     return required
 
 
-def validate_evidence(parent, changes, catalogs, data):
+def validation_items(root, catalogs, data, masters):
+    """Validate catalog identity and select decoded or shared item values."""
+    items={}
+    table=data[root/'FTABLE.DAT'];allowed_paths=set()
+    for logical in DAT_IDS:
+        if logical*2+2>len(table):raise ValueError('アイテム辞書の索引が不足しています。')
+        packed=struct.unpack_from('<H',table,logical*2)[0]
+        allowed_paths.add(root/'ROM'/str(packed>>7)/f'{packed&127}.DAT')
+    if not catalogs or any(Path(p).resolve() not in allowed_paths for p in catalogs):raise ValueError('アイテム辞書の取得元が不正です。')
+    if masters is None:
+        for path in catalogs:items.update(item_records(data[Path(path).resolve()]))
+    else:
+        if str(root) != masters.root: raise ValueError('マスターデータのインストール先が一致しません。')
+        evidence = {s['path']:s['sha256'] for s in masters.sources}
+        for path in (*catalogs, str(root/'FTABLE.DAT')):
+            if digest(data[Path(path).resolve()]) != evidence.get(str(Path(path).resolve())):
+                raise ValueError('マスターデータが更新されています。アプリを再起動してください。')
+        items = masters.items
+    return items
+
+
+def validate_evidence(parent, changes, catalogs, data, masters=None):
     root=parent.parent.parent;source=Character(parent.name)
     for name,bag in BAGS.items():
         if parent/name in data:
@@ -68,15 +89,7 @@ def validate_evidence(parent, changes, catalogs, data):
             if path.parent==parent and re.fullmatch(r'es[0-9]\.dat',path.name):source.equipsets.extend(equipsets(raw,int(path.stem[2:])))
         allowed=plan_fixes(source).changes
         if any(isinstance(c,FixChange) and c not in allowed for c in changes):raise ValueError('一意な補正条件を満たしていません。')
-    items={}
-    if manual_equips(changes):
-        table=data[root/'FTABLE.DAT'];allowed_paths=set()
-        for logical in DAT_IDS:
-            if logical*2+2>len(table):raise ValueError('アイテム辞書の索引が不足しています。')
-            packed=struct.unpack_from('<H',table,logical*2)[0]
-            allowed_paths.add(root/'ROM'/str(packed>>7)/f'{packed&127}.DAT')
-        if not catalogs or any(Path(p).resolve() not in allowed_paths for p in catalogs):raise ValueError('アイテム辞書の取得元が不正です。')
-        for path in catalogs:items.update(item_records(data[Path(path).resolve()]))
+    items = validation_items(root, catalogs, data, masters) if manual_equips(changes) else {}
     for change in changes:
         if isinstance(change,EquipmentSlotChange):validate_selection(source,items,changed_slot(change))
 
@@ -207,17 +220,21 @@ def prepare_equipment_save(saved, working, folder, scope='reference-fix', transf
     for p in sorted(required):
         if p not in records:raise ValueError('読込元の検証情報が不足しています。')
         raw=p.read_bytes()
-        if digest(raw)!=records[p]['sha256']:raise ValueError('ゲームファイルが変わりました。再読み込みしてください。')
+        if digest(raw)!=records[p]['sha256']:
+            message = ('マスターデータが更新されています。アプリを再起動してください。'
+                       if saved.master_data is not None and not p.is_relative_to(parent.parent)
+                       else 'ゲームファイルが変わりました。再読み込みしてください。')
+            raise ValueError(message)
         data[p]=raw
     transformed=transfer_data(parent,data,transfers)
-    validate_evidence(parent,changes,catalogs,transformed)
+    validate_evidence(parent,changes,catalogs,transformed,saved.master_data)
     files=[]
     for page,changes in sorted(grouped.items()):
         target=parent/f'es{page}.dat';raw=data[target]
         files.append(EquipmentFile(str(target),page,raw,patch_file(transformed[target],page,changes) if changes else transformed[target],tuple(changes)))
     return EquipmentSavePlan(folder,tuple(files),tuple((str(p),digest(raw)) for p,raw in data.items()),tuple(deferred),scope,catalogs,transfers)
 
-def validate_equipment_plan(plan):
+def validate_equipment_plan(plan, masters=None):
     if plan.scope not in ('reference-fix','all'):raise ValueError('保存範囲が不正です。')
     if plan.scope!='all' and any(isinstance(c,(EquipmentNameChange,EquipmentSlotChange)) for f in plan.files for c in f.changes):raise ValueError('個別編集の保存範囲が不正です。')
     if not plan.files:raise ValueError('保存対象がありません。')
@@ -242,14 +259,14 @@ def validate_equipment_plan(plan):
     if len(plan.dependencies)!=len(required) or {Path(p).resolve() for p,_ in plan.dependencies}!=required:
         raise ValueError('保存対象と参照検証に必要な資料が不足しています。')
     def validate(data):
-        validate_evidence(parent,changes,plan.catalogs,transfer_data(parent,data,plan.transfers))
+        validate_evidence(parent,changes,plan.catalogs,transfer_data(parent,data,plan.transfers),masters)
     return root,validate
 
 
-def execute_equipment_save(plan,backup_root):
+def execute_equipment_save(plan,backup_root, *, masters=None):
     require_game_closed()
     if plan.transfers:raise ValueError('移動は参照マクロと一括保存してください。')
-    root,validate=validate_equipment_plan(plan)
+    root,validate=validate_equipment_plan(plan,masters)
     return execute_batch(plan,backup_root,root,validate,equipsets,'equipment-edit' if plan.scope=='all' else 'equipment-reference-fix','.ff11-equipment-',
                          asdict,require_game_closed,write_json,atomic_replace)
 

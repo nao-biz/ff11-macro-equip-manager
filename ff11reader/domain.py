@@ -1,5 +1,6 @@
 """Domain values: no filesystem, registry, GUI or binary offsets."""
 from dataclasses import dataclass, field
+from collections.abc import Mapping
 from enum import StrEnum
 
 
@@ -127,7 +128,7 @@ class Snapshot:
     id: str
     captured_at: str
     characters: list[Character]
-    items: dict
+    items: Mapping
     sources: list
     diagnostics: list
     installation_key: str = ''
@@ -135,7 +136,8 @@ class Snapshot:
         'read_macros': True, 'read_equipsets': True,
         'inventory': 'local_cache_partial_freshness_unknown',
         'augments': 'unsupported', 'write': 'equipset_reference_single_file_guarded'})
-    phrases: dict = field(default_factory=dict)
-    phrase_readings: dict = field(default_factory=dict)
-    augment_names: dict = field(default_factory=dict)
+    phrases: Mapping = field(default_factory=dict)
+    phrase_readings: Mapping = field(default_factory=dict)
+    augment_names: Mapping = field(default_factory=dict)
     rank_augments: object = None
+    master_data: object = field(default=None, repr=False, compare=False)

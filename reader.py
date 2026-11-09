@@ -1,8 +1,14 @@
 """Workspace entry point. Game writes require a dedicated save preview."""
 import argparse
-from dataclasses import asdict
+from collections.abc import Mapping
+from dataclasses import asdict, replace
 import json
 from pathlib import Path
+
+
+def export_mapping(value):
+    if isinstance(value, Mapping): return dict(value)
+    raise TypeError(f'Unsupported export value: {type(value).__name__}')
 
 
 def main():
@@ -24,8 +30,10 @@ def main():
         if target.exists(): parser.error('Export target already exists')
     snapshot=load_snapshot(root)
     if args.export:
+        payload=asdict(replace(snapshot,master_data=None))
+        del payload['master_data']  # Runtime ownership is not part of the export format.
         with args.export.open('x',encoding='utf-8') as f:
-            json.dump(asdict(snapshot),f,ensure_ascii=False,indent=2)
+            json.dump(payload,f,ensure_ascii=False,indent=2,default=export_mapping)
         print(json.dumps({'characters':len(snapshot.characters),
             'macros':sum(len(c.macros) for c in snapshot.characters),
             'equipsets':sum(len(c.equipsets) for c in snapshot.characters),

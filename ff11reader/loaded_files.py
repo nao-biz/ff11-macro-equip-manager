@@ -61,7 +61,7 @@ class LoadedFiles:
             return ()
         table = table_path.read_bytes()
         if digest(table) != self._records[table_path]['sha256']:
-            raise ValueError('共通資料の配置表が変わりました。再読み込みしてください。')
+            raise ValueError('共通資料の配置表が変わりました。アプリを再起動してください。')
         paths = (table_path, *(p.resolve() for p in resource_paths(root, table, SHARED_RESOURCES)))
         if any(not p.is_relative_to(root) for p in paths):
             raise ValueError('共通資料の取得元がインストール先の外です。')

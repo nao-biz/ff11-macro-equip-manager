@@ -26,8 +26,13 @@ def required_item_ids(character):
 
 
 def copy_save_input(snapshot, character, item_ids=None):
-    """Copy complete item records only for IDs used by the validation context."""
-    if item_ids is None: item_ids = required_item_ids(character)
-    items = {key:snapshot.items[key] for key in item_ids if key in snapshot.items}
+    """Share startup masters; detach character data and selected legacy item records."""
+    masters = snapshot.master_data
+    if masters is not None:
+        items = masters.items
+    else:
+        if item_ids is None: item_ids = required_item_ids(character)
+        items = {key:snapshot.items[key] for key in item_ids if key in snapshot.items}
     return deepcopy(Snapshot(snapshot.id, snapshot.captured_at, [character], items,
-                             snapshot.sources, [], snapshot.installation_key))
+                             snapshot.sources, [], snapshot.installation_key,
+                             phrases=masters.phrases if masters else {}, master_data=masters))
