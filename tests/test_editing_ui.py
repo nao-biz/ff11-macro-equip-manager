@@ -13,6 +13,10 @@ from ff11reader.ui import ReaderWindow
 
 @unittest.skipUnless(os.environ.get('FF11_RUN_INTEGRATION') == '1', 'Enable Tk integration checks')
 class EditingUITests(unittest.TestCase):
+    def tearDown(self):
+        import gc
+        gc.collect()
+
     def test_edit_preview_undo_redo_fix_and_reopen(self):
         with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as tmp:
             path=Path(tmp)/'draft.json';source=snapshot();app=tk.Tk();app.withdraw();errors=[]
@@ -49,7 +53,8 @@ class EditingUITests(unittest.TestCase):
                 self.assertEqual(view.macro_item_refs[0].state,'match')
                 self.assertEqual(view.editor.session.cursor,2)
                 resumed=Editor(source,path)
-                self.assertEqual(resumed.session.working.characters[0].macros,view.character.macros)
+                self.assertEqual(resumed.session.working.characters[0].macros,source.characters[0].macros)
+                self.assertEqual(resumed.edit_status(),(0,0,False))
                 view.undo_fix();app.update();self.assertEqual(view.macro_item_refs[0].state,'unspecified_unique')
                 self.assertEqual(source.characters[0].macros[0].title.display,'Regen')
                 self.assertFalse(errors,errors)

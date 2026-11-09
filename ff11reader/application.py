@@ -39,6 +39,7 @@ def load_snapshot(root):
     icon_ids.update(s.item_id for c in characters for e in c.equipsets for s in e.slots if s.item_id)
     items=reader.load_items(icon_ids); phrases=reader.load_phrases()
     augment_names=reader.load_augment_names()
+    rank_augments=reader.load_rank_augments()
     resolver=lambda p:resolve_token(p,phrases,items)
     for c in characters:
         c.macros=[replace(m,lines=tuple(text(bytes.fromhex(l.raw_hex),resolver)
@@ -61,7 +62,7 @@ def load_snapshot(root):
     except (OSError,ValueError) as exc:
         reader.diagnostics.append({'code':'labels_unreadable','message':str(exc)})
     return Snapshot(str(uuid4()),datetime.now(timezone.utc).isoformat(),
-                    characters,items,reader.sources,reader.diagnostics,installation_key,phrases=phrases,phrase_readings=reader.phrase_readings,augment_names=augment_names)
+                    characters,items,reader.sources,reader.diagnostics,installation_key,phrases=phrases,phrase_readings=reader.phrase_readings,augment_names=augment_names,rank_augments=rank_augments)
 
 
 def set_character_label(snapshot,character,name):

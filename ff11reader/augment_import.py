@@ -80,10 +80,10 @@ def parse(data):
         raise ValueError('個体情報ファイルの構造が不正です。') from e
 
 @traced('augment.import')
-def load_observation(path, character):
+def load_observation(path, character, rank_catalog=None):
     with Path(path).open('rb') as stream:
         data = stream.read(MAX_BYTES + 1)
-    return reconcile(parse(data), character)
+    return reconcile(parse(data), character, rank_catalog)
 
 
 def export_value(export):

@@ -74,6 +74,8 @@ class SlotEditingTests(SlotFixture):
         self.assertEqual((backup/'000.original.dat').read_bytes(),plan.files[0].original)
         self.assertFalse(self.editor.session.dirty)
         reopened=Editor(self.load(),self.base/'slot-draft.json');self.assertIsNone(reopened.blocked)
+        self.assertEqual(reopened.edit_status(),(0,0,False))
+        reopened=self.editor
         reopened.undo();self.assertTrue(reopened.session.dirty)
         reverse=reopened.prepare_equipment_save('abc','all')
         reopened.save_equipment(reverse,self.base/'backups')
@@ -160,6 +162,10 @@ class SlotCodecTests(unittest.TestCase):
 
 @unittest.skipUnless(os.environ.get('FF11_RUN_INTEGRATION')=='1','Enable Tk checks')
 class SlotUITests(SlotFixture):
+    def tearDown(self):
+        import gc
+        gc.collect()
+
     def test_selection_preview_undo_redo_and_save_preview(self):
         import tkinter as tk
         from tkinter import ttk
@@ -170,10 +176,7 @@ class SlotUITests(SlotFixture):
             view.nav.selection_set(0);view.select_navigation();view.inspect_slot(view.selected.slots[0]);view.slot_edit_button.invoke();app.update()
             edit=view.slot_editor;self.assertEqual(len(edit.visible),2)
             edit.query.set('剣');edit.filter();edit.listing.selection_set('0');app.update();edit.preview_button.invoke();app.update()
-            preview=[w for w in app.winfo_children() if isinstance(w,tk.Toplevel) and w is not edit.window][-1]
-            detail=next(w for w in preview.winfo_children() if isinstance(w,tk.Text)).get('1.0','end')
-            self.assertIn('剣',detail);self.assertIn('モグ金庫',detail)
-            next(w for w in preview.winfo_children() if isinstance(w,ttk.Button)).invoke();app.update()
+            self.assertIsNone(app.grab_current())
             self.assertEqual(view.character.equipsets[0].slots[0].container,1)
             view.undo_fix();app.update();self.assertEqual(view.character.equipsets[0].slots[0].item_id,100)
             view.redo_edit();view.preview_equipment_save();app.update()

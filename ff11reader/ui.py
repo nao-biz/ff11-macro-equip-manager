@@ -52,19 +52,25 @@ class ReaderWindow:
   from .selection_ui import SelectionCommands
   self.commands=SelectionCommands(self)
   from .augment_store import AugmentStore
-  self.augment_store=AugmentStore(self.editor.store.path.parent/'augment-observations')
+  self.augment_store=AugmentStore(self.editor.state_path.parent/'augment-observations')
   self.restore_augments()
   if snapshot.characters:
    self.character_choice.current(next((i for i,c in enumerate(snapshot.characters) if c.equipment_references),0));self.change_character()
   else:self.show_detail('キャラクターなし','読み取れたキャラクターフォルダはありません。')
   self.update_edit_status()
-  if self.editor.blocked:dialogs.when_visible(self.app,lambda:dialogs.showwarning('作業再開の確認',self.editor.blocked,parent=self.app))
+  if self.editor.blocked:dialogs.when_visible(self.app,lambda:dialogs.showwarning('ゲーム保存の復旧確認',self.editor.blocked,parent=self.app))
 
  def close(self):
   from .ui_tasks import is_running
-  if is_running(self.app):return
-  if self.macro_panel.has_pending() and not dialogs.askyesno('未適用の入力があります','作業データへ適用していないマクロの入力が失われます。適用済みの作業は自動保存されています。\n入力を破棄して終了してよいですか？',parent=self.app):return
-  self.app.destroy()
+  if is_running(self.app) or getattr(self,'closing',False):return
+  if not self.editor.edit_status()[2] and not self.macro_panel.has_pending():
+   self.app.destroy();return
+  self.closing=True
+  try:
+   choice=dialogs.ask_save_changes(parent=self.app)
+   if choice=='discard':self.app.destroy()
+   elif choice=='save':self.preview_combined_save(after_save=self.app.destroy)
+  finally:self.closing=False
 
  @property
  def character(self):
@@ -95,6 +101,7 @@ class ReaderWindow:
   if not c:return
   plan=preview_reference_fixes(self.snapshot,c)
   window=tk.Toplevel(self.app,background=BG);window.title('装備セットの参照位置を補正 / プレビュー');window.geometry('950x650')
+  dialogs.fit_to_screen(window)
   ttk.Label(window,text=f'{c.folder_id}  ·  更新案 {len(plan.changes)}枠  ·  保留 {len(plan.issues)}枠',padding=12).pack(anchor='w')
   ttk.Label(window,text='表示した参照位置を作業データへ反映します。適用後はUndoで戻せます。\nゲームへの保存は別の操作です。この変更を適用してよいですか？',padding=8).pack(anchor='w')
   text=tk.Text(window,wrap='word',bg=PANEL,fg=FG,font=('MS Gothic',11),padx=12,pady=12)
@@ -120,7 +127,7 @@ class ReaderWindow:
   self.undo_button.configure(state='normal' if cursor and not self.editor.blocked else 'disabled')
   self.redo_button.configure(state='normal' if cursor<history_length and not self.editor.blocked else 'disabled')
   self.save_button.configure(state='normal' if (dirty or pending) and not self.editor.blocked else 'disabled')
-  self.draft_label.configure(text='作業再開の確認が必要' if self.editor.blocked else f'編集中 {cursor}操作 · '+('未適用の入力あり' if pending else '変更あり' if dirty else '保存済み状態'))
+  self.draft_label.configure(text='ゲーム保存の復旧確認が必要' if self.editor.blocked else ('未保存の変更あり' if dirty or pending else 'ゲームデータと同じ'))
  @traced('ui.refresh_edits')
  def refresh_edits(self):
   self.snapshot=background(self.app,self.editor.snapshot,self.snapshot)
@@ -143,7 +150,7 @@ class ReaderWindow:
   if not path:return
   from .augment_import import load_observation
   character=self.character
-  try:observation=background(self.app,load_observation,path,character,message='個体情報を読み込んでいます…')
+  try:observation=background(self.app,load_observation,path,character,self.snapshot.rank_augments,message='個体情報を読み込んでいます…')
   except (OSError,ValueError) as e:
    dialogs.showerror('個体情報の取り込み',str(e),parent=self.app);return
   source=observation.export
@@ -167,9 +174,9 @@ class ReaderWindow:
   from .augment_presentation import describe
   return describe(self.augment_observations.get(self.character.folder_id),row)
  def reload_data(self):
-  if not dialogs.askyesno('ゲームデータを再読み込み','全キャラの適用済みの作業と履歴を保管し、最新のゲームデータから編集を始めます。\n未適用のマクロ入力は失われます。\n再読み込みしてよいですか？',parent=self.app,accept_label='保管して再読み込み'):return
+  if not dialogs.askyesno('ゲームデータを再読み込み','全キャラの未保存の変更と入力中のマクロを破棄し、最新のゲームデータを読み込みます。\n再読み込みしてよいですか？',parent=self.app,accept_label='再読み込み'):return
   folder=self.character.folder_id if self.character else None
-  try:archived=background(self.app,self.editor.reload,message='ゲームデータを読み込んでいます…')
+  try:background(self.app,self.editor.reload,message='ゲームデータを読み込んでいます…')
   except (OSError,ValueError,RuntimeError) as e:
    dialogs.showerror('再読み込みできませんでした',str(e),parent=self.app);return
   self.macro_panel.discard();self.view_states.clear();self.view_key=None
@@ -183,10 +190,10 @@ class ReaderWindow:
    self.heading.configure(text='キャラクターがありません');self.subtitle.configure(text='');self.show_detail('データなし','読み取れたキャラクターがありません。')
    for button in (self.edit_button,self.equipment_name_button,self.move_button,self.slot_edit_button):button.configure(state='disabled')
   self.update_edit_status()
-  self.footer.configure(text='最新のゲームデータを読み込みました。'+(f' 作業の保管先: {archived}' if archived else ''))
+  self.footer.configure(text='最新のゲームデータを読み込みました。')
 
  def reset_edits(self):
-  if not dialogs.askyesno('編集をリセット','現在の作業ファイルを保管し、読込時の状態から編集を始めます。\n未適用のマクロ入力は失われます。\n編集をリセットしてよいですか？',parent=self.app,accept_label='保管してリセット'):return
+  if not dialogs.askyesno('編集をリセット','全キャラの未保存の変更と入力中のマクロを破棄し、最後に読み込んだ、または書き戻した内容へ戻します。\n変更を破棄してよいですか？',parent=self.app,accept_label='変更を破棄'):return
   try:background(self.app,self.editor.start_fresh)
   except (OSError,ValueError) as e:dialogs.showerror('リセット',str(e),parent=self.app);return
   self.macro_panel.discard();self.refresh_edits()
@@ -196,6 +203,7 @@ class ReaderWindow:
   try:plan=background(self.app,self.editor.prepare_macro_save,self.character.folder_id,scope)
   except (OSError,ValueError,RuntimeError) as e:dialogs.showerror('保存プレビュー',str(e),parent=self.app);return
   window=tk.Toplevel(self.app,background=BG);window.title('マクロの編集 / ゲームへの保存' if scope=='all' else 'マクロ収納番号Fix / ゲームへの保存');window.geometry('980x680')
+  dialogs.fit_to_screen(window)
   count=sum(len(f.changes) for f in plan.files)
   ttk.Label(window,text=f'{self.character.display_name or self.character.folder_id} · {count}項目 / {len(plan.files)}ファイル · 保留 {plan.deferred}件（詳細は下記）',padding=10).pack(anchor='w')
   ttk.Label(window,text='表示したゲームファイルを上書きします。変更前のファイルをバックアップし、失敗時は復元します。\nFF11とPlayOnlineが終了している状態で、この変更を保存してよいですか？',padding=10).pack(anchor='w')
@@ -226,6 +234,7 @@ class ReaderWindow:
   try:plan=background(self.app,self.editor.prepare_equipment_save,self.character.folder_id,'all')
   except (OSError,ValueError,RuntimeError) as e:dialogs.showerror('保存プレビュー',str(e),parent=self.app);return
   window=tk.Toplevel(self.app,background=BG);window.title('装備セットの編集 / ゲームへの保存');window.geometry('980x680')
+  dialogs.fit_to_screen(window)
   count=sum(len(f.changes) for f in plan.files)
   ttk.Label(window,text=f'{self.character.display_name or self.character.folder_id} · {count}項目 / {len(plan.files)}ファイル · 保留 {plan.deferred}件（詳細は下記）',padding=10).pack(anchor='w')
   ttk.Label(window,text='表示したゲームファイルを上書きします。変更前のファイルをバックアップし、失敗時は復元します。\nFF11とPlayOnlineが終了している状態で、この変更を保存してよいですか？',padding=10).pack(anchor='w')
@@ -312,6 +321,10 @@ class ReaderWindow:
   self.macro_panel.hide()
   self.close_slot_editor()
   self.active_inventory=None
+  from .item_properties import ItemProperties
+  self.inventory_properties.show(ItemProperties())
+  self.inventory_compare_button.configure(state='disabled')
+  self.inventory_details_button.configure(state='disabled')
   if hasattr(self,'commands'):self.commands.cards={}
   for w in self.cards.winfo_children():w.destroy()
   self.inventory_switch.pack_forget()
@@ -328,6 +341,7 @@ class ReaderWindow:
   if item:self.expand_macro_book(item)
  def select_macro_palette(self,event=None):
   if self.mode.get()!='マクロ':return
+  if event is not None and self.app.focus_get() is self.macro_tree:self.commands.sync_palette_selection()
   selection=self.macro_tree.selection()
   if not selection:return
   focused=self.macro_tree.focus()
@@ -357,6 +371,7 @@ class ReaderWindow:
   if not self.evidence:return
   title,body=self.evidence
   window=tk.Toplevel(self.app,background=BG);window.title('詳細 / '+title);window.geometry('780x650')
+  dialogs.fit_to_screen(window)
   text=tk.Text(window,wrap='word',bg=PANEL,fg=FG,font=('MS Gothic',11),padx=14,pady=14)
   bar=ttk.Scrollbar(window,command=text.yview);text.configure(yscrollcommand=bar.set);bar.pack(side='right',fill='y');text.pack(fill='both',expand=True)
   text.insert('end',body);text.configure(state='disabled')
@@ -433,6 +448,8 @@ class ReaderWindow:
   if card is not None and card is not self.active_card:self.activate_card(card,lambda:None)
   if self.slot_editor is not None and self.active_slot!=slot.name:self.close_slot_editor()
   self.active_slot=slot.name;self.slot_edit_button.configure(state='disabled' if self.editor.blocked else 'normal')
+  if self.slot_editor is not None:self.slot_editor.cancel()
+  self.equipment_summary.show_selected(slot)
   a=slot.item_reference;view=present_slot(slot,self.selected.number,self.fix_plan)
   label=ACTION_STYLE[view.status][0]
   text=f'{label}\n{view.instruction}\n\n'
@@ -493,6 +510,7 @@ class ReaderWindow:
   choices=[f'{e.number:03}' for e in self.character.equipsets if e.number!=source and vacant(e)]
   if not choices:dialogs.showwarning('移動先','名前が空または既定名で、全枠が「変更しない」の移動先がありません。',parent=self.app);return
   window=tk.Toplevel(self.app,background=BG);window.title('装備セットを移動');window.geometry('540x220')
+  dialogs.fit_to_screen(window)
   ttk.Label(window,text=f'移動元: {self.equipset_label(source)}',padding=12).pack(anchor='w')
   ttk.Label(window,text='移動先（空名または既定名・全枠が「変更しない」）',padding=12).pack(anchor='w')
   choice=ttk.Combobox(window,state='readonly',values=choices);choice.pack(padx=12,fill='x');choice.current(0);choice.focus_set()
@@ -502,43 +520,52 @@ class ReaderWindow:
    self.preview_edit(edit,lambda:self.editor.apply(edit),window)
   ActionButton(window,busy=True,text='移動と参照更新を確認',command=preview).pack(pady=12)
   self.move_dialog=(window,choice)
- def preview_combined_save(self):
+ def preview_combined_save(self,*,after_save=None):
   if not self.character:return
-  if self.macro_panel.has_pending(self.character.folder_id):
-   self.macro_panel.preview(self.character.folder_id,after_apply=self.preview_combined_save);return
-  try:plan=background(self.app,self.editor.prepare_combined_save,self.character.folder_id)
-  except (OSError,ValueError,RuntimeError) as e:dialogs.showerror('一括保存プレビュー',str(e),parent=self.app);return
-  window=tk.Toplevel(self.app,background=BG);window.title('変更を保存 / 一括保存');window.geometry('980x700')
+  try:
+   self.macro_panel.apply_pending()
+   plans=background(self.app,self.editor.prepare_writeback)
+  except (OSError,ValueError,RuntimeError) as e:
+   dialogs.showerror('書き戻しの確認',str(e),parent=self.app);return
+  if not plans:
+   if after_save:after_save()
+   return
+  window=tk.Toplevel(self.app,background=BG);window.title('ゲームへ書き戻す');window.geometry('980x700')
+  dialogs.fit_to_screen(window)
   window.transient(self.app);window.grab_set();window.bind('<Escape>',lambda e:window.destroy());window.after_idle(window.focus_set)
   window.bind('<Destroy>',lambda e:self.commands.schedule_focus_restore() if e.widget==window else None)
-  ttk.Label(window,text=f'選択キャラの変更を一括保存 · {len(plan.files)}ファイル',padding=12).pack(anchor='w')
-  ttk.Label(window,text='選択キャラのゲームファイルを上書きします。変更前のファイルをバックアップし、失敗時は復元します。\nFF11とPlayOnlineが終了している状態で、表示した変更を保存してよいですか？',padding=12,wraplength=900).pack(anchor='w')
+  ttk.Label(window,text=f'{len(plans)}キャラの変更 · {sum(len(p.files) for p in plans)}ファイル',padding=12).pack(anchor='w')
+  ttk.Label(window,text='表示した全キャラのゲームファイルを上書きします。変更前をバックアップし、失敗したキャラの書込みは復元します。\nFF11とPlayOnlineが終了している状態で、書き戻してよいですか？',padding=12,wraplength=900).pack(anchor='w')
   text=tk.Text(window,bg=PANEL,fg=FG,wrap='word',padx=12,pady=12)
   bar=ttk.Scrollbar(window,command=text.yview);text.configure(yscrollcommand=bar.set);bar.pack(side='right',fill='y');text.pack(fill='both',expand=True)
   from .codecs import equipsets
   from .edit_values import value,slot_value
-  for file in (plan.equipment.files if plan.equipment else ()):
-   text.insert('end',file.target+'\n')
-   for before,after in zip(equipsets(file.original,file.page),equipsets(file.replacement,file.page)):
-    if value(before)==value(after):continue
-    text.insert('end',f'装備セット {before.number:03}\n  名前: {before.title.display or "（空）"} → {after.title.display or "（空）"}\n')
-    for a,b in zip(before.slots,after.slots):
-     if slot_value(a)!=slot_value(b):text.insert('end',f'  {SLOTS[a.name]}\n    前: {self.slot_description(slot_value(a)[1:])}\n    後: {self.slot_description(slot_value(b)[1:])}\n')
-    text.insert('end','\n')
-  if plan.macro:
-   for file in plan.macro.files:
+  for plan in plans:
+   text.insert('end',self.character_labels()[next(i for i,c in enumerate(self.snapshot.characters) if c.folder_id==plan.character)]+'\n\n')
+   for file in (plan.equipment.files if plan.equipment else ()):
     text.insert('end',file.target+'\n')
-    for c in file.changes:
-     b,p,bank,key=c.address;field='名前' if c.line==0 else f'{c.line}行目'
-     text.insert('end',f'ブック {b:02} / パレット {p} / {bank.upper()} {key if key<10 else 0} / {field}\n  前: {c.before}\n  後: {c.after}\n\n')
+    for before,after in zip(equipsets(file.original,file.page),equipsets(file.replacement,file.page)):
+     if value(before)==value(after):continue
+     text.insert('end',f'装備セット {before.number:03}\n  名前: {before.title.display or "（空）"} → {after.title.display or "（空）"}\n')
+     for a,b in zip(before.slots,after.slots):
+      if slot_value(a)!=slot_value(b):text.insert('end',f'  {SLOTS[a.name]}\n    前: {self.slot_description(slot_value(a)[1:])}\n    後: {self.slot_description(slot_value(b)[1:])}\n')
+     text.insert('end','\n')
+   if plan.macro:
+    for file in plan.macro.files:
+     text.insert('end',file.target+'\n')
+     for c in file.changes:
+      b,p,bank,key=c.address;field='名前' if c.line==0 else f'{c.line}行目'
+      text.insert('end',f'ブック {b:02} / パレット {p} / {bank.upper()} {key if key<10 else 0} / {field}\n  前: {c.before}\n  後: {c.after}\n\n')
   text.configure(state='disabled')
   def save():
    button.configure(state='disabled')
-   try:backup=background(self.app,self.editor.save_combined,plan,Path(__file__).resolve().parent.parent/'backups'/'moves',message='変更を保存しています…')
+   try:backups=background(self.app,self.editor.writeback,plans,Path(__file__).resolve().parent.parent/'backups'/'moves',message='ゲームへ書き戻しています…')
    except (OSError,ValueError,RuntimeError) as e:
-    self.update_edit_status();dialogs.showerror('一括保存',str(e),parent=window);button.configure(state='normal');return
-   window.destroy();self.refresh_edits();self.footer.configure(text=f'変更を保存・検証しました。バックアップ: {backup}')
-  button=dialogs.confirm_buttons(window,save,enabled=bool(plan.files))
+    self.refresh_edits();window.destroy()
+    dialogs.showerror('書き戻しできませんでした',str(e)+'\n書き戻せた内容は保存済みです。残りの変更は画面に保持しています。',parent=self.app);return
+   window.destroy();self.refresh_edits();self.footer.configure(text='ゲームへ書き戻しました。バックアップ: '+', '.join(map(str,backups)))
+   if after_save and not self.editor.edit_status()[2] and not self.macro_panel.has_pending():after_save()
+  button=dialogs.confirm_buttons(window,save,enabled=True)
  def slot_description(self,fields):
   action,item,bag,index=fields
   if action!='equip':return {'keep':'変更しない','remove':'外す'}.get(action,'未知の動作')
@@ -550,14 +577,19 @@ class ReaderWindow:
   from .equipment_editing import preview_slot
   number=self.selected.number;name=self.active_slot;folder=self.character.folder_id
   slot=next(s for s in self.selected.slots if s.name==name)
-  rows=background(self.app,self.editor.equipment_candidates,folder,name)
+  try:rows=background(self.app,self.editor.equipment_candidates,folder,name)
+  except (ValueError,OSError) as e:
+   dialogs.showerror('装備候補の取得',str(e),parent=self.app);return
   def preview(action,selection,parent):
    try:edit=background(self.app,self.editor.prepare_equipment_slot_edit,folder,number,name,action,selection)
    except ValueError as e:dialogs.showerror('入力内容',str(e),parent=parent);return
-   self.preview_edit(edit,lambda:self.editor.apply(edit),on_applied=self.close_slot_editor)
+   try:background(self.app,self.editor.apply,edit)
+   except (ValueError,OSError) as e:dialogs.showerror('装備の変更',str(e),parent=self.app);return
+   self.close_slot_editor()
+   self.refresh_edits()
   def compare(action,selection,label):
    candidate=preview_slot(self.selected,name,action,selection)
-   self.equipment_summary.show_candidate(candidate,label)
+   self.equipment_summary.show_candidate(candidate,label,next(s for s in candidate.slots if s.name==name))
   self.close_slot_editor()
   self.slot_editor=EquipmentPicker(self.equipment_candidates_panel,SLOTS[name]+'の候補',slot,rows,self.snapshot.items,BAGS,preview,
    on_select=compare,on_cancel=self.equipment_summary.clear_candidate,on_details=self.show_equipment_detail,augment_path=self.augment_path)
@@ -570,6 +602,7 @@ class ReaderWindow:
   self.equipment_summary.clear_candidate()
  def show_equipment_detail(self):
   window=tk.Toplevel(self.app,background=BG);window.title('装備・判定の詳細');window.geometry('780x650')
+  dialogs.fit_to_screen(window)
   if self.candidate_menu.index('end') is not None:
    ttk.Menubutton(window,text='候補の場所を見る',menu=self.candidate_menu).pack(anchor='e',padx=12,pady=6)
   text=tk.Text(window,wrap='word',bg=PANEL,fg=FG,padx=12,pady=12)
@@ -591,14 +624,16 @@ class ReaderWindow:
   if title is None:return
   try:edit=background(self.app,self.editor.prepare_equipment_name_edit,character,number,title)
   except ValueError as e:dialogs.showerror('入力内容',str(e),parent=self.app);return
-  self.preview_edit(edit,lambda:self.editor.apply(edit))
+  try:self.run_edit(lambda:self.editor.apply(edit))
+  except (ValueError,OSError) as e:dialogs.showerror('装備セット名の変更',str(e),parent=self.app)
  def edit_selected_macro(self):
   if self.active_macro:self.macro_panel.entries[0].focus_set()
  def preview_edit(self,edit,apply,parent=None,*,on_applied=None,after_close=None):
   window=tk.Toplevel(self.app,background=BG);window.title(edit.label+' / 作業データ');window.geometry('900x600')
+  dialogs.fit_to_screen(window)
   window.transient(self.app);window.grab_set();window.bind('<Escape>',lambda e:window.destroy());window.after_idle(window.focus_set)
   window.bind('<Destroy>',lambda e:self.commands.schedule_focus_restore() if e.widget==window else None)
-  ttk.Label(window,text='表示した変更を作業データへ適用します。適用後はUndoで戻せます。\nゲームへは「変更を保存」から反映します。作業データを変更してよいですか？',padding=12,wraplength=820).pack(anchor='w')
+  ttk.Label(window,text='表示した変更を作業データへ適用します。適用後はUndoで戻せます。\nゲームへは「ゲームへ書き戻す」から反映します。作業データを変更してよいですか？',padding=12,wraplength=820).pack(anchor='w')
   text=tk.Text(window,bg=PANEL,fg=FG,wrap='word',padx=12,pady=12)
   scrollbar=ttk.Scrollbar(window,command=text.yview);text.configure(yscrollcommand=scrollbar.set)
   scrollbar.pack(side='right',fill='y');text.pack(fill='both',expand=True)
@@ -627,7 +662,7 @@ class ReaderWindow:
   text.configure(state='disabled')
   def commit():
    try:background(self.app,apply)
-   except (ValueError,OSError) as e:dialogs.showerror('作業保存',str(e),parent=window);return
+   except (ValueError,OSError) as e:dialogs.showerror('変更の適用',str(e),parent=window);return
    if on_applied:on_applied()
    self.refresh_edits()
    window.destroy()
@@ -640,6 +675,7 @@ class ReaderWindow:
   all_refs=background(self.app,assess_macro_inventory,c,self.snapshot.items)
   refs=[]
   window=tk.Toplevel(self.app,background=BG);window.title('マクロの収納番号を確認・補正');window.geometry('1050x700')
+  dialogs.fit_to_screen(window)
   ttk.Label(window,text='選択中のキャラクターの /equip を照合 · Fixは収納番号を追加・変更',padding=10).pack(anchor='w')
   filter_choice=ttk.Combobox(window,state='readonly',values=('Fix可能のみ','すべての参照'),width=24)
   filter_choice.current(0);filter_choice.pack(anchor='w',padx=10,pady=(0,8))
@@ -693,6 +729,7 @@ class ReaderWindow:
   if not c:return
   report=background(self.app,inspect_macro_set_links,self.snapshot,c)
   window=tk.Toplevel(self.app,background=BG);window.title('マクロと装備セットの参照確認');window.geometry('950x620')
+  dialogs.fit_to_screen(window)
   ttk.Label(window,text='読み取ったマクロの /equipset・/lockstyleset を、同じキャラの装備セットと照合します。',padding=10).pack(anchor='w')
   ttk.Label(window,text='一覧で選択して「開く」を押すと、対象へ移動します。',padding=10).pack(anchor='w')
   notebook=ttk.Notebook(window);notebook.pack(fill='both',expand=True,padx=10,pady=10)
@@ -729,6 +766,7 @@ class ReaderWindow:
   if not c:return
   report=background(self.app,inspect_wardrobe_usage,self.snapshot,c)
   window=tk.Toplevel(self.app,background=BG);window.title('ワードローブの未参照アイテム');window.geometry('1000x680')
+  dialogs.fit_to_screen(window)
   counts=Counter(r.state for r in report)
   ttk.Label(window,text=f'{c.display_name or c.folder_id} · ワードローブ1〜8 · 未参照 {counts["unreferenced"]} / 参照候補あり {counts["possible"]} / 確認保留 {counts["incomplete"]}',padding=10).pack(anchor='w')
   ttk.Label(window,text='編集バッファの /equip と全装備セットを照合',padding=(10,0,10,8)).pack(anchor='w')
@@ -773,25 +811,50 @@ class ReaderWindow:
   return path_label(self.augment_observations.get(self.character.folder_id),row)
  def switch_inventory_layout(self):
   if self.mode.get()=='インベントリ' and self.character and isinstance(self.selected,int):
-   bag=self.selected;self.clear_cards();self.render_inventory(bag)
+   bag=self.selected;selected=self.active_inventory;self.clear_cards();self.render_inventory(bag)
+   row=next((r for r in self.character.inventory if r.container==bag and r.index==selected and r.index in self.card_widgets),None)
+   if row:self.activate_card(self.card_widgets[row.index],lambda:self.inspect_inventory(row))
  def inventory_row(self,ordinal,row):
   from .inventory_ui import item_row
   return item_row(self,ordinal,row,self.augment_path(row))
  def render_inventory(self,bag):
   from .equipment_editing import search_rows
   self.inventory_switch.pack(before=self.canvas_area,anchor='w',pady=(0,8))
-  rows=search_rows([r for r in self.character.inventory if r.container==bag],self.snapshot.items,self.inventory_query.get());self.heading.configure(text=BAGS[bag]);self.subtitle.configure(text=f'{len(rows)} アイテム')
+  rows=search_rows([r for r in self.character.inventory if r.container==bag],self.snapshot.items,self.inventory_query.get());self.heading.configure(text=BAGS[bag])
+  coverage={'loaded':'読込済み','missing':'未取得','unreadable':'読込不能'}.get(self.character.inventory_coverage.get(bag),'未取得')
+  self.subtitle.configure(text=f'{len(rows)} アイテム · 収納の取得状態: {coverage}')
   if not rows:ttk.Label(self.cards,text='インベントリ保存情報に表示できるアイテム行がありません。').grid(row=0,column=0,pady=20)
   for i,row in enumerate(rows):
    self.card_widgets[row.index]=self.inventory_row(i,row) if self.inventory_layout.get()=='リスト' else self.card(i,f'スロット {row.index}',self.item_name(row.item_id),lambda r=row:self.inspect_inventory(r),row.item_id,badge=f'ID {row.item_id}',annotation=self.augment_path(row))
   self.show_detail(BAGS[bag],f'取得状態: {self.character.inventory_coverage.get(bag,"未取得")}\n\n{len(rows)}行を表示しています。\n内部スロット順で表示しています。\n個体情報は「個体情報を取り込む…」から追加できます。')
  def inspect_inventory(self,row):
+  from .item_properties import describe_item
   self.active_inventory=row.index
+  properties=describe_item(row,self.snapshot.items,self.augment_observations.get(self.character.folder_id),self.snapshot.augment_names,BAGS)
+  self.inventory_properties.show(properties)
+  can_compare=bool(self.character.equipsets and self.snapshot.items.get(row.item_id,{}).get('equip_slots')) and not self.editor.blocked
+  self.inventory_compare_button.configure(state='normal' if can_compare else 'disabled')
+  self.inventory_details_button.configure(state='normal')
   refs=[(e.number,s.name,s.item_reference) for e in self.character.equipsets for s in e.slots if s.action=='equip' and (s.container,s.index)==(row.container,row.index)]
   text=f'種類ID: {row.item_id}\n収納: {BAGS[row.container]}\n内部スロット: {row.index}\n\n{self.augment_text(row)}\n\nこの保存位置を指定する装備セット\n'
   text+='\n'.join(f'{self.equipset_label(n)} / {SLOTS[key]}\n  {OBSERVATIONS.get(a.observation,a.observation)}' for n,key,a in refs) or 'なし'
   summary='\n'.join(f'{self.equipset_label(n)} / {SLOTS[key]}' for n,key,a in refs) or 'なし'
   self.show_detail(self.item_name(row.item_id),f'{BAGS[row.container]} / {row.index}\n種類ID: {row.item_id}\n\n{self.augment_text(row)}\n\n参照している装備セット\n{summary}',evidence=text)
+ def compare_inventory_item(self):
+  if self.mode.get()!='インベントリ' or not self.character or self.editor.blocked:return
+  row=next((r for r in self.character.inventory if r.container==self.selected and r.index==self.active_inventory),None)
+  if row is None or not self.character.equipsets:return
+  compatible=self.snapshot.items.get(row.item_id,{}).get('equip_slots',())
+  if not compatible:return
+  identity=(row.item_id,row.container,row.index)
+  self.tabs.select('装備セット')
+  if self.slot_editor is None:return
+  name=self.active_slot if self.active_slot in compatible else next((s for s in GRID if s in compatible),None)
+  if name is None:return
+  self.inspect_slot(next(s for s in self.selected.slots if s.name==name))
+  if self.slot_editor is not None and self.slot_editor.slot_name==name:
+   self.slot_editor.query.set('')
+   self.slot_editor.select_item(identity)
  def open_inventory(self,bag,index):
   self.inventory_query.set('')
   self.mode.set('インベントリ');self.change_mode();self.nav.selection_clear(0,'end');i=self.navigation.index(bag);self.nav.selection_set(i);self.nav.see(i);self.select_navigation()

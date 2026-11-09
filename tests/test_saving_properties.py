@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import patch
 from ff11reader import saving, file_transaction, macro_saving, equipment_saving
 from ff11reader.edit_application import Editor
-from ff11reader.editing import Change, Edit
+from ff11reader.editing import EditSession, Change, Edit
 from tests.property_support import GameFixture, isolated, seeds, check_sequence
 
 
@@ -99,11 +99,11 @@ class SavingProperties(unittest.TestCase):
                         if path not in f.original:self.assertEqual(path.read_bytes(),raw)
                     self.assertEqual(len(list(folder.glob('*.original.dat'))),count)
                     self.assertEqual(f.editor.edit_status(),(2,2,True))
-                    persisted=f.bytes();f.reopen();self.assertIsNone(f.editor.blocked)
+                    persisted=f.bytes();self.assertIsNone(f.editor.blocked)
                     for method,expected_status in [('undo',(1,2,False)),('undo',(0,2,True)),('redo',(1,2,False)),('redo',(2,2,True))]:
                         getattr(f.editor,method)();self.assertEqual(f.editor.edit_status(),expected_status)
                         self.assertEqual(f.bytes(),persisted)
-                    f.reopen();self.assertEqual(f.editor.edit_status(),(2,2,True))
+                    f.reopen();self.assertEqual(f.editor.edit_status(),(0,0,False))
 
     def test_generated_preconditions_reject_stale_saves(self):
         # PT-21: vary dependency, original, working state and plan tampering.
@@ -152,14 +152,18 @@ class SavingProperties(unittest.TestCase):
                                 with self.assertRaises(RuntimeError):f.save(plan)
                             for i,path in enumerate(f.original,1):
                                 expected=bytearray(f.expected[path]);expected[0]^=1
-                                self.assertEqual(path.read_bytes(),bytes(expected) if external and i==at else f.original[path])
+                                wanted=bytes(expected) if external and i==at else f.original[path]
+                                if path.read_bytes()!=wanted:
+                                    records=[json.loads(p.read_text()) for p in base.rglob('failure.json')]
+                                    self.fail(f'{path.name}: unexpected bytes; recovery records: {records}')
                             if external:
                                 self.assertIsNotNone(f.editor.blocked)
                                 with self.assertRaises(ValueError):f.editor.undo()
                                 f.reopen();self.assertIsNotNone(f.editor.blocked)
                             else:
-                                self.assertIsNone(f.editor.blocked);f.reopen();self.assertIsNone(f.editor.blocked)
-                                self.assertTrue(f.editor.session.dirty)
+                                self.assertIsNone(f.editor.blocked);self.assertTrue(f.editor.session.dirty)
+                                f.reopen();self.assertIsNone(f.editor.blocked)
+                                self.assertEqual(f.editor.edit_status(),(0,0,False))
 
     def test_interrupted_save_recovers_only_known_complete_states(self):
         # PT-26: interrupt before first output and after every replaced target.
@@ -175,32 +179,25 @@ class SavingProperties(unittest.TestCase):
                         with self.assertRaises(ValueError):f.editor.redo()
                     else:
                         self.assertIsNone(f.editor.blocked)
-                        self.assertEqual(f.editor.session.dirty,phase!='replaced')
+                        self.assertFalse(f.editor.session.dirty)
                         first=f.bytes();f.reopen();self.assertEqual(f.bytes(),first)
-                        self.assertEqual(f.editor.edit_status(),(1,1,phase!='replaced'))
+                        self.assertEqual(f.editor.edit_status(),(0,0,False))
 
-    def test_checkpoint_crashes_before_after_sync_and_cleanup(self):
+    def test_crash_during_journal_cleanup_loads_game_without_history(self):
         for kind in ('macro','equipment'):
-            for phase in ('before_sync','after_sync','cleanup'):
+            for phase in ('before_cleanup','after_cleanup'):
                 with self.subTest(kind=kind,phase=phase),isolated() as base:
                     f=GameFixture(base,kind,42,3);f.fix();plan=f.preview()
-                    store=f.editor.store.save;unlink=Path.unlink;calls=0
-                    def sync(session):
-                        nonlocal calls
-                        calls+=1
-                        if calls==2 and phase=='before_sync':raise Crash(phase)
-                        result=store(session)
-                        if calls==2 and phase=='after_sync':raise Crash(phase)
-                        return result
-                    def remove(path,*a,**kw):
-                        if phase=='cleanup' and path==base/'draft.pending.json':raise Crash(phase)
-                        return unlink(path,*a,**kw)
-                    with patch.object(f.editor.store,'save',side_effect=sync),patch.object(Path,'unlink',remove):
+                    finish=f.editor.journal.finish
+                    def crash():
+                        if phase=='after_cleanup':finish()
+                        raise Crash(phase)
+                    with patch.object(f.editor.journal,'finish',side_effect=crash):
                         with self.assertRaises(Crash):f.save(plan)
                     f.reopen();self.assertIsNone(f.editor.blocked)
-                    self.assertEqual(f.editor.edit_status(),(1,1,False))
+                    self.assertEqual(f.editor.edit_status(),(0,0,False))
                     for path,expected in f.expected.items():self.assertEqual(path.read_bytes(),expected)
-                    f.reopen();self.assertEqual(f.editor.edit_status(),(1,1,False))
+                    f.reopen();self.assertEqual(f.editor.edit_status(),(0,0,False))
 
     def test_generated_macro_byte_boundaries(self):
         # PT-24 current Fix scope: CP932, embedded-zero tokens and 60-byte limit.
@@ -268,7 +265,9 @@ class SavingProperties(unittest.TestCase):
                 elif op=='redo':
                     f.editor.redo()
                     if cursor<len(history):current=list(history[cursor][1]);cursor+=1
-                elif op=='restart':f.reopen();self.assertIsNone(f.editor.blocked)
+                elif op=='restart':
+                    f.reopen();self.assertIsNone(f.editor.blocked)
+                    current=list(saved);history=[];cursor=0
                 elif op=='save':
                     eligible=[i for i in range(2) if current[i][1] and not saved[i][1]]
                     if not eligible:
@@ -278,8 +277,8 @@ class SavingProperties(unittest.TestCase):
                         f.save(plan)
                         for i in eligible:saved[i]=(saved[i][0],True)
                 elif op=='fail':
-                    with patch.object(f.editor.store,'save',side_effect=OSError('synthetic work save failure')):
-                        with self.assertRaises(OSError):f.editor.undo()
+                    with patch.object(EditSession,'undo',side_effect=ValueError('invalid operation')):
+                        with self.assertRaises(ValueError):f.editor.undo()
                 if op in ('fix','one_fix','rename') and after!=current:
                     history[cursor:]=[(list(current),list(after))];cursor+=1;current=after
                 self.assertEqual(projection(f.editor.snapshot()),current)

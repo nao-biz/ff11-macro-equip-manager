@@ -1,41 +1,38 @@
 """Edit use cases: coordinate pure transactions and application-owned storage."""
 from copy import deepcopy
 from dataclasses import replace
-import json
 from pathlib import Path
 from .editing import EditSession, plan_macro_fixes, plan_equipment_edit, edit_macro, macro_key
-from .draft_store import DraftStore
+from .save_journal import SaveJournal
 from .tracing import span, traced
 
 
 class Editor:
     def __init__(self, snapshot, path=None, *, root=None):
         self.root = Path(root).resolve() if root is not None else None
-        self.store = DraftStore(path or Path(__file__).resolve().parent.parent / 'work' / 'drafts' / (snapshot.installation_key + '.json'))
+        self.state_path = Path(path or Path(__file__).resolve().parent.parent / 'work' / 'drafts' / (snapshot.installation_key + '.json'))
+        self.journal = SaveJournal(self.state_path.with_suffix('.pending.json'), snapshot.installation_key)
         self.blocked = None
         self._transfer = None
         try:
-            self._recover_save(snapshot)
-            self._session = self.store.load(snapshot)
+            self.journal.recover(snapshot, self.state_path)
         except (OSError, ValueError, KeyError, TypeError, AttributeError, StopIteration) as exc:
             self.blocked = str(exc)
-            self._session = EditSession(snapshot)
+        self._session = EditSession(snapshot)
 
     @traced('editor.reload')
     def reload(self):
         from .application import load_snapshot
         if self.root is None:raise ValueError('読込元のインストール先が設定されていません。')
-        if self.store.path.with_suffix('.pending.json').exists():
+        if self.journal.path.exists():
             raise ValueError('ゲーム保存の復旧記録があります。アプリを開き直して復旧してください。')
         fresh = load_snapshot(self.root)
         if fresh.installation_key != self._session.saved.installation_key:
             raise ValueError('読込元のインストール先が一致しません。')
         next_session = EditSession(fresh)
-        archived = self.store.save(next_session, archive_previous=True)
         self._session = next_session
         self.blocked = None
         self.clear_transfer()
-        return archived
 
     @property
     def transfer(self):return deepcopy(self._transfer)
@@ -67,14 +64,14 @@ class Editor:
 
     def clear_transfer(self):self._transfer=None
 
-    def prepare_paste(self,folder,anchor):
+    def prepare_paste(self,folder,anchor,*,overwrite=False):
         if self.blocked:raise ValueError(self.blocked)
         if self._transfer is None:raise ValueError('先にコピーまたは切り取りをしてください。')
         from .transfer_editing import plan_paste
-        return deepcopy(plan_paste(self._session.character(folder),self._transfer,anchor))
+        return deepcopy(plan_paste(self._session.character(folder),self._transfer,anchor,overwrite=overwrite))
 
-    def paste(self,folder,anchor,preview):
-        if preview!=self.prepare_paste(folder,anchor):raise ValueError('貼り付け内容が変わりました。変更案を開き直してください。')
+    def paste(self,folder,anchor,preview,*,overwrite=False):
+        if preview!=self.prepare_paste(folder,anchor,overwrite=overwrite):raise ValueError('貼り付け内容が変わりました。変更案を開き直してください。')
         self.apply(preview)
         if self._transfer.cut:self.clear_transfer()
 
@@ -95,11 +92,25 @@ class Editor:
         from .combined_saving import prepare_combined_save
         return prepare_combined_save(self._session.saved,self._session.working,folder,self._session.movement_origins(folder))
 
+    def prepare_writeback(self):
+        from .edit_values import character_value
+        saved = {c.folder_id: c for c in self._session.saved.characters}
+        return tuple(self.prepare_combined_save(c.folder_id) for c in self._session.working.characters
+                     if character_value(c) != character_value(saved[c.folder_id]))
+
+    def writeback(self, plans, backup_root):
+        if plans != self.prepare_writeback():
+            raise ValueError('編集内容が変わりました。書き戻しの確認を開き直してください。')
+        backups = []
+        for plan in plans:
+            backups.append(self.save_combined(plan, backup_root))
+        return tuple(backups)
+
     def save_combined(self,preview,backup_root):
         from .combined_saving import execute_combined_save
         from .saving import require_game_closed
         if preview!=self.prepare_combined_save(preview.character):raise ValueError('編集内容が変わりました。保存プレビューを開き直してください。')
-        require_game_closed();self.store.save(self._session)
+        require_game_closed()
         next_session=self._session.fork();saved=next_session.saved
         working=next_session.working
         updated=next(c for c in working.characters if c.folder_id==preview.character)
@@ -135,33 +146,14 @@ class Editor:
         current=self._session.read(character,'equipsets',(number,))
         return deepcopy(edit_equipment_name(Character(character),current,title))
 
-    def _recover_save(self,snapshot):
-        pending=self.store.path.with_suffix('.pending.json')
-        if not pending.exists():return
-        data=json.loads(pending.read_text(encoding='utf-8'))
-        if data.get('draft_revision')!=self.store.revision:
-            current=json.loads(self.store.path.read_text(encoding='utf-8')) if self.store.path.exists() else {}
-            if all(current.get(k)==data.get(k) for k in ('version','installation','sources','baseline','history','cursor','saved_origins')):
-                pending.unlink();return
-            raise ValueError('保存途中の記録と現在の作業ファイルが一致しません。作業ファイルと復旧用のpending記録を保管して確認してください。')
-        from .draft_store import signature
-        if data['sources']==[list(v) for v in signature(snapshot)]:
-            session=DraftStore(pending).load(snapshot)
-            self.store.save(session);pending.unlink()
-        else:
-            self.store.load(snapshot)  # Only discard if every game source is still original.
-            pending.unlink()
-
     def _execute(self, operation):
         if self.blocked:
             raise ValueError(self.blocked)
-        if self.store.path.with_suffix('.pending.json').exists():raise ValueError('ゲームへの保存または復旧が終わるまで、編集を再開できません。')
+        if self.journal.path.exists():raise ValueError('ゲームへの保存または復旧が終わるまで、編集を再開できません。')
         with span('editor.fork_session'):
             next_session = self._session.fork()
         with span('editor.apply_operation'):
             operation(next_session)
-        with span('draft.save'):
-            self.store.save(next_session)
         self._session = next_session
 
     @traced('editor.apply')
@@ -188,11 +180,9 @@ class Editor:
 
     @traced('editor.start_fresh')
     def start_fresh(self):
-        if self.store.path.with_suffix('.pending.json').exists():
-            raise ValueError('ゲーム保存の復旧記録があります。バックアップと作業ファイルを確認してください。')
+        if self.journal.path.exists():
+            raise ValueError('ゲーム保存の復旧記録があります。バックアップと復旧記録を確認してください。')
         next_session = EditSession(self._session.saved)
-        self.store.prepare_baseline(next_session)
-        self.store.archive()
         self._session = next_session
         self.clear_transfer()
         self.blocked = None
@@ -210,7 +200,6 @@ class Editor:
         from .saving import require_game_closed
         if preview!=self.prepare_macro_save(preview.character,preview.scope):raise ValueError('編集内容が変わりました。保存プレビューを開き直してください。')
         require_game_closed()
-        self.store.save(self._session)  # Verify draft ownership and writable storage first.
         next_session=self._session.fork()
         saved=next_session.saved
         character=next(c for c in saved.characters if c.folder_id==preview.character)
@@ -239,7 +228,6 @@ class Editor:
         from .references import assess_equipment
         if preview!=self.prepare_equipment_save(preview.character,preview.scope):raise ValueError('編集内容が変わりました。保存プレビューを開き直してください。')
         require_game_closed()
-        self.store.save(self._session)
         next_session=self._session.fork()
         saved=next_session.saved
         character=next(c for c in saved.characters if c.folder_id==preview.character)
@@ -273,26 +261,24 @@ class Editor:
             file=next((f for f in preview.files if Path(f.target).resolve()==Path(source['path']).resolve()),None)
             if file:source['sha256']=digest(file.replacement)
         next_session.saved=saved
-        pending=self.store.path.with_suffix('.pending.json')
-        checkpoint=DraftStore(pending)
-        if checkpoint.revision is not None:raise ValueError('前回のゲーム保存の復旧確認が必要です。')
-        checkpoint.save(next_session,draft_revision=self.store.revision)
+        if self.journal.path.exists():raise ValueError('前回のゲーム保存の復旧確認が必要です。')
+        record = self.journal.begin(preview)
         try:
             from .elevation import execute_with_permission
-            backup=execute_with_permission(preview,backup_root,execute_save)
+            with record:
+                backup=execute_with_permission(preview,backup_root,execute_save)
         except Exception as exc:
             try:unchanged=all(Path(f.target).read_bytes()==f.original for f in preview.files)
             except OSError:unchanged=False
-            if unchanged:pending.unlink()
+            if unchanged:self.journal.finish()
             else:
                 self.blocked='ゲームへの保存が途中で止まっています。バックアップと復旧用のpending記録を残しています。復旧確認が必要です。'
                 raise RuntimeError(self.blocked+' '+str(exc)) from exc
             raise
         try:
-            self.store.save(next_session)
             self._session=next_session
-            pending.unlink()
+            self.journal.finish()
         except Exception as exc:
-            self.blocked=f'ゲームへの保存は完了しましたが、作業ファイルの同期に失敗しました。アプリを再起動して復旧を確認してください。バックアップ: {backup}'
+            self.blocked=f'ゲームへの保存は完了しましたが、復旧記録の削除に失敗しました。アプリを再起動して復旧を確認してください。バックアップ: {backup}'
             raise RuntimeError(self.blocked) from exc
         return backup

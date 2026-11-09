@@ -15,6 +15,10 @@ class ActionTests(unittest.TestCase):
     def tearDown(self):
         try:self.app.destroy()
         except tk.TclError:pass
+        self.errors.clear()
+        del self.entry, self.app
+        import gc
+        gc.collect()
     def test_only_declared_heavy_actions_are_busy(self):
         values=[];busy=state(self.app)
         heavy=ActionButton(self.app,busy=True,command=lambda:values.append(self.entry.cget('cursor')))

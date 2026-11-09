@@ -2,10 +2,11 @@
 from .theme import ACCENT, BG, BORDER, DANGER, FG, PANEL, SELECT, WARNING
 import tkinter as tk
 from tkinter import ttk, font as tkfont
+from .window_placement import fit_to_screen, place, visible_area
 
 
 class Modal:
-    def __init__(self,parent,title,message,kind='notice',initialvalue='',accept_label=None):
+    def __init__(self,parent,title,message,kind='notice',initialvalue='',accept_label=None,choices=None):
         self.parent=parent.winfo_toplevel()
         self.previous_focus=self.parent.focus_get()
         self.previous_grab=self.parent.grab_current()
@@ -33,18 +34,26 @@ class Modal:
         bar=self.bar=ttk.Frame(panel);bar.grid(row=3,column=0,columnspan=2,sticky='ew',pady=(12,0))
         copy=ttk.Button(bar,text='本文をコピー',command=lambda:self.copy(str(message)));copy.pack(side='left')
         self.cancel_button=None
-        if kind in ('confirm','input'):
+        choice_buttons=[]
+        if choices:
+            for label, result in reversed(choices):
+                button=ttk.Button(bar,text=label,command=lambda r=result:self.finish(r))
+                button.pack(side='right',padx=(8,0));choice_buttons.append(button)
+            self.cancel_button=choice_buttons[0]
+            self.ok_button=choice_buttons[-1]
+        elif kind in ('confirm','input'):
             self.cancel_button=ttk.Button(bar,text='いいえ' if kind=='confirm' else '取消',command=self.cancel);self.cancel_button.pack(side='right',padx=(8,0))
-        self.ok_button=ttk.Button(bar,text='はい' if kind=='confirm' else ('適用' if kind=='input' else '閉じる'),command=lambda:self.finish(self.entry.get() if self.entry else True))
-        self.ok_button.pack(side='right')
-        self.focusables=[self.body]+([self.entry] if self.entry else [])+[copy,self.ok_button]+([self.cancel_button] if self.cancel_button else [])
+        if not choices:
+            self.ok_button=ttk.Button(bar,text='はい' if kind=='confirm' else ('適用' if kind=='input' else '閉じる'),command=lambda:self.finish(self.entry.get() if self.entry else True))
+            self.ok_button.pack(side='right')
+        self.focusables=[self.body]+([self.entry] if self.entry else [])+[copy]+(choice_buttons or [self.ok_button]+([self.cancel_button] if self.cancel_button else []))
         for widget in [self.layer,*self.focusables]:
             widget.bind('<Escape>',self.cancel)
             widget.bind('<Tab>',lambda e:self.cycle(1))
             widget.bind('<Shift-Tab>',lambda e:self.cycle(-1))
             widget.bind('<ISO_Left_Tab>',lambda e:self.cycle(-1))
         # Enter is accepted only on an explicit button, not in an IME input field.
-        for button in (self.ok_button,self.cancel_button,copy):
+        for button in (choice_buttons or [self.ok_button,self.cancel_button])+[copy]:
             if button:button.bind('<Return>',lambda e,b=button:(b.invoke(),'break')[1])
         self.layer.bind('<Configure>',self.schedule_layout)
         self.layer.bind('<Destroy>',self.cancel_layout)
@@ -70,7 +79,9 @@ class Modal:
         gutter=self.scroll.winfo_reqwidth()
         # Reserve the same gutter with/without the scrollbar to keep wrapping stable.
         self.panel.columnconfigure(1,minsize=gutter)
-        maximum=max(100,min(720,self.layer.winfo_width()-40))
+        x,y,available_width,available_height=visible_area(self.parent)
+        self.panel.place_configure(relx=0,rely=0,x=x+available_width//2,y=y+available_height//2)
+        maximum=max(1,min(720,available_width-40))
         width=min(maximum,max(360,text_width+48+gutter,self.heading.winfo_reqwidth()+40,self.bar.winfo_reqwidth()+40))
         self.heading.configure(wraplength=max(40,width-40))
         self.panel.place_configure(width=width)
@@ -83,7 +94,7 @@ class Modal:
         content=(pixels[0] if isinstance(pixels,tuple) else pixels) or tkfont.Font(root=self.parent,font=self.body.cget('font')).metrics('linespace')
         padding=2*(int(self.body.cget('pady'))+int(self.body.cget('borderwidth'))+int(self.body.cget('highlightthickness')))
         overhead=self.panel.winfo_reqheight()-self.body.winfo_reqheight()
-        maximum=max(overhead+24,int(self.layer.winfo_height()*.85))
+        maximum=max(1,int(visible_area(self.parent)[3]*.85))
         height=min(maximum,overhead+content+padding)
         self.panel.place_configure(height=height)
         if overhead+content+padding>maximum:self.scroll.grid()
@@ -129,27 +140,35 @@ def askyesno(title,message,*,parent,accept_label=None):return Modal(parent,title
 def askstring(title,message,*,parent,initialvalue=''):return Modal(parent,title,message,'input',initialvalue).wait()
 
 
+def ask_save_changes(*, parent):
+    return Modal(parent,'未保存の変更があります',
+                 '全キャラクターの未保存の変更と入力中のマクロを、ゲームへ書き戻すか、破棄して終了するか選んでください。\n'
+                 '破棄した内容は次の起動に引き継がれません。',
+                 choices=(('書き戻して終了','save'),('破棄して終了','discard'),('編集を続ける',None))).wait()
+
+
 def confirm_buttons(window,command,*,enabled=True):
     """A diff confirmation has the same safe default as a short question."""
     from .ui_actions import ActionButton
     window.transient(window.master.winfo_toplevel())
+    fit_to_screen(window)
     window.grab_set()
-    window.accept_button=ActionButton(window,text='はい',busy=True,command=command,
+    children=window.pack_slaves()
+    bar=ttk.Frame(window)
+    bar.pack(side='bottom',fill='x',**({'before':children[0]} if children else {}))
+    window.accept_button=ActionButton(bar,text='はい',busy=True,command=command,
                                      state='normal' if enabled else 'disabled')
     window.accept_button.pack(side='right',padx=12,pady=12)
-    window.cancel_button=ttk.Button(window,text='いいえ',command=window.destroy)
+    window.cancel_button=ttk.Button(bar,text='いいえ',command=window.destroy)
     window.cancel_button.pack(side='right',pady=12)
     window.bind('<Escape>',lambda e:window.destroy())
     for button in (window.accept_button,window.cancel_button):
         button.bind('<Return>',lambda e,b=button:(b.invoke(),'break')[1])
-    def place():
+    def position():
         if not window.winfo_exists():return
-        parent=window.master.winfo_toplevel()
-        x=parent.winfo_rootx()+(parent.winfo_width()-window.winfo_width())//2
-        y=parent.winfo_rooty()+(parent.winfo_height()-window.winfo_height())//2
-        window.geometry(f'{x:+d}{y:+d}')
+        place(window)
         window.cancel_button.focus_set()
-    window.after_idle(place)
+    window.after_idle(position)
     return window.accept_button
 
 

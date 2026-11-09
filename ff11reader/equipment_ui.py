@@ -13,6 +13,7 @@ class SlotEditor:
             self.window=ttk.Frame(parent);self.window.pack(fill='both',expand=True)
         else:
             self.window=tk.Toplevel(parent,background=BG);self.window.title(title);self.window.geometry('820x560')
+            dialogs.fit_to_screen(self.window)
         self.cancel=on_cancel or self.window.destroy
         self.augment_path=augment_path or (lambda row:'')
         self.augment_text=augment_text or (lambda row: "個体情報: 未取り込み")

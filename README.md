@@ -22,6 +22,8 @@ python -m venv .venv
 .venv\Scripts\python reader.py --root "C:\path\to\FINAL FANTASY XI"
 ```
 
+起動時は毎回ゲームデータを読み込みます。編集とUndo/Redoは起動中だけ保持し、「ゲームへ書き戻す…」から任意に保存できます。未保存の変更があるまま終了すると、書き戻し・破棄・編集継続を選べます。
+
 ## テスト
 
 ```powershell

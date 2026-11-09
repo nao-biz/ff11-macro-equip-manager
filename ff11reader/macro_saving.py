@@ -127,7 +127,10 @@ def prepare_macro_save(saved,working,folder,scope='storage-fix'):
     old={macro_key(m):m for m in original.macros}
     needs_dictionary=scope=='storage-fix' or any(
         (text_value(a)!=text_value(b) or (bool(m.raw_hex) and m.raw_hex!=old[macro_key(m)].raw_hex)) and (a.tokens or b.tokens or b'\xfd' in bytes.fromhex(a.raw_hex) or b'\xfd' in bytes.fromhex(b.raw_hex))
-        for m in edited.macros for a,b in zip(old[macro_key(m)].lines,m.lines))
+        for m in edited.macros
+        if any(text_value(a)!=text_value(b) for a,b in zip(
+            (old[macro_key(m)].title,*old[macro_key(m)].lines),(m.title,*m.lines)))
+        for a,b in zip(old[macro_key(m)].lines,m.lines))
     reader=LocalReader(root);phrases=reader.load_phrases() if needs_dictionary else {}
     resolver=lambda token:resolve_token(token,phrases,saved.items)
     for source in reader.sources:
@@ -146,7 +149,7 @@ def prepare_macro_save(saved,working,folder,scope='storage-fix'):
         if not semantic_changed:continue
         if relocated:record_bases[key]=base
         if scope=='storage-fix' and before.title.display!=macro.title.display:
-            deferred.append(DeferredChange(address+' / 名前','名前の変更は「変更を保存…」から保存できます。'))
+            deferred.append(DeferredChange(address+' / 名前','名前の変更は「ゲームへ書き戻す…」から保存できます。'))
         fields=list(enumerate(zip(before.lines,macro.lines),1))
         if scope=='all':fields.insert(0,(0,(before.title,macro.title)))
         for n,(a,b) in fields:
@@ -159,7 +162,7 @@ def prepare_macro_save(saved,working,folder,scope='storage-fix'):
             if scope=='storage-fix':
                 ref=refs.get((key,n))
                 if ref is None or ref.replacement is None or text_value(remap_text(a,ref.replacement))!=text_value(b):
-                    deferred.append(DeferredChange(address+f' / {n}行目','手編集した行は「変更を保存…」から保存できます。'));continue
+                    deferred.append(DeferredChange(address+f' / {n}行目','手編集した行は「ゲームへ書き戻す…」から保存できます。'));continue
             try:
                 raw=base[370:380] if relocated and n==0 else base[4+(n-1)*61:4+n*61] if relocated else bytes.fromhex(a.raw_hex)
                 from .codecs import text as decode_text
@@ -171,7 +174,7 @@ def prepare_macro_save(saved,working,folder,scope='storage-fix'):
                 label='名前' if n==0 else f'{n}行目'
                 raise ValueError(f'{address} / {label}: {exc}') from exc
             page=(macro.book-1)*10+macro.palette-1
-            grouped.setdefault(page,[]).append(LineChange(key,n,a.display,b.display,raw,replacement,provenance,b.tokens,a.tokens))
+            grouped.setdefault(page,[]).append(LineChange(key,n,a.display,b.display,raw,replacement,provenance,b.tokens,tuple(a.tokens or ())))
     if not grouped:raise ValueError('保存できるマクロの変更がありません。'+('\n'+deferred_text(deferred) if deferred else ''))
     files=[]
     for page,changes in sorted(grouped.items()):

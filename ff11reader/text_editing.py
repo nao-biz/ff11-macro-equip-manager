@@ -54,3 +54,27 @@ def remap_text(value,display):
             identity=original[min(index,len(original)-1)].identity
             tokens.append(TextToken(match.start(),match.end(),identity))
     return Text(display,value.raw_hex,'draft',tuple(sorted(tokens,key=lambda t:t.start)))
+
+
+def slice_text(value,start,end):
+    validate_tokens(value)
+    for token in value.tokens or ():
+        if token.start<start<token.end or token.start<end<token.end:
+            raise ValueError('定型文はまとまりでコピーしてください。')
+    return Text(value.display[start:end],value.raw_hex,'draft',tuple(
+        replace(t,start=t.start-start,end=t.end-start) for t in value.tokens or ()
+        if start<=t.start and t.end<=end))
+
+
+def paste_text(value,start,end,insert):
+    validate_tokens(insert)
+    result=replace_range(value,start,end,insert.display)
+    tokens=list(result.tokens or ())
+    tokens.extend(replace(t,start=t.start+start,end=t.end+start) for t in insert.tokens or ())
+    def payload(raw_hex):
+        raw=bytes.fromhex(raw_hex);i=0
+        while i<len(raw) and raw[i]:
+            i+=6 if raw[i]==253 and i+5<len(raw) and raw[i+5]==253 else 1
+        return raw[:i]
+    sources=list(dict.fromkeys(p for p in (payload(value.raw_hex),payload(insert.raw_hex)) if p))
+    return replace(result,tokens=tuple(sorted(tokens,key=lambda t:t.start)),raw_hex=b' '.join(sources).hex())

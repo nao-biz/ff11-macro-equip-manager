@@ -19,7 +19,7 @@ from tests.test_practical_equipment_evaluation import offline
 
 @unittest.skipUnless(os.environ.get('FF11_RUN_INTEGRATION') == '1', 'Synthetic Tk checks')
 class EquipmentReviewUITests(WorkspaceMixin, SlotFixture):
-    def open_dense_view(self, weapon_text=False, unknown_armor=False, extra_weapon_text='', data=None):
+    def open_dense_view(self, weapon_text=False, unknown_armor=False, extra_weapon_text='', data=None, characters=1):
         errors = patch('ff11reader.ui.dialogs.showerror', side_effect=AssertionError('Unexpected UI error'))
         errors.start(); self.addCleanup(errors.stop)
         data = ReviewData() if data is None else data
@@ -34,15 +34,21 @@ class EquipmentReviewUITests(WorkspaceMixin, SlotFixture):
             data.master[data.items['4:0'].item_id]['description'] = None
         c = self.source.characters[0]
         self.source.augment_names = data.names
-        c.inventory = [InventoryRow(12, i.position, i.item_id, 1) for i in data.items.values()]
-        c.inventory_coverage[12] = 'loaded'
+        c.inventory = [InventoryRow(i.container, i.position, i.item_id, 1) for i in data.items.values()]
+        c.inventory_coverage.update({i.container: 'loaded' for i in data.items.values()})
+        for item in data.items.values():
+            self.source.items[item.item_id] = dict(data.master[item.item_id], equip_slots=(SLOT_KEYS[item.slot],))
         slots = {}
         for part, key in enumerate(data.sets[0]):
             item = data.items[key]
             original = next(s for s in c.equipsets[0].slots if s.name == SLOT_KEYS[part])
-            slots[SLOT_KEYS[part]] = Slot(SLOT_KEYS[part], 'equip', item.item_id, 12, item.position, original.raw_hex)
+            slots[SLOT_KEYS[part]] = Slot(SLOT_KEYS[part], 'equip', item.item_id, item.container, item.position, original.raw_hex)
             self.source.items[item.item_id] = dict(data.master[item.item_id], equip_slots=(SLOT_KEYS[part],))
         c.equipsets[0] = replace(c.equipsets[0], slots=tuple(slots[s.name] for s in c.equipsets[0].slots))
+        if characters > 1:
+            from copy import deepcopy
+            other = deepcopy(c); other.folder_id = 'second'
+            self.source.characters.append(other)
         self.editor = Editor(self.source, self.base / 'dense.json')
         view = self.open_view()
         view.augment_observations['abc'] = data.observation
@@ -55,6 +61,28 @@ class EquipmentReviewUITests(WorkspaceMixin, SlotFixture):
     def values(self, name, unit=''):
         return tuple(c.cget('text') for c in self.view.equipment_summary.metric_labels[name, unit][1:])
 
+    def test_old_draft_does_not_prevent_mouse_slot_editing(self):
+        path = self.editor.state_path
+        path.write_text('old unreadable draft', encoding='utf-8')
+        self.editor = Editor(self.source, path)
+        self.assertIsNone(self.editor.blocked)
+        view = self.open_view()
+        def click(widget, x=10, y=10):
+            widget.event_generate('<ButtonPress-1>', x=x, y=y)
+            widget.event_generate('<ButtonRelease-1>', x=x, y=y)
+            self.app.update()
+        click(view.card_widgets['body'])
+        self.assertEqual(view.slot_editor.slot_name, 'body')
+        listing = view.slot_editor.listing
+        x, y, width, height = listing.bbox('0')
+        click(listing, x + 20, y + height // 2)
+        click(view.slot_editor.preview_button)
+        self.assertIsNone(self.app.grab_current())
+        slot = next(s for s in view.selected.slots if s.name == 'body')
+        self.assertEqual((slot.action, slot.item_id), ('equip', 0x2801))
+        self.assertEqual(path.read_text(encoding='utf-8'), 'old unreadable draft')
+        for p, raw in self.original.items(): self.assertEqual(p.read_bytes(), raw)
+
     def test_live_raw_augment_comparison_apply_undo_and_unknown(self):
         view = self.open_dense_view()
         before = self.editor.edit_status()
@@ -63,18 +91,18 @@ class EquipmentReviewUITests(WorkspaceMixin, SlotFixture):
         self.assertEqual(self.values('モクシャII'), ('4', '5', '+1'))
         self.assertEqual(self.values('被魔法ダメージII', '%'), ('-8%', '-11%', '-3%'))
         self.assertEqual(self.editor.edit_status(), before)
-        view.slot_editor.preview_button.invoke(); self.preview_window().cancel_button.invoke(); self.app.update()
+        self.assertIsNone(self.app.grab_current())
         self.assertEqual(self.values('魔命'), ('320', '335', '+15'))
         self.choose(3)
         self.assertEqual(self.values('魔命')[-1], '-5*')
         self.assertIn('* は既知分', view.equipment_summary.note.cget('text'))
         view.slot_editor.cancel(); self.app.update()
-        self.assertEqual(self.values('魔命'), ('320', '—', '—'))
+        self.assertEqual(self.values('魔命'), ('320', '20', ''))
         self.choose(2)
-        view.slot_editor.preview_button.invoke(); self.preview_window().accept_button.invoke(); self.app.update()
-        self.assertEqual(self.values('魔命'), ('335', '—', '—'))
+        view.slot_editor.preview_button.invoke(); self.app.update(); self.assertIsNone(self.app.grab_current())
+        self.assertEqual(self.values('魔命'), ('335', '35', ''))
         view.undo_fix(); self.app.update()
-        self.assertEqual(self.values('魔命'), ('320', '—', '—'))
+        self.assertEqual(self.values('魔命'), ('320', '20', ''))
         view.redo_edit(); self.app.update()
         self.assertEqual(self.values('魔命')[0], '335')
         view.open_slot_editor(next(s for s in view.selected.slots if s.name == 'head'))
@@ -124,15 +152,15 @@ class EquipmentReviewUITests(WorkspaceMixin, SlotFixture):
             self.assertEqual(self.values('HP')[0], '455')
             self.assertNotIn('* は', view.equipment_summary.note.cget('text'))
             view.slot_editor.cancel(); self.app.update()
-            self.assertEqual(self.values('魔命')[-1], '—')
+            self.assertEqual(self.values('魔命')[-1], '')
             self.assertNotIn('* は', view.equipment_summary.note.cget('text'))
         self.choose(2)
         previous = self.values('魔命')[0]
         candidate = self.values('魔命')[1]
-        view.slot_editor.preview_button.invoke(); self.preview_window().accept_button.invoke(); self.app.update()
-        self.assertEqual(self.values('魔命'), (candidate, '—', '—'))
+        view.slot_editor.preview_button.invoke(); self.app.update(); self.assertIsNone(self.app.grab_current())
+        self.assertEqual(self.values('魔命'), (candidate, '35', ''))
         view.undo_fix(); self.app.update()
-        self.assertEqual(self.values('魔命'), (previous, '—', '—'))
+        self.assertEqual(self.values('魔命'), (previous, '20', ''))
         for path, raw in self.original.items(): self.assertEqual(path.read_bytes(), raw)
 
     def test_unchanged_unknown_armor_allows_confirmed_weapon_difference(self):
@@ -166,9 +194,9 @@ class EquipmentReviewUITests(WorkspaceMixin, SlotFixture):
             before = self.editor.edit_status()
             with patch('ff11reader.adapters.LocalReader.read', side_effect=AssertionError('Use loaded data')):
                 self.choose(2)
-                self.assertEqual(self.values('HP'), ('400', '400', '±0'))
+                self.assertEqual(self.values('HP'), ('400', '400', ''))
                 self.assertEqual(self.values('魔命'), ('320', '335', '+15'))
-                self.assertEqual(self.values('被ダメージ', '%'), ('-25%', '-25%', '±0'))
+                self.assertEqual(self.values('被ダメージ', '%'), ('-25%', '-25%', ''))
                 summary = view.equipment_summary
                 button = next(w for w in summary.frame.winfo_children()[0].winfo_children()
                               if w.cget('text') == '全項目・内訳')
@@ -184,7 +212,7 @@ class EquipmentReviewUITests(WorkspaceMixin, SlotFixture):
                 self.assertTrue(text.winfo_viewable())
                 window.destroy(); self.app.update()
                 view.slot_editor.cancel(); self.app.update()
-                self.assertEqual(self.values('魔命'), ('320', '—', '—'))
+                self.assertEqual(self.values('魔命'), ('320', '20', ''))
                 self.assertNotIn(candidate_text, summary.details_text())
                 self.assertEqual(self.editor.edit_status(), before)
 
@@ -196,19 +224,17 @@ class EquipmentReviewUITests(WorkspaceMixin, SlotFixture):
             self.assertNotEqual(owner, get_ident()); seen.append('prepare')
             return original(*args)
         self.choose(2)
-        with patch.object(self.editor, 'prepare_equipment_slot_edit', side_effect=prepare):
-            view.slot_editor.preview_button.invoke()
-        preview = self.preview_window(); ticks = []
+        ticks = []
         self.app.after(10, lambda: ticks.append(tasks(self.app).running))
         def fail(edit):
             self.assertNotEqual(owner, get_ident()); seen.append('apply')
             time.sleep(.08); raise OSError('synthetic draft failure')
-        with patch.object(self.editor, 'apply', side_effect=fail), patch('ff11reader.ui.dialogs.showerror') as error:
-            preview.accept_button.invoke(); self.app.update(); error.assert_called_once()
+        with patch.object(self.editor, 'prepare_equipment_slot_edit', side_effect=prepare), patch.object(self.editor, 'apply', side_effect=fail), patch('ff11reader.ui.dialogs.showerror') as error:
+            view.slot_editor.preview_button.invoke(); self.app.update(); error.assert_called_once()
         self.assertEqual(seen, ['prepare', 'apply']); self.assertIn(True, ticks)
         self.assertFalse(tasks(self.app).running)
         self.assertEqual(self.values('魔命'), ('320', '335', '+15'))
-        self.assertIs(self.app.grab_current(), preview)
-        preview.accept_button.invoke(); self.app.update()
+        self.assertIsNone(self.app.grab_current())
+        view.slot_editor.preview_button.invoke(); self.app.update()
         self.assertEqual(self.values('魔命')[0], '335')
         self.assertIsNone(self.app.grab_current())

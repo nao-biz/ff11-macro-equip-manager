@@ -9,6 +9,10 @@ from .paste_placement import assess_placement, calculate_placement
 from .text_editing import remap_text
 
 
+class MacroOverwriteRequired(ValueError):
+    pass
+
+
 @dataclass(frozen=True)
 class Transfer:
     character: str
@@ -73,13 +77,15 @@ def _navigation(macro, old_book, destinations):
     return replace(macro, lines=tuple(lines))
 
 
-def plan_paste(character, transfer, anchor):
+def plan_paste(character, transfer, anchor, *, overwrite=False):
     if character.folder_id != transfer.character:raise ValueError('コピー元と同じキャラクターを選択してください。')
     kind = transfer.kind
     field = 'equipsets' if kind == 'equipment' else 'macros'
     captured = Character(character.folder_id, **{field: list(transfer.items)})
-    result = assess_placement(character, kind, transfer.selection, anchor, source_character=captured)
+    result = assess_placement(character, kind, transfer.selection, anchor, source_character=captured, overwrite=overwrite)
     if not result.allowed:
+        if kind in ('macro','palette') and all(i.reason == 'occupied' for i in result.issues):
+            raise MacroOverwriteRequired('貼り付け先のマクロに内容があります。')
         labels = {'occupied':'内容があります', 'unavailable':'読込不足', 'out_of_range':'範囲外'}
         raise ValueError('\n'.join(f'{i.member or i.target or i.source}: {labels[i.reason]}' for i in result.issues))
     original = {key(x):x for x in getattr(character, field)}
@@ -116,7 +122,10 @@ def plan_paste(character, transfer, anchor):
                 if address in old_books or destinations:
                     updated[address] = _navigation(item, old_books.get(address,item.book), destinations)
         changes = tuple(Change(character.folder_id, field, a, item, updated[a]) for a,item in original.items() if value(item)!=value(updated[a]))
-    return Edit('選択範囲を移動' if transfer.cut else '選択範囲をコピー', changes, moves, atomic=True)
+    label = '選択範囲を移動' if transfer.cut else '選択範囲をコピー'
+    if overwrite and kind in ('macro','palette'):
+        label = ('マクロパレット' if kind == 'palette' else 'マクロ') + ('を上書きして移動' if transfer.cut else 'を上書きしてコピー')
+    return Edit(label, changes, moves, atomic=True)
 
 
 def plan_delete(character, kind, selection):

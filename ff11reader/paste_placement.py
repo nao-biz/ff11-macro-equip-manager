@@ -111,7 +111,7 @@ def _available(rows, kind):
     return True
 
 
-def assess_placement(character, kind, selection, anchor, *, source_character=None):
+def assess_placement(character, kind, selection, anchor, *, source_character=None, overwrite=False):
     """Check current source/target availability and target emptiness for one character.
 
     This result concerns placement only. Cascade, byte limits, and cut-source freshness
@@ -139,7 +139,7 @@ def assess_placement(character, kind, selection, anchor, *, source_character=Non
                     item = rows[0]
                     empty = (vacant(item) if kind == SelectionKind.EQUIPMENT else
                              item.title.display == '' and all(t.display == '' for t in item.lines))
-                    if not empty:
+                    if not empty and not (overwrite and kind in (SelectionKind.MACRO, SelectionKind.PALETTE)):
                         reason = 'occupied'
                 if reason:
                     issues.append(PlacementIssue(reason, side, placement.source, placement.target,

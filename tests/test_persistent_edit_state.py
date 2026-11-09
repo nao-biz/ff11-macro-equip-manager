@@ -54,33 +54,24 @@ class PersistentStateTests(unittest.TestCase):
             editor.undo();undone=editor.snapshot(repaired)
             self.assertEqual(undone.characters[0].macros[0].title.display,'Base')
 
-    def test_draft_failure_leaves_all_roots_and_history_unchanged(self):
+    def test_failed_operation_leaves_all_roots_and_history_unchanged(self):
         with isolated() as base:
             editor=Editor(source(base),base/'draft.json')
             editor.apply(editor.prepare_macro_edit('a',(1,1,'ctrl',1),'Changed',['']*6))
-            for operation in (editor.undo,lambda:editor.apply(editor.prepare_macro_edit('a',(1,1,'ctrl',1),'Other',['']*6))):
-                state=editor.snapshot();baseline=editor.session.baseline;saved=editor.session.saved
-                history=editor.session.history;status=editor.edit_status();raw=(base/'draft.json').read_bytes()
-                with patch.object(editor.store,'save',side_effect=OSError('synthetic')):
-                    with self.assertRaises(OSError):operation()
-                self.assertEqual(editor.snapshot(),state)
-                self.assertEqual(editor.session.baseline,baseline);self.assertEqual(editor.session.saved,saved)
-                self.assertEqual(editor.session.history,history);self.assertEqual(editor.edit_status(),status)
-                self.assertEqual((base/'draft.json').read_bytes(),raw)
+            state=editor.snapshot();status=editor.edit_status();history=editor.session.history
+            with patch.object(EditSession,'apply',side_effect=ValueError('invalid edit')):
+                with self.assertRaises(ValueError):editor.apply(editor.prepare_macro_edit('a',(1,1,'ctrl',1),'Other',['']*6))
+            self.assertEqual(editor.snapshot(),state)
+            self.assertEqual(editor.session.history,history);self.assertEqual(editor.edit_status(),status)
+            self.assertFalse((base/'draft.json').exists())
 
-    def test_baseline_json_cache_preserves_v4_and_invalidates_on_reset(self):
+    def test_edit_undo_redo_and_reset_do_not_persist_work(self):
         with isolated() as base:
             editor=Editor(source(base),base/'draft.json')
             editor.apply(editor.prepare_macro_edit('a',(1,1,'ctrl',1),'Changed',['']*6))
-            first=json.loads((base/'draft.json').read_text(encoding='utf-8'))
-            with patch.object(EditSession,'baseline_records',side_effect=AssertionError('baseline encoded twice')):
-                editor.undo();editor.redo()
-            second=json.loads((base/'draft.json').read_text(encoding='utf-8'))
-            self.assertEqual(first['baseline'],second['baseline']);self.assertEqual(second['version'],4)
-            editor.start_fresh()
-            editor.apply(editor.prepare_macro_edit('a',(1,1,'ctrl',1),'Reset',['']*6))
-            reopened=Editor(source(base),base/'draft.json')
-            self.assertIsNone(reopened.blocked);self.assertEqual(reopened.snapshot(),editor.snapshot())
+            editor.undo();editor.redo();editor.start_fresh()
+            self.assertEqual(editor.edit_status(),(0,0,False))
+            self.assertFalse((base/'draft.json').exists())
 
     def test_incoming_edit_and_exposed_history_cannot_change_internal_values(self):
         with isolated() as base:

@@ -28,8 +28,8 @@
 | EDIT-001 | [editing.py](../ff11reader/editing.py)、[edit_application.py](../ff11reader/edit_application.py) | [EditingTests.test_fix_recomputed_and_no_game_save_dependency](../tests/test_editing.py) | 保存処理への非依存を検証 |
 | EDIT-002 | [editing.py](../ff11reader/editing.py)、[edit_values.py](../ff11reader/edit_values.py) | [FoundationTests.test_invalid_batch_is_atomic_even_through_generic_apply](../tests/test_edit_foundation.py) | 汎用変更案を含めて検証 |
 | EDIT-003 | [editing.py](../ff11reader/editing.py) | [EditingTests.test_batch_undo_redo_branch_and_raw_preservation](../tests/test_editing.py) | 共通履歴・無変更は関連テストでも検証 |
-| EDIT-004 | [draft_store.py](../ff11reader/draft_store.py)、[edit_application.py](../ff11reader/edit_application.py) | [EditingTests.test_persistence_redo_conflict_and_failed_save](../tests/test_editing.py)、[DraftReplacementTests](../tests/test_draft_store.py)、[ExecutionBoundaryTests](../tests/test_ui_execution.py) | 保存失敗・再開・競合、Windowsの置換拒否の回復・上限・待機中の外部更新保護、UI応答と失敗後の復帰を検証 |
-| EDIT-005 | [draft_store.py](../ff11reader/draft_store.py)、[edit_application.py](../ff11reader/edit_application.py) | [EditingTests.test_corrupt_draft_is_preserved](../tests/test_editing.py) | 古い作業の保管と新Snapshotでの再開はProperty Testでも検証。起動中の再読み込み・旧履歴保管・失敗時の状態保持はtest_reload.pyで検証。選択的引継ぎは将来対応 |
+| EDIT-004 | [edit_application.py](../ff11reader/edit_application.py)、[ui.py](../ff11reader/ui.py) | [test_editing_properties.py](../tests/test_editing_properties.py)、[test_session_ui.py](../tests/test_session_ui.py) | 起動ごとの新規編集、旧作業無視、終了時の書き戻し・破棄・継続、全キャラと入力、失敗時保持を合成検証 |
+| EDIT-005 | [edit_application.py](../ff11reader/edit_application.py) | [test_reload.py](../tests/test_reload.py) | 再読込成功時の履歴初期化、取消・読込失敗時の保持、復旧未完了時の停止 |
 | EDIT-006 | [editing.py](../ff11reader/editing.py)、[edit_application.py](../ff11reader/edit_application.py)、[ui.py](../ff11reader/ui.py) | [EditingUITests.test_edit_preview_undo_redo_fix_and_reopen](../tests/test_editing_ui.py) | マクロ編集と[装備セット名の編集・履歴・保存](../tests/test_equipment_names.py)を合成データで検証。[装備枠の個別編集・部位別選択・履歴・保存](../tests/test_equipment_slots.py)も合成データで検証。2026-10-29にユーザーが各枠編集の保存後、ゲーム内で認識されることを確認済み。2026-10-29にユーザーが名前編集・Undo/Redoと保存後のゲーム内反映を確認済み |
 | EDIT-007 | [phrases.py](../ff11reader/phrases.py)、[text_editing.py](../ff11reader/text_editing.py)、[phrase_ui.py](../ff11reader/phrase_ui.py)、[macro_text.py](../ff11reader/macro_text.py) | [test_phrase_editing.py](../tests/test_phrase_editing.py) | 通常定型文・アイテム名の検索、読み、カテゴリ階層、初期フォーカス、ID保持を実装。2026-10-29に実機確認まで完了。詳細は下記「定型文入力」を参照 |
 | SAVE-001 | [save_plan.py](../ff11reader/save_plan.py)、[macro_saving.py](../ff11reader/macro_saving.py)、[equipment_saving.py](../ff11reader/equipment_saving.py)、[ui.py](../ff11reader/ui.py) | [MacroSavingTests.test_unrelated_manual_edits_are_retained](../tests/test_macro_saving.py) | Fix限定保存と保留に加え、[test_manual_macro_saving.py](../tests/test_manual_macro_saving.py)で名前・各行の一般保存を検証。[test_equipment_names.py](../tests/test_equipment_names.py)で装備セット名の単独保存・Fixとの混在・保留を検証 |
@@ -37,30 +37,29 @@
 | SAVE-003 | [file_transaction.py](../ff11reader/file_transaction.py) | [EquipmentSavingTests.test_candidate_changes_and_staging_failure](../tests/test_equipment_saving.py) | 装備保存の準備失敗を検証 |
 | SAVE-004 | [macro_saving.py](../ff11reader/macro_saving.py)、[saving.py](../ff11reader/saving.py)、[codecs.py](../ff11reader/codecs.py) | [MacroSavingTests.test_token_zero_bytes_japanese_padding_and_length_limit](../tests/test_macro_saving.py) | [macro_text.py](../ff11reader/macro_text.py)で手編集のCP932・上限・既存定型文保持も検証。通常定型文・アイテム名の新規挿入とID保持は合成保存で検証。通常定型文とアイテム名のゲーム内表示・使用はユーザー確認済み |
 | SAVE-005 | [file_transaction.py](../ff11reader/file_transaction.py)、[edit_application.py](../ff11reader/edit_application.py) | [EquipmentSavingTests.test_failed_rollback_keeps_pending_and_blocks_edits](../tests/test_equipment_saving.py) | 復旧待ちを検証。外部更新は復元テストも参照 |
-| SAVE-006 | [edit_application.py](../ff11reader/edit_application.py)、[draft_store.py](../ff11reader/draft_store.py) | [MacroSavingTests.test_draft_checkpoint_failure_recovers_on_restart](../tests/test_macro_saving.py) | 同期失敗を検証。保存後Undoは保存テストでも検証 |
+| SAVE-006 | [edit_application.py](../ff11reader/edit_application.py)、[save_journal.py](../ff11reader/save_journal.py) | [test_save_journal.py](../tests/test_save_journal.py)、[test_saving_properties.py](../tests/test_saving_properties.py) | 起動中の保存後Undo、保存中断・記録削除失敗、前後指紋の照合、新規起動と履歴初期化 |
 | VIEW-001 | [ui.py](../ff11reader/ui.py) | — | 収納順と全17収納の選択を合成GUIで確認。2026-11-02、ユーザー確認済み。専用自動テストなし |
 | VIEW-002 | [ui.py](../ff11reader/ui.py)、[presentation.py](../ff11reader/presentation.py) | [PresentationTests.test_four_main_actions](../tests/test_presentation.py) | 状態表示の分類を検証。視覚品質は手動確認 |
 | VIEW-003 | [ui.py](../ff11reader/ui.py)、[dialogs.py](../ff11reader/dialogs.py) | [test_dialogs.py](../tests/test_dialogs.py) | 親画面内モーダル、取消・入力、フォーカスとgrabの復帰、長文、起動時の表示を合成Tkで検証。実機で起動通知・再読込操作・本文量に応じたサイズをユーザーが確認済み |
-| VIEW-004 | [paste_placement.py](../ff11reader/paste_placement.py)、[transfer_editing.py](../ff11reader/transfer_editing.py)、[selection_ui.py](../ff11reader/selection_ui.py)、[ui.py](../ff11reader/ui.py) | [test_paste_placement.py](../tests/test_paste_placement.py)、[test_selection_commands.py](../tests/test_selection_commands.py) | 配置判定、転送・削除、Undo/Redo、右クリック、入力欄との分離、共通保存を合成データで検証。2026-11-02、ユーザーが今回の変更のゲーム内動作を確認済み |
-| VIEW-007 | [共通プロパティモック](../prototypes/item_properties.py)・[表示部品](../prototypes/item_property_panel.py)。本体の関連処理は[ui.py](../ff11reader/ui.py)の`inspect_slot`・`inspect_inventory`・`show_equipment_detail` | [test_item_properties.py](../prototypes/test_item_properties.py)、EX-PROP01〜06 | 選択追従・両表示・比較への受渡し・取得不足・列の切替・差分色・改行と可読性をモックで合成検証。詳細な範囲は[モックREADME](../prototypes/README.md)。本体への反映とキャラ切替の検証は未実施。採用後にD-18へ反映する |
+| VIEW-004 | [paste_placement.py](../ff11reader/paste_placement.py)、[transfer_editing.py](../ff11reader/transfer_editing.py)、[selection_ui.py](../ff11reader/selection_ui.py)、[ui.py](../ff11reader/ui.py) | [test_paste_placement.py](../tests/test_paste_placement.py)、[test_selection_commands.py](../tests/test_selection_commands.py) | 配置判定、確認なしの貼り付け・削除、Undo/Redo、右クリック、入力欄との分離、共通保存を合成データで検証。2026-11-02、ユーザーが今回の変更のゲーム内動作を確認済み |
+| VIEW-007 | [item_properties.py](../ff11reader/item_properties.py)・[item_properties_ui.py](../ff11reader/item_properties_ui.py)、[equipment_summary_ui.py](../ff11reader/equipment_summary_ui.py)、[ui.py](../ff11reader/ui.py) | [test_item_properties.py](../tests/test_item_properties.py)、[test_item_properties_ui.py](../tests/test_item_properties_ui.py)、EX-PROP01〜07 | 本体で選択追従・両表示・比較への受渡し・収納/キャラ切替・取得不足・列/色/ゼロ差分・改行・最小サイズ・6秒処理中の入力排他と失敗復帰を合成検証。採用方式はD-18。実データでの操作確認は未実施 |
 | WARD-001 | [wardrobe_usage.py](../ff11reader/wardrobe_usage.py) | [WardrobeUsageTests.test_scope_and_both_reference_sources](../tests/test_wardrobe_usage.py) | 参照元と対象収納を検証 |
 | WARD-002 | [wardrobe_usage.py](../ff11reader/wardrobe_usage.py) | [WardrobeUsageTests.test_edit_and_undo_recompute_without_cross_character_references](../tests/test_wardrobe_usage.py) | 再計算とキャラ分離を検証 |
 | FUT-001 | [equipment_moves.py](../ff11reader/equipment_moves.py)、[editing.py](../ff11reader/editing.py)、[combined_saving.py](../ff11reader/combined_saving.py)、[edit_application.py](../ff11reader/edit_application.py)、[ui.py](../ff11reader/ui.py) | [test_equipment_moves.py](../tests/test_equipment_moves.py): EX-MOVE01〜06、PT-32初期範囲 | 装備セット移動・参照更新・Undo/Redo・一括保存を合成データで確認。2026-11-02、ユーザーが保存後のゲーム内動作を確認済み。パレット・マクロのブック間移動と同一キャラ内コピー、複数選択は合成データで検証。2026-11-02、今回の追加範囲もユーザーがゲーム内動作を確認済み |
 | FUT-002 | — | — | 未実装。参照セットの同時コピーと番号衝突の扱いは未決定 |
 | FUT-003 | [macro_inventory.py](../ff11reader/macro_inventory.py) | — | /equipの参照判定は実装済み。定型文候補の名前検索は実装済み。種類IDによる参照調査と誤記検出は未実装で、範囲・判定規則は未決定 |
 | OBS-001 | [tracing.py](../ff11reader/tracing.py)、[edit_application.py](../ff11reader/edit_application.py) | [test_tracing.py](../tests/test_tracing.py) | 親子の操作ID・所要時間・失敗・個人データ非記録を検証。ゲーム保存内部の詳細区間は未実装 |
-| PERF-001 | [edit_state.py](../ff11reader/edit_state.py)、[draft_store.py](../ff11reader/draft_store.py)、[ui.py](../ff11reader/ui.py) | [test_persistent_edit_state.py](../tests/test_persistent_edit_state.py)、[benchmark_editor.py](../experiments/benchmark_editor.py) | 所有権・共有・作業保存失敗を検証。実機の応答はユーザー確認済み。数値基準は未確定 |
+| PERF-001 | [edit_state.py](../ff11reader/edit_state.py)、[ui.py](../ff11reader/ui.py) | [test_persistent_edit_state.py](../tests/test_persistent_edit_state.py)、[benchmark_editor.py](../experiments/benchmark_editor.py) | 所有権・共有・編集検証失敗を検証。実機の応答はユーザー確認済み。数値基準は未確定 |
 
 ## 現在の未完了項目
 
 | 要件 | 現在できること | 残件 |
 |---|---|---|
 | DATA-001 | キャラ別の閲覧・表示名・切替 | アカウント単位の整理 |
-| EDIT-005 | 起動中の最新読込、旧作業の保管と新規開始 | 差分の選択的引継ぎは将来対応。再読み込みUI・旧履歴保管・失敗時の状態保持を合成データで確認。実機確認待ち |
 | FUT-002 | キャラ別の参照判定 | キャラ間コピー。参照セットの同時コピーと番号衝突の扱いの確定 |
 | FUT-003 | /equipの参照判定、定型文候補の名前検索 | 種類IDによる参照調査、誤記検出。辞書未解決と未所持の区別・候補規則の確定 |
-| OBS-001 | 編集・作業保存・画面更新・ゲーム保存入口の区間計測 | ゲーム保存内部の詳細区間 |
-| PERF-001 | 永続Mapによる編集高速化、待機カーソル。実機の応答をユーザー確認済み | 数値の合格基準。初期読込・全体取得・作業ファイル全体書出しのデータ量依存 |
+| OBS-001 | 編集・画面更新・ゲーム保存入口の区間計測 | ゲーム保存内部の詳細区間 |
+| PERF-001 | 永続Mapによる編集高速化、待機カーソル。実機の応答をユーザー確認済み | 数値の合格基準。初期読込・全体取得・表示データの取得量依存 |
 
 ## 定型文入力（EDIT-007、D-09、SAVE-004）
 
@@ -70,7 +69,7 @@
 | カテゴリ階層・順序・名称 | [phrase_categories.py](../ff11reader/phrase_categories.py)、[phrases.py](../ff11reader/phrases.py) | 同テスト。魔法→アビリティ→アイテム→装備関連→その他、辞書カテゴリの統合、未知カテゴリ・同名別IDの保持 |
 | キーボード操作 | [phrase_ui.py](../ff11reader/phrase_ui.py)。Tab直後は大分類へフォーカス。「すべて」でEnterなら全体検索欄へ移動 | 同テストと[test_phrase_editing.py](../tests/test_phrase_editing.py)。選択・検索・挿入・取消・フォーカス遷移 |
 | アイテム候補 | [item_tokens.py](../ff11reader/item_tokens.py)、`PhraseCatalog` | [test_item_phrases.py](../tests/test_item_phrases.py)。ID逆変換、同名別ID、空名除外、Tabからの挿入。読みは補完しない |
-| 編集値・履歴・保存 | `TextToken`、[text_editing.py](../ff11reader/text_editing.py)、[edit_values.py](../ff11reader/edit_values.py)、[macro_text.py](../ff11reader/macro_text.py)、[draft_store.py](../ff11reader/draft_store.py) | test_phrase_editing.py、test_item_phrases.py。同表示のID変更、原子的置換・削除、Undo/Redo、旧作業互換、合成保存・再読込 |
+| 編集値・履歴・保存 | `TextToken`、[text_editing.py](../ff11reader/text_editing.py)、[edit_values.py](../ff11reader/edit_values.py)、[macro_text.py](../ff11reader/macro_text.py) | test_phrase_editing.py、test_item_phrases.py。同表示のID変更、原子的置換・削除、Undo/Redo、旧作業無視、合成保存・再読込 |
 
 ユーザー確認済み: カテゴリ階層での選択、アイテム名の検索・挿入、Tab直後の大分類フォーカス。2026-10-29、ユーザーがIME変換の確定ではマクロへ挿入されず、候補選択で挿入されることを確認。さらにユーザー自身が保存し、通常定型文とアイテム名の両方がゲーム内で正しく表示され使用できることを確認した。EDIT-007は実装・実機確認ともに完了。今回の完了更新ではアシスタントはゲームデータにアクセスしていない。漢字のあるアイテム名は表示名で検索し、読みデータを持つ通常定型文は読みでも検索する。
 
@@ -82,7 +81,7 @@
 
 ユーザーはマクロ収納番号Fix、マクロ手編集、装備位置Fixのゲーム反映を以前に確認済み。今回追加した定型文のゲーム反映確認とは区別する。
 
-編集ストアは`immutables.Map`を採用済み。`edit_state.py`内の所有値を置換して共有し、公開値は独立した値として渡す。`draft_store.py`はv4形式で履歴起点と保存済みの移動元対応を保持する。保存→Undo→分岐→再開の不一致は修正済みで、`test_saved_undo_branch_reopen_regression`が回帰を検出する。v1/v2/v3読込は維持するが、過去に失われた履歴情報の復元は対象外。
+編集ストアは`immutables.Map`で未変更部分を共有し、外部へは独立値を返す。編集・履歴は起動中だけ保持する。`test_editing_properties.py`の状態モデルは再起動時にゲーム値へ戻し、履歴を空にする。旧v1〜v4ファイルと破損ファイルは読まずに保持する。
 
 ## 解消済みの参照・保存の不整合
 
@@ -98,16 +97,16 @@
 
 | 仕様 | 実装 | 検証範囲 |
 |---|---|---|
-| PT-13 | [test_editing_properties.py](../tests/test_editing_properties.py) | 異なる対象を含む変更案に、古い前提・欠落対象・不正構造・重複を混ぜ、順序を変えて全体拒否と作業ファイル不変を確認 |
-| PT-14/15/17 | 同ファイル | 複数キャラのマクロ・装備枠編集、一括Fix、Undo/Redo、無変更、分岐、作業保存失敗、任意位置での再開。値辞書と履歴カーソルの独立モデルで各操作後を照合 |
-| PT-16/20/27 | [test_saving_properties.py](../tests/test_saving_properties.py) | 一部Fix・一括Fix・名前の手編集・保存・Undo/Redo・再開・保存失敗を混在。保存可能差分と保留を分け、保存済み値・履歴・dirty・実バイトを照合 |
-| PT-18 | test_editing_properties.py | 新しいSnapshotで起動して旧作業を保管する経路。起動中のファイル再読込は対象外 |
+| PT-13 | [test_editing_properties.py](../tests/test_editing_properties.py) | 異なる対象を含む変更案に、古い前提・欠落対象・不正構造・重複を混ぜ、順序を変えて全体拒否と編集状態不変を確認 |
+| PT-14/15/17 | 同ファイル | 複数キャラの編集、一括Fix、Undo/Redo、無変更、分岐、検証失敗、任意位置の再起動。独立モデルで値・履歴を照合 |
+| PT-16/20/27 | [test_saving_properties.py](../tests/test_saving_properties.py) | 一部Fix・一括Fix・名前の手編集・保存・Undo/Redo・再起動・保存失敗を混在。保存可能差分と保留を分け、保存済み値・履歴・dirty・実バイトを照合 |
+| PT-18 | test_editing_properties.py、test_reload.py | 最新ゲーム値から新規開始。旧作業を無視し、再読み込みの取消・失敗時は現在状態を保持 |
 | PT-21 | test_saving_properties.py | 対象ファイル・収納・working・保存案・偽のゲーム起動状態を変更し、置換前の拒否を確認 |
 | PT-22 | 同ファイル | マクロ/装備の1〜3ファイルについて、全バックアップ・一時ファイルの作成/fsync/読込検証地点へ障害注入。計72ケース。全準備が最初の置換に先行することをイベント列で確認 |
 | PT-23 | 同ファイル | ページ・マクロ座標・行・装備セット内位置・部位・移動先収納をseedで変える。固定オフセットから独立に作った期待バイト、MD5、対象外バイトと照合 |
 | PT-24 | 同ファイル | 現行の収納番号Fixについて、CP932の1/2バイト文字、内部ゼロを含む既知トークン、保存後59/60/61バイトを生成。この生成器は収納番号Fixが対象。手編集と新規定型文はtest_manual_macro_saving.py、test_phrase_editing.py、test_item_phrases.pyで別途検証 |
 | PT-25 | 同ファイル | 3ファイルの各置換前後・検証地点の失敗、形式を保持した外部更新、復元失敗と操作停止を確認 |
-| PT-26 | 同ファイル | 最初の書込前、各置換後、作業同期の前後、pending削除前で通常の例外復元を通らない中断を注入。全原本・全予定出力・混在を区別して再開を確認 |
+| PT-26 | 同ファイル | 書込前・各置換後・復旧記録の削除前後の中断。全原本・全予定出力・混在を区別し、再起動時は履歴を復元しない |
 
 [property_support.py](../tests/property_support.py)に固定seed、独立モデルとの照合、失敗操作列の縮小・再現記録、合成ルート外I/Oの拒否を実装済み。[test_property_support.py](../tests/test_property_support.py)で隔離と縮小を検証する。仕様の全項目を網羅したという意味ではなく、上表は各生成器が扱う範囲を示す。
 
@@ -130,10 +129,11 @@
 - `dialogs.py`に通知・確認・入力を集約。初回Map後に通知することで起動時の未表示を解消。短文は本文量に合わせ、長文は上限でスクロールする。[test_dialogs.py](../tests/test_dialogs.py)で初回表示・取消・入れ子・サイズ・フォーカス復帰を検証。実機の通知とサイズはユーザー確認済み。
 - `ui_actions.ActionButton(busy=True)`で保存・保存プレビュー・編集適用などに待機表示を明示指定。通常のUIイベントへのフックは撤去。`tests/test_ui_actions.py`で軽い操作に待機処理が入らないこと、キー実行、入れ子・例外・子ウィンドウ破棄・ダイアログ入力待ちを検証。
 - `tracing.py`は操作ID・親子区間・所要時間・成否を記録。ログは`work/logs/timings.jsonl`、約2MBで過去3世代を保持。ゲーム保存内部の詳細区間は残件。
-- 永続Map導入後の記録済み合成計測は8,000マクロで編集26.1ms、Undo26.1ms、Redo25.4ms（繰返し5回の中央値）。作業保存・表示用データ更新・dirty判定を含み、GUI描画・ゲーム保存を含まない。再現用は[benchmark_editor.py](../experiments/benchmark_editor.py)。実機の応答はユーザーが十分と確認済み。数値の合格基準は未確定。
+- 自動保存廃止前の参考計測は8,000マクロで編集26.1ms、Undo26.1ms、Redo25.4ms（繰返し5回の中央値）。作業保存・表示用データ更新・dirty判定を含み、GUI描画・ゲーム保存を含まない。現行の測定用は[benchmark_editor.py](../experiments/benchmark_editor.py)。実機の応答はユーザーが十分と確認済み。数値の合格基準は未確定。
 
 ## 直近の検証記録
 
+- 2026-11-07の起動ごとの編集への変更: 合成テスト374件を通常・GUI・変更箇所の追加実行に分けて確認し、すべて成功。実ゲーム用1件は未実行。終了時の全キャラ・入力中マクロの書き戻し／破棄／継続、失敗後の保持・再試行、旧作業ファイルを無視した部位編集、進行中の復旧記録の保護を含む。要件・設計66件の参照検査も成功。ゲームファイルへの書込みは行っていない。
 - `ffe9e8d`のコミット前: `FF11_RUN_INTEGRATION=1`で全体176件中175件成功・実ゲーム用1件スキップ。保存先は合成データ。
 - 初期フォーカス変更（`f7c69de`）: 定型文・読み・アイテムの関連19件成功。その後、ユーザーがTabから大分類を選ぶ操作を確認。
 - 2026-11-06の本体UI反映: 合成GUIとモックを含む全334件中333件成功・実ゲーム用1件スキップ。正本63件の検査も成功。合成データで本体を起動し、3タブ、4×4配置、右側候補、6行入力、はい／いいえの確認を目視確認した。保存前の復旧記録を一度に確定する修正も含む。
@@ -142,7 +142,7 @@
 
 ## 保存時の権限要求（SAVE-003/005/006）
 
-保存前の復旧記録はD-05に従い、作業ファイルの版を含めて`DraftStore.save`で一度に確定する。`test_draft_store.CheckpointReplacementTests`で、一時的な置換拒否後の回復、拒否継続時の原本・作業保持と再試行を検証する。
+保存前の復旧記録はD-05に従い、`SaveJournal`が対象の変更前後の指紋だけを排他的に記録する。`test_save_journal.py`で記録失敗・並行保存・全原本・全出力・混在・旧pendingの照合を合成検証する。
 
 `edit_application._save_checkpoint` → `elevation.execute_with_permission` → `save_helper.py`。マクロ・装備セットの画面保存で共通使用する。権限不足かつ全原本未変更の場合にUACを要求し、補助プロセスで既存保存関数を再実行する。要求はハッシュ照合付きJSON。親側は完了記録・バックアップ・保存後バイトを検証する。`tests/test_elevation.py`で両保存形式、取消・再試行、要求改変、競合、結果欠落からの復旧、Windows起動APIへの引数を合成データとモックで検証。実際のUAC表示・承認後のゲーム保存は未確認。
 
@@ -151,13 +151,13 @@
 
 待機表示の適用範囲を見直した後、共通アクション・ダイアログ・編集GUI・定型文・読み・アイテムの関連34件が成功。全イベントの待機処理は撤去済み。ゲームデータは使用していない。
 
-起動表示（VIEW-003、D-10）: [startup.py](../ff11reader/startup.py)で初回表示後に読込・履歴復元を開始。[test_startup.py](../tests/test_startup.py)で表示中の応答、完了引渡し、起動エラー、途中終了を合成データで検証。
+起動表示（VIEW-003、D-10）: [startup.py](../ff11reader/startup.py)で初回表示後にゲームデータを読み込み、新しい編集セッションを開始。[test_startup.py](../tests/test_startup.py)で表示中の応答、完了引渡し、起動エラー、途中終了を合成データで検証。
 
-装備枠編集（EDIT-006、SAVE-001〜006）: [equipment_editing.py](../ff11reader/equipment_editing.py)が候補と選択検証、[equipment_ui.py](../ff11reader/equipment_ui.py)が入力、[equipment_saving.py](../ff11reader/equipment_saving.py)が形式変換と依存資料の検証を担当する。[test_equipment_slots.py](../tests/test_equipment_slots.py)で複数候補の手動選択、keep/remove、再開と保存、辞書・収納の競合、ロールバック、合成GUI、PT-EQSの240ケースを検証。
+装備枠編集（EDIT-006、SAVE-001〜006）: [equipment_editing.py](../ff11reader/equipment_editing.py)が候補と選択検証、[equipment_ui.py](../ff11reader/equipment_ui.py)が入力、[equipment_saving.py](../ff11reader/equipment_saving.py)が形式変換と依存資料の検証を担当する。[test_equipment_slots.py](../tests/test_equipment_slots.py)で複数候補の手動選択、keep/remove、起動中の履歴と保存、辞書・収納の競合、ロールバック、合成GUI、PT-EQSの240ケースを検証。
 
 装備セットの既定名: `test_default_named_equipment_destination`で010→013（Set013・全keep）のコピー案を検証。独自名・別番号の既定名・内容を持つ枠は保護する（EX-UIE13）。
 
-EDIT-005: `tests/test_reload.py`で旧履歴の復元、最新データでの再開、読込・保管・置換失敗、作業競合、復旧待ち、合成UIの取消と確定を検証する。D-14に沿って`Editor.reload`と`DraftStore.save(archive_previous=True)`を使用する。実ゲームでの確認は未実施。
+EDIT-005: `tests/test_reload.py`で最新ゲーム値への切替、読込失敗時の状態保持、復旧待ち、合成UIの取消・確定・6秒以上の待機応答を検証する。D-14に沿って`Editor.reload`が成功時だけメモリ内のセッションを交換する。実ゲームでの確認は未実施。
 
 VIEW-003 / D-10: `test_ui_actions.py`で共通処理中メッセージの表示、入力待ちの非表示、処理再開時の再表示、例外後の解除を合成Tkで検証。
 
@@ -173,7 +173,7 @@ VIEW-005 / D-17: `LocalReader.load_augment_names`がゲーム内の英日辞書�
 
 曖昧な表記の活用（EX-EVAL10）: [test_practical_equipment_evaluation.py](../tests/test_practical_equipment_evaluation.py)で外部通信を禁止し、明確な数値の集計・差分、条件付き効果と未知の効果の原文・出典保持、元情報の未取得との区別を検証する。[test_equipment_review_ui.py](../tests/test_equipment_review_ui.py)の`test_offline_evaluation_exposes_original_properties_in_real_details_window`は本体の「全項目・内訳」を開き、現在・候補の原文と出典、取消後の表示を確認する。「雨天のとき被ダメージ-5%」の誤集計をこの検証で検出して修正し、続く独立した魔命の加算も確認した。
 
-収集・保守コスト（D-17）は採用理由と依存先をレビューし、評価処理が読込済みのゲーム由来情報・個体情報だけで動作し、外部の補完収集を要求しないことを確認した。費用の定量評価や利便性の最大化の証明は含まない。原文を数値欄の外へ列挙するDP-02の案は、選択アイテムについてVIEW-007のモックで検証。本体反映とセット全体の原文一覧は未実施。
+収集・保守コスト（D-17）は採用理由と依存先をレビューし、評価処理が読込済みのゲーム由来情報・個体情報だけで動作し、外部の補完収集を要求しないことを確認した。費用の定量評価や利便性の最大化の証明は含まない。選択アイテムの原文の欄外表示はVIEW-007で本体へ反映。セット全体の原文は「全項目・内訳」で確認する。
 
 VIEW-006 / D-17・D-18: `equipment_picker_ui.py`の部位別候補を4×4枠の下に、`equipment_summary_ui.py`の集計を右へ常時表示する。主要43項目・分類・比較値の表示は`equipment_stats_presentation.py`で管理し、モックと定義を共有する。候補の一時比較は作業・原本を変更せず、確定は既存の変更案確認と共通ワーカーへ渡す。
 
@@ -182,8 +182,57 @@ VIEW-006 / D-17・D-18: `equipment_picker_ui.py`の部位別候補を4×4枠の�
 
 `tests/test_equipment_review_ui.py`が日本語の装備説明＋英語オグメからの現在値・候補値・差分、適用・Undo/Redo・未取得、1440×900と1320×840の文字幅・全項目・操作ボタン、失敗後の入力保持と再試行を検証する（EX-EVAL02〜06）。`tests/test_workspace_ui.py`でタブ往復、`tests/test_equipment_slots.py`で保存導線、`tests/test_equipment_stats_presentation.py`で追加項目・別単位の保持と未確定の差分を検証する。実データでの再確認は未実施。
 
+起動後の部位編集（EX-EQS07）: `test_equipment_review_ui.py::test_old_draft_does_not_prevent_mouse_slot_editing`で、破損した旧作業があってもマウスで部位・候補を選び適用でき、旧ファイルと合成ゲーム原本が不変であることを確認する。
+
 2026-11-06の装備評価モック: 仕様管理・既存集計と表示・旧新モック・共通ワーカーの関連46テスト成功、正本64件の参照検査成功。実画面で候補選択時の差分と未取得表示を確認した。主要項目追加後、モックの7テストで43項目の配置・現在値・候補値・差分を再確認した。
 
 2026-11-06の本体反映: 合成GUI・モックを含む全347テストを実行し346件成功、実ゲーム読込1件をスキップ。Tkテストの破棄済み画面をUIスレッドで解放するよう修正した。目視で見つけたタブ往復後の集計幅の縮小を修正し、往復を含むレイアウト検証と既存操作の12テストが成功。本体の集計・候補比較・内訳を目視確認し、最小1320×840でタブ往復後の表示も確認した。正本64件の参照検査成功。実ゲームファイルへの書込みは行っていない。
 
 2026-11-06のゲーム辞書への切替: 全352テスト中351件成功、実ゲームUI1件をスキップ。単位が競合する書式の扱いを調整した後も関連16テスト成功。ローカル辞書の読取確認は[能力名と単位](reference/augment-stat-names.md)に記録した。
+
+
+### Rank付き装備の能力解決
+
+DATA-003・DATA-005 / D-16・D-17: [Rank能力](reference/rank-augments.md)に形式と根拠を記録。`rank_augments.py`と`LocalReader.load_rank_augments`がゲームDATから現在Rankの追加能力を解決し、取り込み・復元時の照合結果を通して表示・集計へ渡す。`tests/test_rank_augments.py`でRank境界・複合/条件付き効果・破損/欠落・未知形式・二重加算・保存原文と再読込を検証。`tests/test_rank_augments_ui.py`で本体GUIの単体値とインベントリ表示を検証。2026-11-09、指定JSONのBundle形式39個を読取確認し、アグゥゲージRank 8の魔攻+8・MBダメージII+2、本体込み魔攻43を確認。実ゲーム画面との全件照合は未実施。
+
+VIEW-007 / D-18: 能力と取得情報を分離。参照元・日時は詳細から確認し、装備セットとインベントリの取得情報欄を削除した。`tests/test_rank_augments_ui.py`で両画面の能力表示を、`tests/test_item_properties_ui.py`で最小画面・選択切替を確認する。
+
+EDIT-006・VIEW-003 / D-18: 装備枠・セット名の即時適用とUndo、失敗後の再実行を装備関連合成GUIで検証。`window_placement.py`が親モニターの作業領域に子ウィンドウを配置し、共通モーダルは親の可視部分へ収める。`tests/test_dialogs.py`で負座標・端・過大サイズの配置計算とWindowsの実ウィンドウ枠を検証。
+
+### 2026-11-09 UI仕様の整合性確認
+
+VIEW-004の切り取り確定条件、D-18のショートカット・装備候補・比較からの適用導線に残った旧プレビュー記述を即時適用へ統一した。DP-05に確認省略の対象と確認を残す操作を明記し、終了確認の古い例を再読み込みの例へ変更した。FUT-001の専用移動プレビューとVIEW-004の切り取り・貼り付けを区別した。EX-UIE08も貼り付けの即時適用へ合わせた。VIEW-003の画面内操作とD-18のモニター作業領域への配置は整合する。今回の確認は仕様文書の整合性を対象とし、全UIの実機検証を意味しない。
+
+2026-11-09 VIEW-003 / D-18: 差分確認の本文が表示領域を占有すると確認ボタンが非表示になる問題を合成Tkで再現。`dialogs.confirm_buttons` で下部の操作領域を本文より先に確保する配置へ修正した。小さい確認画面で両ボタンの表示と本文末尾へのスクロールを回帰検証する。
+
+2026-11-09 VIEW-004 / D-13 / D-18 / DP-05: マクロパレットの上書き貼り付けを差分確認後に許可。既定の配置判定は衝突を拒否し、パレット上書き案だけ明示的に許可する。適用直前に案を再生成して一致を確認する。合成テスト26件で確認の表示・取消・適用、Undo/Redo、確認後の対象変更、読込不足、他種別の上書き拒否と既存の保存経路を検証。実ゲームへの書込みは実施していない。
+
+2026-11-09 VIEW-004 / D-13 / D-18 / DP-05: 上書き確認をマクロ単体へ拡張。名前と6行を変更前後の確認後に一括置換する。共通の上書き判定・確認経路を使い、装備セットは上書き拒否を維持。関連28テストでマクロ・パレットの上書き、取消、Undo/Redo、確認後の変更検出と既存保存経路を合成検証した。
+
+2026-11-09 VIEW-004 / D-13: ツリーの選択表示と共通編集コマンドの選択状態が異なる場合、Ctrl+Cで転送内容が作られないことを合成Tkで再現。ツリーからのキー操作時に選択対象・基点・フォーカスを同期する修正を実施。マウス選択、復元された選択、右クリックメニューのコマンド経路を回帰検証する。
+
+2026-11-09 SAVE-002 / D-05: 未変更マクロのコピー元レコード差だけで辞書依存が追加され、保存直前の計画再構成と不一致になる不具合を修正。辞書の必要性判定を実際に保存対象となるマクロへ限定した。回帰テストは修正前の同じエラーを再現し、修正後に成功。関連20テスト中18件成功・2件は既定条件でスキップ。退避した実データでも保存計画と再検証の一致を読取専用で確認した。ゲームへの書込み検証は実施していない。
+
+2026-11-09 SAVE-004 / VIEW-004: 定型文を含むマクロのコピペ保存について、32通りの合成ケースと転送後の追加編集・再保存を検証した。現行コードでは報告症状を再現せず、定型文ID保持を確認。関連21テスト中19件成功、2件は既定条件でスキップ。本確認では実ゲームへ書き込んでいない。
+
+2026-11-09 SAVE-004 / VIEW-004: 定型文自体を新規挿入・同表示の別IDへ置換してゲームへ未保存のまま転送する16ケースを追加検証。全ケースで保存・再読込時のIDと範囲の保持、転送先の追加編集後の再保存を確認。合成ファイルのみを使用し、本体修正を要する不具合は再現しなかった。
+
+2026-11-09 EDIT-006 / EDIT-007 / SAVE-004: マクロ入力欄に行コピー・行貼り付け・隣接行との入替えを追加。入力欄のCtrl+C/X/Vも定型文範囲・ID・取得元を保持する共通処理へ接続した。編集適用時は行の取得元を保持し、未知の既存IDも転送後に検証・保存できる。`test_macro_lines` と定型文関連12テスト、行操作・一般保存・コピー保存関連23テストが成功（対象には重複あり）。実ゲームへの書込みは行っていない。
+
+2026-11-09 EDIT-006 / D-09 / D-18 / DP-03: 行操作を初期状態とし、Enterで内容編集、Enter確定・Esc取消を追加。行操作と文字範囲操作でクリップボードの対象を分離。合成GUIを含む行操作・定型文・編集UIの14テストが成功。実IMEでの変換操作は未確認。
+
+2026-11-09 VIEW-004 / D-18 / DP-05: 先の上書き確認方針を更新。マクロ・パレット上書きを確認なしで即時適用し、Undoと適用前の変更検出を維持。行操作では4方向のカーソルキーで選択・フォーカスを移す。合成GUIの行操作・選択操作11テスト成功。
+
+## UI共通操作要件の採用と適合状況
+
+2026-11-09: VIEW-008 / D-19を採用。共通要件とキー規約を定義し、DP-03・DP-05・D-18から参照する。今回は仕様整備であり、全画面への実装完了を意味しない。
+
+| 対象 | 確認状況・残作業 |
+|---|---|
+| マクロ行の選択・Enter/Esc・行コピー | 既存の合成GUIテストあり。実IMEと確定後の行単位Undoは適合確認が必要。 |
+| マクロ・パレット上書き | 既存の即時適用・Undo・適用前変更検出テストあり。 |
+| マクロ名・行入力の適用 | 直接入力、フォーカス移動による確定、変更案確認を経由する現行方式を共通要件と照合し、変更箇所を確定する。 |
+| 装備・インベントリ・候補・確認画面 | キーボードだけの到達性、選択とフォーカス、Escの段階、復帰位置を全画面で確認する。 |
+| 共通ダイアログ・非同期処理 | 既存の配置・応答性テストを参照し、VIEW-008の受入条件に対する網羅性を確認する。 |
+
+受入条件はtests/specs/example-tests.mdの「UI共通操作モデルの受入条件」を参照する。

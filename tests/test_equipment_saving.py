@@ -58,7 +58,7 @@ class EquipmentSavingTests(unittest.TestCase):
             if not p.name.startswith('es'):self.assertEqual(p.read_bytes(),raw)
         self.assertFalse(self.editor.session.dirty)
         reopened=Editor(self.load(),self.base/'draft.json');self.assertIsNone(reopened.blocked)
-        self.assertFalse(reopened.session.dirty);reopened.undo();self.assertTrue(reopened.session.dirty)
+        self.assertEqual(reopened.edit_status(),(0,0,False));reopened=self.editor;reopened.undo();self.assertTrue(reopened.session.dirty)
         self.assertEqual(reopened.session.working.characters[0].equipsets[0].slots[0].index,2)
         reopened.redo();self.assertFalse(reopened.session.dirty)
 
@@ -81,7 +81,7 @@ class EquipmentSavingTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError,'完了'):self.editor.save_equipment(self.plan,self.base/'backups')
         for f in self.plan.files:self.assertEqual(Path(f.target).read_bytes(),f.original)
         self.assertTrue(self.editor.session.dirty)
-        self.assertFalse(self.editor.store.path.with_suffix('.pending.json').exists())
+        self.assertFalse(self.editor.journal.path.exists())
 
     def test_backup_failure_and_running_game_write_nothing(self):
         with patch.object(saving,'write_json',side_effect=OSError('full')):
@@ -90,18 +90,12 @@ class EquipmentSavingTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):self.editor.save_equipment(self.plan,self.base/'backups')
         for f in self.plan.files:self.assertEqual(Path(f.target).read_bytes(),f.original)
 
-    def test_checkpoint_failure_recovers(self):
-        save=self.editor.store.save;calls=0
-        def fail(session):
-            nonlocal calls
-            calls+=1
-            if calls==2:raise OSError('full')
-            return save(session)
-        with patch.object(self.editor.store,'save',side_effect=fail):
+    def test_journal_cleanup_failure_restarts_from_saved_game(self):
+        with patch.object(self.editor.journal,'finish',side_effect=OSError('full')):
             with self.assertRaisesRegex(RuntimeError,'完了'):self.editor.save_equipment(self.plan,self.base/'backups')
         reopened=Editor(self.load(),self.base/'draft.json')
-        self.assertIsNone(reopened.blocked);self.assertFalse(reopened.session.dirty)
-        self.assertFalse(reopened.store.path.with_suffix('.pending.json').exists())
+        self.assertIsNone(reopened.blocked);self.assertEqual(reopened.edit_status(),(0,0,False))
+        self.assertFalse(reopened.journal.path.exists())
 
     def test_preview_race_and_unrelated_edit_retained(self):
         self.editor.undo()
@@ -118,7 +112,7 @@ class EquipmentSavingTests(unittest.TestCase):
         self.assertTrue(self.editor.session.dirty)
         self.assertEqual(self.load().characters[0].equipsets[0].title.display,'Test')
         reopened=Editor(self.load(),self.base/'draft.json');self.assertIsNone(reopened.blocked)
-        self.assertEqual(reopened.session.working.characters[0].equipsets[0].title.display,'Renamed')
+        self.assertEqual(reopened.session.working.characters[0].equipsets[0].title.display,'Test')
 
     def test_only_applied_subset_saved(self):
         working=deepcopy(self.source);working.characters[0].equipsets[0]=self.editor.session.working.characters[0].equipsets[0]
@@ -149,7 +143,7 @@ class EquipmentSavingTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError,'取り消し'):self.editor.save_equipment(self.plan,self.base/'backups')
             launch.assert_called_once()
         for f in self.plan.files:self.assertEqual(Path(f.target).read_bytes(),f.original)
-        self.assertFalse(self.editor.store.path.with_suffix('.pending.json').exists())
+        self.assertFalse(self.editor.journal.path.exists())
 
     def test_failed_rollback_keeps_pending_and_blocks_edits(self):
         original=saving.os.replace
@@ -159,12 +153,12 @@ class EquipmentSavingTests(unittest.TestCase):
         with patch.object(saving.os,'replace',side_effect=fail), patch.object(saving,'atomic_replace',side_effect=OSError('rollback failed')):
             with self.assertRaisesRegex(RuntimeError,'復旧確認'):self.editor.save_equipment(self.plan,self.base/'backups')
         self.assertIsNotNone(self.editor.blocked)
-        self.assertTrue(self.editor.store.path.with_suffix('.pending.json').exists())
+        self.assertTrue(self.editor.journal.path.exists())
         reopened=Editor(self.load(),self.base/'draft.json');self.assertIsNotNone(reopened.blocked)
         folder=next((self.base/'backups').iterdir())
         saving.restore_equipment_backup(folder,True)
         reopened=Editor(self.load(),self.base/'draft.json');self.assertIsNone(reopened.blocked)
-        self.assertTrue(reopened.session.dirty)
+        self.assertEqual(reopened.edit_status(),(0,0,False))
 
     @unittest.skipUnless(os.environ.get('FF11_RUN_INTEGRATION')=='1','Enable Tk checks')
     def test_gui_preview_and_save_fixture_only(self):

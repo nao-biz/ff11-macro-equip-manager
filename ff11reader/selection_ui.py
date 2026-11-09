@@ -18,7 +18,7 @@ class SelectionCommands:
         self.cards = {}
         self.menu = tk.Menu(view.app, tearoff=False, bg=PANEL, fg=FG, activebackground=SELECT)
         self.actions = [('切り取り', 'Ctrl+X', 'cut'), ('コピー', 'Ctrl+C', 'copy'),
-                        ('貼り付け…', 'Ctrl+V', 'paste'), ('削除…', 'Delete', 'delete'),
+                        ('貼り付け', 'Ctrl+V', 'paste'), ('削除', 'Delete', 'delete'),
                         ('元に戻す', 'Ctrl+Z', 'undo'), ('やり直す', 'Ctrl+Y', 'redo')]
         for label, shortcut, command in self.actions:
             self.menu.add_command(label=label, accelerator=shortcut, command=lambda c=command:self.run(c))
@@ -186,8 +186,19 @@ class SelectionCommands:
             if len(self.selection)!=1:return '貼り付け基準を1か所選択してください。'
         return ''
 
+    def sync_palette_selection(self):
+        tree=self.view.macro_tree
+        addresses={tuple(map(int,item.split('-')[1:])) for item in tree.selection() if item.startswith('palette-')}
+        focused=tree.focus()
+        focus=tuple(map(int,focused.split('-')[1:])) if focused.startswith('palette-') else None
+        if self.kind!='palette' or self.selection!=addresses:
+            self.anchor=focus if focus in addresses else min(addresses,default=None)
+        self.kind='palette';self.selection=addresses
+        self.focus=focus if focus in addresses else self.anchor
+
     def keypress(self, event):
         if event.widget.winfo_toplevel()!=self.view.app or self.view.app.grab_current() is not None:return None
+        if event.widget is self.view.macro_tree:self.sync_palette_selection()
         symbol=event.keysym.lower() if len(event.keysym)==1 else event.keysym
         command={'x':'cut','c':'copy','v':'paste','z':'undo','y':'redo','Delete':'delete','Escape':'cancel'}.get(symbol)
         if command:self.run(command);return 'break'
@@ -211,10 +222,14 @@ class SelectionCommands:
                 background(v.app,v.editor.capture_transfer,folder,self.kind,tuple(sorted(self.selection)),command=='cut');self.paint()
             elif command=='paste':
                 anchor=next(iter(self.selection))
-                edit=background(v.app,v.editor.prepare_paste,folder,anchor)
-                v.preview_edit(edit,lambda:v.editor.paste(folder,anchor,edit))
+                from .transfer_editing import MacroOverwriteRequired
+                try:edit=background(v.app,v.editor.prepare_paste,folder,anchor)
+                except MacroOverwriteRequired:
+                    edit=background(v.app,v.editor.prepare_paste,folder,anchor,overwrite=True)
+                    v.run_edit(lambda:v.editor.paste(folder,anchor,edit,overwrite=True))
+                else:v.run_edit(lambda:v.editor.paste(folder,anchor,edit))
             elif command=='delete':
                 edit=background(v.app,v.editor.prepare_delete,folder,self.kind,tuple(sorted(self.selection)))
-                v.preview_edit(edit,lambda:v.editor.apply(edit))
+                v.run_edit(lambda:v.editor.apply(edit))
             else:v.undo_fix() if command=='undo' else v.redo_edit()
         except (ValueError,OSError) as exc:dialogs.showerror('編集操作',str(exc),parent=v.app)

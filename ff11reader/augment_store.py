@@ -68,7 +68,7 @@ class AugmentStore:
             try:
                 export = self.load(snapshot.installation_key, character.folder_id)
                 if export is not None:
-                    observations[character.folder_id] = reconcile(export, character)
+                    observations[character.folder_id] = reconcile(export, character, snapshot.rank_augments)
             except (OSError, ValueError) as exc:
                 errors[character.folder_id] = str(exc)
         return observations, errors

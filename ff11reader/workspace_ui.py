@@ -5,6 +5,7 @@ from .theme import BG, PANEL, FG, MUTED, SELECT, ACCENT, BORDER, WARNING, ModeTa
 from .ui_actions import ActionButton
 from .equipment_summary_ui import EquipmentSummary, operation_menu
 from .macro_editor_ui import MacroPanel
+from .item_properties_ui import ItemPropertyPanel
 
 
 def build(view):
@@ -99,7 +100,7 @@ def build(view):
         ('equipment_name_button', '選択した装備セットの名前を編集', view.edit_selected_equipment_name),
         ('edit_button', '選択マクロを編集', view.edit_selected_macro),
         ('undo_button', 'Undo', view.undo_fix), ('redo_button', 'Redo', view.redo_edit),
-        ('reset_button', '作業ファイルを保管して編集をリセット', view.reset_edits)]
+        ('reset_button', '未保存の変更を破棄', view.reset_edits)]
     buttons = []
     for name, text, command in entries:
         button = ActionButton(hidden, busy=True, text=text, command=command)
@@ -110,7 +111,20 @@ def build(view):
     view.side_content = ttk.Frame(view.right_panel)
     view.side_content.pack(fill='both', expand=True)
     right = view.side_content
-    view.equipment_summary = EquipmentSummary(view.right_panel)
+    from .ui import BAGS
+    view.equipment_summary = EquipmentSummary(view.right_panel, BAGS)
+    view.inventory_properties_area = ttk.Frame(view.right_panel)
+    inventory_actions = ttk.Frame(view.inventory_properties_area)
+    inventory_actions.pack(side='bottom', fill='x', pady=(8, 0))
+    view.inventory_compare_button = ActionButton(inventory_actions, text='装備セットで比較', busy=True,
+                                                command=view.compare_inventory_item, state='disabled',
+                                                style='Primary.TButton')
+    view.inventory_compare_button.pack(side='right')
+    view.inventory_details_button = ActionButton(inventory_actions, text='個体情報・参照先',
+                                                command=view.show_evidence, state='disabled')
+    view.inventory_details_button.pack(side='left')
+    view.inventory_properties = ItemPropertyPanel(view.inventory_properties_area)
+    view.inventory_properties.pack(fill='both', expand=True)
     view.detail_heading = ttk.Label(right, text='アイテム / 詳細', font=('Yu Gothic UI', 12, 'bold'))
     view.detail_heading.pack(anchor='w', pady=(0, 8))
     view.detail = tk.Text(right, width=34, height=8, wrap='word', font=('Yu Gothic UI', 10),
@@ -138,7 +152,7 @@ def build(view):
     view.footer.pack(side='left', fill='x', expand=True)
     view.draft_label = ttk.Label(bottom, style='Muted.TLabel')
     view.draft_label.pack(side='left', padx=8)
-    view.save_button = ActionButton(bottom, busy=True, text='変更を保存…', style='Primary.TButton',
+    view.save_button = ActionButton(bottom, busy=True, text='ゲームへ書き戻す…', style='Primary.TButton',
                                    command=view.preview_combined_save)
     view.save_button.pack(side='right', padx=(10, 0))
     view.body.pack_forget()

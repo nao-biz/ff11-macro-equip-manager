@@ -61,7 +61,7 @@ class MacroSavingTests(unittest.TestCase):
             if p.name not in ('mcr.dat','mcr1.dat'):self.assertEqual(p.read_bytes(),data)
         self.assertFalse(self.editor.session.dirty)
         reopened=Editor(self.load(),self.base/'draft.json');self.assertIsNone(reopened.blocked)
-        self.assertFalse(reopened.session.dirty);reopened.undo();self.assertTrue(reopened.session.dirty)
+        self.assertEqual(reopened.edit_status(),(0,0,False));reopened=self.editor;reopened.undo();self.assertTrue(reopened.session.dirty)
         self.assertIn('Robe 2',reopened.session.working.characters[0].macros[0].lines[0].display)
         reopened.redo();self.assertFalse(reopened.session.dirty)
         self.assertIn('Robe 1',macros((self.folder/'mcr.dat').read_bytes(),0)[0].lines[0].display)
@@ -84,7 +84,7 @@ class MacroSavingTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError,'完了'):self.editor.save_macros(self.plan,self.base/'backups')
         for f in self.plan.files:self.assertEqual(Path(f.target).read_bytes(),f.original)
         self.assertTrue(self.editor.session.dirty)
-        self.assertFalse(self.editor.store.path.with_suffix('.pending.json').exists())
+        self.assertFalse(self.editor.journal.path.exists())
 
     def test_unrelated_manual_edits_are_retained(self):
         c=self.editor.session.working.characters[0];m=c.macros[0]
@@ -99,21 +99,14 @@ class MacroSavingTests(unittest.TestCase):
         game=self.load().characters[0].macros[0]
         self.assertEqual(game.title.display,'Test');self.assertEqual(game.lines[1].display,'')
         reopened=Editor(self.load(),self.base/'draft.json');self.assertIsNone(reopened.blocked)
-        self.assertEqual(reopened.session.working.characters[0].macros[0].title.display,'Renamed')
+        self.assertEqual(reopened.session.working.characters[0].macros[0].title.display,'Test')
 
-    def test_draft_checkpoint_failure_recovers_on_restart(self):
-        save=self.editor.store.save;calls=0
-        def fail_checkpoint(session):
-            nonlocal calls
-            calls+=1
-            if calls==2:raise OSError('disk full')
-            return save(session)
-        with patch.object(self.editor.store,'save',side_effect=fail_checkpoint):
+    def test_journal_cleanup_failure_restarts_from_saved_game(self):
+        with patch.object(self.editor.journal,'finish',side_effect=OSError('full')):
             with self.assertRaisesRegex(RuntimeError,'完了'):self.editor.save_macros(self.plan,self.base/'backups')
-        self.assertTrue(self.editor.store.path.with_suffix('.pending.json').exists())
         reopened=Editor(self.load(),self.base/'draft.json')
-        self.assertIsNone(reopened.blocked);self.assertFalse(reopened.session.dirty)
-        self.assertFalse(reopened.store.path.with_suffix('.pending.json').exists())
+        self.assertIsNone(reopened.blocked);self.assertEqual(reopened.edit_status(),(0,0,False))
+        self.assertFalse(reopened.journal.path.exists())
 
     def test_game_running_blocks_before_backup(self):
         with patch('ff11reader.saving.require_game_closed',side_effect=RuntimeError('running')):
@@ -132,20 +125,17 @@ class MacroSavingTests(unittest.TestCase):
         self.assertEqual(target.read_bytes(),b'other changes')
 
     def test_preview_edit_race_and_backup_failure_write_nothing(self):
-        original=self.editor.store.save
         with patch('ff11reader.macro_saving.write_json',side_effect=OSError('backup full')):
             with self.assertRaises(OSError):self.editor.save_macros(self.plan,self.base/'backups')
         for f in self.plan.files:self.assertEqual(Path(f.target).read_bytes(),f.original)
         self.editor.undo()
         with self.assertRaises(ValueError):self.editor.save_macros(self.plan,self.base/'backups')
 
-    def test_pending_cleanup_after_checkpoint_already_saved(self):
+    def test_pending_cleanup_after_game_already_saved(self):
         self.editor.save_macros(self.plan,self.base/'backups')
-        pending=self.editor.store.path.with_suffix('.pending.json')
-        data=json.loads(self.editor.store.path.read_text(encoding='utf-8'));data['draft_revision']='old'
-        pending.write_text(json.dumps(data),encoding='utf-8')
+        self.editor.journal.begin(self.plan).close()
         reopened=Editor(self.load(),self.base/'draft.json')
-        self.assertIsNone(reopened.blocked);self.assertFalse(pending.exists())
+        self.assertIsNone(reopened.blocked);self.assertFalse(reopened.journal.path.exists())
 
     @unittest.skipUnless(os.environ.get('FF11_RUN_INTEGRATION')=='1','Enable Tk integration checks')
     def test_gui_preview_then_save_fixture_only(self):
@@ -180,7 +170,7 @@ class MacroSavingTests(unittest.TestCase):
             view.preview_game_save();app.update()
             window=next(w for w in app.winfo_children() if isinstance(w,tk.Toplevel))
             detail=next(w for w in window.winfo_children() if isinstance(w,tk.Text)).get('1.0','end')
-            self.assertIn('名前',detail);self.assertIn('変更を保存…',detail)
+            self.assertIn('名前',detail);self.assertIn('ゲームへ書き戻す…',detail)
             self.assertIn('作業データに残す',detail)
             for f in self.plan.files:self.assertEqual(Path(f.target).read_bytes(),f.original)
         finally:app.destroy()
@@ -189,7 +179,7 @@ class MacroSavingTests(unittest.TestCase):
         self.editor.undo()
         c=self.editor.session.working.characters[0];m=c.macros[0]
         self.editor.apply(edit_macro(c,m,'New',[l.display for l in m.lines]))
-        with self.assertRaisesRegex(ValueError,'名前.*変更を保存…'):self.editor.prepare_macro_save('abc')
+        with self.assertRaisesRegex(ValueError,'名前.*ゲームへ書き戻す…'):self.editor.prepare_macro_save('abc')
 
     def test_token_zero_bytes_japanese_padding_and_length_limit(self):
         token=bytes.fromhex('fd02000201fd')

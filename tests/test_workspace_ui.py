@@ -104,21 +104,18 @@ class MacroWorkspaceTests(WorkspaceMixin,MoveFixture):
     def test_pending_input_precedes_game_save_and_survives_failed_apply(self):
         view=self.open_view();view.tabs.select('マクロ');self.app.update()
         panel=view.macro_panel;panel.entries[0].delete(0,'end');panel.entries[0].insert(0,'Changed')
-        with patch.object(self.editor,'prepare_combined_save',wraps=self.editor.prepare_combined_save) as prepare:
-            view.preview_combined_save();self.app.update();preview=self.preview_window()
-            prepare.assert_not_called();self.assertIn('作業データ',preview.title())
-            owner=get_ident();ticks=[]
-            def failure(edit):
-                self.assertNotEqual(get_ident(),owner);time.sleep(.08);raise OSError('synthetic failure')
-            self.app.after(10,lambda:ticks.append(1))
-            with patch.object(self.editor,'apply',side_effect=failure),patch('ff11reader.ui.dialogs.showerror') as error:
-                preview.accept_button.invoke();self.app.update();error.assert_called_once()
-            self.assertTrue(ticks);self.assertEqual(panel.entries[0].get(),'Changed')
-            self.assertEqual(self.app.grab_current(),preview)
-            preview.accept_button.invoke();self.app.update();prepare.assert_called_once()
-            self.assertFalse(panel.has_pending());saving=self.preview_window()
-            self.assertEqual(self.app.focus_get(),saving.cancel_button)
-            saving.cancel_button.invoke()
+        owner=get_ident();ticks=[]
+        def failure(edit):
+            self.assertNotEqual(get_ident(),owner);time.sleep(.08);raise OSError('synthetic failure')
+        self.app.after(10,lambda:ticks.append(1))
+        with patch.object(self.editor,'apply',side_effect=failure),patch('ff11reader.ui.dialogs.showerror') as error:
+            view.preview_combined_save();error.assert_called_once()
+        self.assertTrue(ticks);self.assertEqual(panel.entries[0].get(),'Changed')
+        self.assertTrue(panel.has_pending());self.assertIsNone(self.app.grab_current())
+        view.preview_combined_save();self.app.update()
+        self.assertFalse(panel.has_pending());saving=self.preview_window()
+        self.assertEqual(self.app.focus_get(),saving.cancel_button)
+        saving.cancel_button.invoke()
         for path,raw in self.original.items():self.assertEqual(path.read_bytes(),raw)
 
     def test_stale_input_rejected_and_revert_uses_latest_work(self):
@@ -136,8 +133,8 @@ class MacroWorkspaceTests(WorkspaceMixin,MoveFixture):
     def test_declining_exit_and_reset_keeps_inputs(self):
         view=self.open_view();view.tabs.select('マクロ');self.app.update();panel=view.macro_panel
         panel.entries[0].insert('end','X')
-        with patch('ff11reader.ui.dialogs.askyesno',return_value=False) as question:
-            view.close();view.reset_edits();self.assertEqual(question.call_count,2)
+        with patch('ff11reader.ui.dialogs.ask_save_changes',return_value=None), patch('ff11reader.ui.dialogs.askyesno',return_value=False) as question:
+            view.close();view.reset_edits();self.assertEqual(question.call_count,1)
         self.assertEqual(panel.entries[0].get(),'TestX');self.assertTrue(self.app.winfo_exists())
         with patch('ff11reader.ui.dialogs.askyesno',return_value=True),patch.object(self.editor,'start_fresh',side_effect=OSError('failure')),patch('ff11reader.ui.dialogs.showerror'):
             view.reset_edits()

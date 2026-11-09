@@ -17,8 +17,8 @@ def prepare(root, report):
         roots=installations() if root is None else [root]
         if len(roots)!=1:raise ValueError('FF11のインストール先を特定できません。--rootで指定してください。')
         with span('startup.read'):snapshot=load_snapshot(Path(roots[0]).resolve())
-        report('編集履歴を復元しています…')
-        with span('startup.restore'):
+        report('編集画面を準備しています…')
+        with span('startup.edit_session'):
             editor=Editor(snapshot,root=roots[0])
             snapshot=editor.snapshot()
         return snapshot,editor
@@ -47,7 +47,7 @@ class Startup:
         def work():
             try:self.messages.put(('ready',self.prepare_work(lambda text:self.messages.put(('status',text)))))
             except Exception as exc:self.messages.put(('error',str(exc)))
-        # Finish any application-owned draft recovery even if the window is closed.
+        # Finish any interrupted-save check even if the window is closed.
         self.worker=Thread(target=work,name='ff11-startup',daemon=False);self.worker.start()
         self.poll_id=self.app.after(40,self.poll)
 

@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch
 from ff11reader.domain import Character, Macro, Equipset, Slot, Text, InventoryRow, Snapshot
 from ff11reader.edit_application import Editor
-from ff11reader.editing import Edit, Change, plan_macro_fixes, plan_equipment_edit
+from ff11reader.editing import EditSession, Edit, Change, plan_macro_fixes, plan_equipment_edit
 from ff11reader.fixes import plan_fixes
 from ff11reader.references import assess_equipment
 from tests.property_support import isolated, seeds, check_sequence
@@ -86,15 +86,10 @@ class EditingProperties(unittest.TestCase):
                 elif op=='undo':editor.undo();model.undo()
                 elif op=='redo':editor.redo();model.redo()
                 elif op=='restart':
-                    editor=Editor(snapshot,base/'draft.json');self.assertIsNone(editor.blocked)
+                    editor=Editor(snapshot,base/'draft.json');model=Model();self.assertIsNone(editor.blocked)
                 elif op=='fail':
-                    before=(base/'draft.json').read_bytes() if (base/'draft.json').exists() else None
-                    with patch.object(editor.store,'save',side_effect=OSError('synthetic full disk')):
-                        with self.assertRaises(OSError):
-                            if number%3==0:editor.undo()
-                            elif number%3==1:editor.redo()
-                            else:editor.apply(Edit('fail',(change(editor,key,edited),)))
-                    self.assertEqual(before,(base/'draft.json').read_bytes() if (base/'draft.json').exists() else None)
+                    with patch.object(EditSession,'apply',side_effect=ValueError('invalid edit')):
+                        with self.assertRaises(ValueError):editor.apply(Edit('fail',(change(editor,key,edited),)))
                 elif op=='invalid':
                     # Two distinct targets; do not accidentally test only duplicate rejection.
                     persisted=(base/'draft.json').read_bytes() if (base/'draft.json').exists() else None
@@ -141,40 +136,25 @@ class EditingProperties(unittest.TestCase):
             with self.subTest(seed=seed):
                 check_sequence('PT-14',seed,ops+[('undo',0,0)]*len(ops)+[('restart',0,0)]+[('redo',0,0)]*len(ops),self.replay)
 
-    def test_external_update_restart_archives_previous_work(self):
+    def test_external_update_restart_loads_fresh_game(self):
         for seed in seeds():
             with self.subTest(seed=seed),isolated() as base:
                 snap=source(base);editor=Editor(snap,base/'draft.json')
-                model=Model();key=('a','m',1)
-                editor.apply(Edit('edit',(change(editor,key,('Edited',model.value[key][1])),)))
-                old=(base/'draft.json').read_bytes()
+                editor.apply(editor.prepare_macro_edit('a',(1,1,'ctrl',1),'Edited',['']*6))
                 fresh=deepcopy(snap);fresh.sources[0]['sha256']=str(seed)
                 fresh.characters[0].macros[0]=replace(fresh.characters[0].macros[0],title=Text('External','','test'))
-                reopened=Editor(fresh,base/'draft.json');self.assertIsNotNone(reopened.blocked)
-                reopened.start_fresh()
+                reopened=Editor(fresh,base/'draft.json');self.assertIsNone(reopened.blocked)
                 self.assertEqual(values(reopened.snapshot()),values(fresh))
-                self.assertEqual(next(base.glob('draft.archived-*.json')).read_bytes(),old)
-                self.assertEqual((base/'source.dat').read_bytes(),b'synthetic source')
+                self.assertEqual(reopened.edit_status(),(0,0,False))
+                self.assertFalse((base/'draft.json').exists())
 
-    def test_legacy_work_versions_and_invalid_baseline(self):
-        for version in (1,2,3,4):
+    def test_legacy_work_versions_are_ignored_and_preserved(self):
+        for version in (1,2,3,4,999):
             with self.subTest(version=version),isolated() as base:
-                snap=source(base);editor=Editor(snap,base/'draft.json');model=Model();key=('a','m',1)
-                edited=('Changed',model.value[key][1])
-                editor.apply(Edit('edit',(change(editor,key,edited),)));editor.undo()
-                data=json.loads((base/'draft.json').read_text(encoding='utf-8'))
-                data['version']=version
-                if version<3:data.pop('baseline')
-                if version<4:data.pop('saved_origins')
-                (base/'draft.json').write_text(json.dumps(data),encoding='utf-8')
-                reopened=Editor(snap,base/'draft.json');self.assertIsNone(reopened.blocked)
-                self.assertEqual(values(reopened.snapshot()),model.value)
-                reopened.redo();model.apply({key:edited});self.assertEqual(values(reopened.snapshot()),model.value)
-                self.assertEqual(json.loads((base/'draft.json').read_text())['version'],4)
-        with isolated() as base:
-            snap=source(base);editor=Editor(snap,base/'draft.json');editor.undo()
-            data=json.loads((base/'draft.json').read_text());data['baseline'].pop('a')
-            (base/'draft.json').write_text(json.dumps(data));before=(base/'draft.json').read_bytes()
-            reopened=Editor(snap,base/'draft.json');self.assertIsNotNone(reopened.blocked)
-            with self.assertRaises(ValueError):reopened.redo()
-            self.assertEqual((base/'draft.json').read_bytes(),before)
+                path=base/'draft.json';raw=json.dumps({'version':version,'history':'invalid'})
+                path.write_text(raw,encoding='utf-8');snap=source(base)
+                reopened=Editor(snap,path)
+                self.assertIsNone(reopened.blocked)
+                self.assertEqual(reopened.snapshot(),snap)
+                self.assertEqual(reopened.edit_status(),(0,0,False))
+                self.assertEqual(path.read_text(encoding='utf-8'),raw)

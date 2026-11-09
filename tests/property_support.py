@@ -16,7 +16,7 @@ import tempfile
 from unittest.mock import patch
 # Load lazy imports before enabling the I/O guard.
 from ff11reader import adapters, application, codecs, equipment_saving, macro_saving, saving, file_transaction, combined_saving, selection_ui, transfer_editing
-from ff11reader import workspace_ui, workspace_state, augment_store
+from ff11reader import workspace_ui, workspace_state, augment_store, window_placement, dialogs
 from ff11reader.domain import Character, Snapshot, Text
 from ff11reader.edit_application import Editor
 from ff11reader.editing import Change, Edit, plan_macro_fixes
@@ -53,6 +53,10 @@ def isolated():
     with tempfile.TemporaryDirectory(dir=ROOT) as tmp:
         root = Path(tmp).resolve()
         with ExitStack() as stack:
+            # Native monitor placement is covered separately by test_dialogs.
+            stack.enter_context(patch.object(window_placement, 'work_area', return_value=(0, 0, 1920, 1080)))
+            stack.enter_context(patch.object(window_placement, 'place', return_value=None))
+            stack.enter_context(patch.object(dialogs, 'place', return_value=None))
             # No process enumeration, installation discovery, resources or native locking.
             for module in (saving, macro_saving, equipment_saving, combined_saving):
                 stack.enter_context(patch.object(module, 'require_game_closed', return_value=None))

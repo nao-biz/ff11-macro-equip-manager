@@ -1,4 +1,4 @@
-"""Inline slot candidates, with ephemeral selection and explicit edit preview."""
+"""Inline slot candidates, with ephemeral selection and immediate undoable edits."""
 import tkinter as tk
 from tkinter import ttk
 from .equipment_editing import search_rows
@@ -27,7 +27,7 @@ class EquipmentPicker:
         ActionButton(search, text='装備・判定の詳細', command=on_details).pack(side='right')
         controls = ttk.Frame(self.window)
         controls.pack(side='bottom', fill='x', pady=(6, 0))
-        self.preview_button = ActionButton(controls, busy=True, text='変更案を確認',
+        self.preview_button = ActionButton(controls, busy=True, text='装備を変更',
                                           style='Primary.TButton', command=self.preview, state='disabled')
         self.preview_button.pack(side='right')
         ActionButton(controls, text='候補を解除', command=self.cancel).pack(side='right', padx=6)
@@ -97,6 +97,11 @@ class EquipmentPicker:
 
     def cancel(self):
         self.listing.selection_remove(*self.listing.selection())
+        self.select()
+
+    def select_item(self, identity):
+        self.listing.selection_remove(*self.listing.selection())
+        self._select_identity('equip', identity)
         self.select()
 
     def preview(self):

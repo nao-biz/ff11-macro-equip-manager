@@ -6,15 +6,19 @@ def describe(observation, row):
     stamp = observation.export.captured_at
     if item is None:
         return f'個体情報: 再Exportが必要（取得日時 {stamp}）'
-    parts = []
+    parts, metadata = [], []
     if item.decode_state != 'decoded':
         parts.append('オーグメント: 解析できません（生データを保持）')
     else:
         if item.path is not None: parts.append('Path: ' + item.path)
         if item.rank is not None: parts.append('Rank: ' + str(item.rank))
-        parts.extend(item.augments)
-        if not item.augments and item.path is None: parts.append('オーグメント: 解析結果なし')
-    parts.extend([f'数量: {item.count}', f'取得日時: {stamp}'])
+        resolved = observation.abilities(item)
+        parts.extend(resolved.lines)
+        if not resolved.complete: parts.append(resolved.reason)
+        elif not resolved.lines: parts.append('付加能力なし')
+        if resolved.source: metadata.append('能力の参照元: ゲームデータ')
+    metadata.extend([f'数量: {item.count}', f'取得日時: {stamp}'])
+    parts.extend(['', '── 取得情報 ──', *metadata])
     return '\n'.join(parts)
 
 

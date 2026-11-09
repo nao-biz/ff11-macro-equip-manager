@@ -33,17 +33,17 @@ def benchmark():
                     view=editor.snapshot(view);shown=perf_counter_ns()
                     editor.edit_status();end=perf_counter_ns()
                     rows.append(dict(macros=count,iteration=i,operation=name,
-                        apply_and_persist_ms=(applied-start)/1e6,view_ms=(shown-applied)/1e6,total_ms=(end-start)/1e6))
+                        apply_ms=(applied-start)/1e6,view_ms=(shown-applied)/1e6,total_ms=(end-start)/1e6))
             reopened=Editor(snapshot,base/'draft.json')
-            assert reopened.blocked is None and reopened.snapshot()==editor.snapshot()
+            assert reopened.blocked is None and reopened.edit_status()==(0,0,False) and reopened.snapshot()==snapshot
     summary=[]
     for count in (400,8000):
         for name in ('edit','undo','redo'):
             selected=[r for r in rows if r['macros']==count and r['operation']==name and r['iteration']>0]
             summary.append(dict(macros=count,operation=name,**{k:round(median(r[k] for r in selected),3)
-                for k in ('apply_and_persist_ms','view_ms','total_ms')}))
+                for k in ('apply_ms','view_ms','total_ms')}))
     return dict(initialization=initialization,first_operations=[r for r in rows if r['iteration']==0],medians=summary,
-        scope='Actual Editor including v3 draft fsync, incremental view and dirty; excludes GUI drawing and game saving. Five warm repetitions, first operations reported separately.')
+        scope='Actual Editor with in-memory session updates, incremental view and dirty; excludes GUI drawing and game saving. Five warm repetitions, first operations reported separately.')
 
 if __name__=='__main__':
     result=benchmark()

@@ -1,18 +1,57 @@
 """Keyboard phrase picker and token-aware entry adapter."""
+from . import dialogs
 from .theme import BG, FG, PANEL, SELECT
 import tkinter as tk
 from tkinter import ttk
-from .text_editing import replace_range
+from .text_editing import replace_range, slice_text, paste_text
 
 
 class PhraseEntry:
     def __init__(self,entry,value,catalog):
         self.entry=entry;self.value=value;self.catalog=catalog;self.popup=None;self.updating=False
+        self.row_mode=False
         command=entry.register(self.validate)
         entry.configure(validate='key',validatecommand=(command,'%d','%i','%S','%P'))
+        entry.bind('<<Copy>>',self.copy)
+        entry.bind('<<Cut>>',lambda e:self.copy(e,cut=True))
+        entry.bind('<<Paste>>',self.paste)
         entry.bind('<Tab>',self.open)
         entry.bind('<BackSpace>',lambda e:self.delete_token(True))
         entry.bind('<Delete>',lambda e:self.delete_token(False))
+
+    @staticmethod
+    def clipboard_version():
+        import os
+        if os.name=='nt':
+            import ctypes
+            return ctypes.windll.user32.GetClipboardSequenceNumber()
+        return None
+
+    def copy(self,event=None,*,cut=False,whole=False):
+        whole=whole or self.row_mode
+        if str(self.entry.cget('state'))=='disabled':return 'break'
+        if not whole and not self.entry.selection_present():return 'break'
+        a,b=(0,len(self.value.display)) if whole else self.selection()
+        value=slice_text(self.value,a,b)
+        self.entry.clipboard_clear();self.entry.clipboard_append(value.display)
+        self.entry._root()._phrase_clipboard=(value,self.clipboard_version())
+        if cut:self.set_value(replace_range(self.value,a,b,''),a)
+        return 'break'
+
+    def paste(self,event=None,*,whole=False):
+        whole=whole or self.row_mode
+        if str(self.entry.cget('state'))=='disabled':return 'break'
+        try:display=self.entry.clipboard_get()
+        except tk.TclError:return 'break'
+        from .domain import Text
+        insert=Text(display,'','draft',())
+        cached=getattr(self.entry._root(),'_phrase_clipboard',None)
+        if cached and cached[0].display==display and cached[1]==self.clipboard_version():insert=cached[0]
+        if any(c in display for c in ('\n','\r','\0')):
+            self.entry.bell();return 'break'
+        a,b=(0,len(self.value.display)) if whole else self.selection()
+        self.set_value(paste_text(self.value,a,b,insert),a+len(display))
+        return 'break'
 
     def validate(self,action,index,fragment,proposed):
         if self.updating:return True
@@ -34,12 +73,17 @@ class PhraseEntry:
 
     def set_value(self,value,cursor):
         self.updating=True
+        state=self.entry.cget('state')
         try:
+            self.entry.configure(state='normal')
             self.entry.delete(0,'end');self.entry.insert(0,value.display);self.value=value
             self.entry.icursor(cursor);self.entry.selection_clear()
-        finally:self.updating=False
+        finally:
+            self.entry.configure(state=state)
+            self.updating=False
 
     def delete_token(self,backward):
+        if self.row_mode or str(self.entry.cget('state'))=='disabled':return 'break'
         a,b=self.selection()
         if a!=b:
             self.set_value(replace_range(self.value,a,b,''),a);return 'break'
@@ -49,10 +93,12 @@ class PhraseEntry:
                 self.set_value(replace_range(self.value,token.start,token.end,''),token.start);return 'break'
 
     def open(self,event=None):
+        if self.row_mode or str(self.entry.cget('state'))=='disabled':return
         if self.popup and self.popup.winfo_exists():self.popup.lift();return 'break'
         start,end=self.selection()
         popup=self.popup=tk.Toplevel(self.entry,background=BG)
         popup.title('定型文を選択');popup.geometry('720x480');popup.transient(self.entry.winfo_toplevel())
+        dialogs.fit_to_screen(popup)
         ttk.Label(popup,text='名前・読みで検索　／　カテゴリを選んで絞り込み',padding=10).pack(anchor='w')
         ttk.Label(popup,text='大分類',padding=(10,0)).pack(anchor='w')
         group=tk.StringVar(value='すべて')

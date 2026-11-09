@@ -30,10 +30,10 @@ def restore(view, state):
     elif mode == '装備セット' and view.selected is not None:
         slot = next((s for s in view.selected.slots if s.name == state.get('slot')), None)
         if slot is not None:
-            view.inspect_slot(slot)
-            if state.get('candidate'):
-                view.edit_selected_slot()
-                if view.slot_editor:view.slot_editor.restore_input(state['candidate'])
+            if view.active_slot != slot.name:
+                view.inspect_slot(slot)
+            if state.get('candidate') and view.slot_editor:
+                view.slot_editor.restore_input(state['candidate'])
     elif mode=='インベントリ' and state.get('inventory') in view.card_widgets:
         row=next((r for r in view.character.inventory if r.container==view.selected and r.index==state['inventory']),None)
         if row:view.activate_card(view.card_widgets[row.index],lambda:view.inspect_inventory(row))
@@ -56,6 +56,7 @@ def layout(view):
     macro=view.mode.get()=='マクロ'
     equipment=view.mode.get()=='装備セット'
     view.equipment_candidates_panel.pack_forget()
+    view.inventory_properties_area.pack_forget()
     view.slot_edit_button.pack_forget()
     view.selection_status.pack_forget()
     if not equipment:view.selection_status.pack(fill='x',after=view.tabs)
@@ -67,7 +68,7 @@ def layout(view):
         view.legend.pack_forget()
     else:
         if right not in view.body.panes():view.body.add(view.right_panel,weight=1)
-        view.right_panel.configure(width=650 if equipment else 330)
+        view.right_panel.configure(width=650 if equipment else 520)
         view.body.pane(view.right_panel,weight=0)
         view.canvas.configure(width=490 if equipment else 560,height=352)
         view.canvas_area.pack_configure(fill='x' if equipment else 'both',expand=not equipment)
@@ -75,5 +76,7 @@ def layout(view):
         if equipment:
             view.side_content.pack_forget()
             view.equipment_candidates_panel.pack(fill='both',expand=True,pady=(4,0))
-        else:view.side_content.pack(fill='both',expand=True)
+        else:
+            view.side_content.pack_forget()
+            view.inventory_properties_area.pack(fill='both',expand=True)
     view.tabs.refresh()

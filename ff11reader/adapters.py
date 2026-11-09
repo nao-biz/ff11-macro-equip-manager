@@ -91,6 +91,23 @@ class LocalReader:
             languages.append(names)
         return from_dictionary(*languages)
 
+    def load_rank_augments(self):
+        from .rank_augments import RankCatalog, decode_bundles
+        table = self.guarded(self.root/'FTABLE.DAT', lambda b: b)
+        if table is None:
+            return None
+        results = []
+        for logical, decode in ((0x51, decode_bundles), (0xD914, dictionaries.dmsg_names)):
+            if logical * 2 + 2 > len(table):
+                self.diagnostics.append({'code': 'rank_augments_unavailable', 'logical_id': logical})
+                return None
+            packed = struct.unpack_from('<H', table, logical * 2)[0]
+            result = self.guarded(self.root/'ROM'/str(packed >> 7)/f'{packed & 127}.DAT', decode)
+            if result is None:
+                return None
+            results.append(result)
+        return RankCatalog(*results)
+
     def load_characters(self, resolver=None):
         result=[]
         for folder in sorted((self.root/'USER').iterdir()):

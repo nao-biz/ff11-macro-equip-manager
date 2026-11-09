@@ -1,62 +1,17 @@
 """Shared selected-item properties for the equipment/inventory layout mock."""
 import tkinter as tk
 from tkinter import ttk
-import re
-import unicodedata
 
 from ff11reader import theme
 from ff11reader.domain import Equipset, Slot, Text
-from ff11reader.equipment_stat_parser import WEAPON, analyze_line
 from ff11reader.equipment_stats import summarize
-from ff11reader.equipment_stats_presentation import GROUPS, number
-
-BASE_STATS = ('STR', 'DEX', 'VIT', 'AGI', 'INT', 'MND', 'CHR')
-
-
-def format_properties(text, names):
-    """Group basic stats; give every other interpreted property its own line."""
-    lines = []
-    for raw in text.splitlines():
-        remainder = unicodedata.normalize('NFKC', raw).strip()
-        weapon = []
-        while match := WEAPON.match(remainder):
-            weapon.append(match[0])
-            remainder = remainder[match.end():].lstrip()
-        if weapon:
-            lines.extend(weapon)
-            if remainder:
-                lines.append(format_properties(remainder, names))
-            continue
-        level = re.fullmatch(r'(Lv\d+[〜～~]?)\s+(.+)', raw)
-        if level:
-            lines.extend(level.groups())
-            continue
-        parsed = analyze_line(raw, names)
-        if parsed.outside or parsed.unparsed or not parsed.values:
-            lines.append(raw)
-            continue
-        for group in (('HP', 'MP'), BASE_STATS):
-            values = [name + number(value, unit, signed=True) for name, unit, value in parsed.values if name in group]
-            if values:
-                lines.append('  '.join(values))
-        lines.extend(name + number(value, unit, signed=True) for name, unit, value in parsed.values
-                     if name not in ('HP', 'MP', *BASE_STATS))
-    return '\n'.join(lines)
-
+from ff11reader.item_properties import format_properties, other_properties
 
 def item_report(data, key):
     item = data.items.get(key)
     slot = (Slot('main', 'equip', item.item_id, item.container, item.position, '') if item
             else Slot('main', key or 'keep', None, None, None, ''))
     return summarize(Equipset(1, Text('', '', 'cp932'), (slot,)), data.master, data.observation, data.names)
-
-
-def other_properties(report):
-    visible = {(name, unit) for _, _, metrics in GROUPS for name, unit, _ in metrics}
-    lines = [name + number(value, unit, signed=True) for name, unit, value in report.totals
-             if (name, unit) not in visible]
-    lines.extend(('オグメ: ' if ' / オグメ' in source else '') + raw for source, raw in report.excluded)
-    return '\n'.join(lines) or '主要項目以外の性能・効果はありません。'
 
 
 def property_content(data, key, *, formatted=True):

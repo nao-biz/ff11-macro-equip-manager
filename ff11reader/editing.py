@@ -40,11 +40,11 @@ def contents(character):
 def edit_macro(character, macro, title, lines):
     if len(lines) != 6 or any(not isinstance(s,(str,Text)) for s in [title,*lines]):
         raise ValueError('マクロは名前と6行で入力してください。')
-    def text(before, value):
+    def text(before, value, *, line=False):
         result=value if isinstance(value,Text) else remap_text(before,value)
         validate_text(result)
-        return replace(result,raw_hex=before.raw_hex)
-    updated = replace(macro, title=text(macro.title, title), lines=tuple(text(a, b) for a, b in zip(macro.lines, lines)))
+        return replace(result,raw_hex=result.raw_hex if line and isinstance(value,Text) and result.raw_hex else before.raw_hex)
+    updated = replace(macro, title=text(macro.title, title), lines=tuple(text(a, b, line=True) for a, b in zip(macro.lines, lines)))
     return Edit('マクロを編集', (Change(character.folder_id, 'macros', macro_key(macro), macro, updated),))
 
 

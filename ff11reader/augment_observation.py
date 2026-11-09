@@ -31,6 +31,11 @@ class AugmentObservation:
     export: AugmentExport
     accepted_bags: frozenset[int]
     issues: tuple[tuple[int, str], ...]
+    rank_catalog: object = None
+
+    def abilities(self, item):
+        from .rank_augments import abilities
+        return abilities(item, self.rank_catalog)
 
     def item(self, row):
         if row.container not in self.accepted_bags:
@@ -39,7 +44,7 @@ class AugmentObservation:
                      for item in bag.items if (item.index, item.item_id) == (row.index, row.item_id)), None)
 
 
-def reconcile(export, character):
+def reconcile(export, character, rank_catalog=None):
     accepted, issues = set(), []
     for bag in export.bags:
         rows = [r for r in character.inventory if r.container == bag.id]
@@ -53,4 +58,4 @@ def reconcile(export, character):
             issues.append((bag.id, 'locations_changed'))
         else:
             accepted.add(bag.id)
-    return AugmentObservation(export, frozenset(accepted), tuple(issues))
+    return AugmentObservation(export, frozenset(accepted), tuple(issues), rank_catalog)

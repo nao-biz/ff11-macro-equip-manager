@@ -66,7 +66,7 @@ class MoveTests(MoveFixture):
         self.assertEqual(c.macros[0].lines[3].display,'【/equipset】 45 <wait.2>')
         self.assertEqual(c.macros[0].lines[3].tokens,self.source.characters[0].macros[0].lines[3].tokens)
         self.editor.undo();self.assertFalse(self.editor.session.dirty);self.assertFalse(self.editor.has_pending_move('abc'))
-        self.editor.redo();self.editor=Editor(self.source,self.base/'draft.json');self.assertIsNone(self.editor.blocked)
+        self.editor.redo();self.assertIsNone(self.editor.blocked)
         self.assertTrue(self.editor.has_pending_move('abc'))
         for method in (self.editor.prepare_macro_save,self.editor.prepare_equipment_save):
             with self.assertRaisesRegex(ValueError,'一括'):method('abc')
@@ -78,7 +78,6 @@ class MoveTests(MoveFixture):
         self.assertEqual(len(plan.files),4)
         for i,f in enumerate(plan.files):self.assertEqual((backup/f'{i:03}.original.dat').read_bytes(),f.original)
         self.assertFalse(self.editor.session.dirty)
-        self.editor=Editor(self.load(),self.base/'draft.json');self.assertIsNone(self.editor.blocked);self.assertFalse(self.editor.session.dirty)
         self.editor.undo();self.assertTrue(self.editor.has_pending_move('abc'))
         self.save();self.assertFalse(self.editor.session.dirty)
         for p,raw in self.original.items():self.assertEqual(p.read_bytes(),raw)
@@ -99,7 +98,6 @@ class MoveTests(MoveFixture):
         self.save();self.assertEqual(self.load().characters[0].equipsets[21].title.display,'Final')
         self.editor.undo();self.editor.undo() # back to 45 with the earlier name
         self.editor.apply(self.editor.prepare_equipment_name_edit('abc',45,'Branch'))
-        self.editor=Editor(self.load(),self.base/'draft.json');self.assertIsNone(self.editor.blocked)
         self.save();c=self.load().characters[0]
         self.assertEqual(c.equipsets[44].title.display,'Branch');self.assertTrue(vacant(c.equipsets[21]))
         self.assertIn('045',c.macros[0].lines[0].display)
@@ -117,18 +115,13 @@ class MoveTests(MoveFixture):
         path=self.folder/'mcr1.dat';path.write_bytes(path.read_bytes()+b'x')
         with self.assertRaises(ValueError):self.editor.save_combined(plan,self.base/'backups')
 
-    def test_checkpoint_failure_recovers_origin_mapping(self):
-        self.move();plan=self.editor.prepare_combined_save('abc');original=self.editor.store.save;calls=0
-        def fail(session):
-            nonlocal calls
-            calls+=1
-            if calls==2:raise OSError('synthetic checkpoint failure')
-            return original(session)
-        with patch.object(self.editor.store,'save',side_effect=fail):
-            with self.assertRaisesRegex(RuntimeError,'同期'):self.editor.save_combined(plan,self.base/'backups')
-        self.editor=Editor(self.load(),self.base/'draft.json');self.assertIsNone(self.editor.blocked);self.assertFalse(self.editor.session.dirty)
-        self.editor.undo();self.save()
-        for p,raw in self.original.items():self.assertEqual(p.read_bytes(),raw)
+    def test_journal_cleanup_failure_loads_saved_move_without_history(self):
+        self.move();plan=self.editor.prepare_combined_save('abc')
+        with patch.object(self.editor.journal,'finish',side_effect=OSError('cleanup')):
+            with self.assertRaisesRegex(RuntimeError,'完了'):self.editor.save_combined(plan,self.base/'backups')
+        reopened=Editor(self.load(),self.base/'draft.json')
+        self.assertIsNone(reopened.blocked);self.assertEqual(reopened.edit_status(),(0,0,False))
+        self.assertEqual(reopened.snapshot().characters[0].equipsets[44].title.display,'Set A')
 
     def test_unknown_slot_bytes_move_unchanged(self):
         path=self.folder/'es0.dat';raw=bytearray(path.read_bytes());raw[44]=0xFF;raw[45:48]=b'XYZ';path.write_bytes(checksum(raw))
@@ -176,7 +169,7 @@ class MoveUITests(MoveFixture):
             next(w for w in preview.winfo_children() if isinstance(w,ttk.Button)).invoke();app.update()
             view.undo_fix();app.update();self.assertFalse(self.editor.has_pending_move('abc'))
             view.redo_edit();view.preview_equipment_save();app.update()
-            joint=windows()[-1];self.assertIn('一括保存',joint.title())
+            joint=windows()[-1];self.assertIn('ゲームへ書き戻す',joint.title())
             for p,raw in self.original.items():self.assertEqual(p.read_bytes(),raw)
             save=self.editor.save_combined
             with patch.object(self.editor,'save_combined',side_effect=lambda plan,root:save(plan,self.base/'backups')):

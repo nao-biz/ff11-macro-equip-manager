@@ -4,10 +4,51 @@ import tkinter as tk
 import unittest
 from unittest.mock import patch
 from ff11reader import dialogs
+from ff11reader import window_placement
+
+
+class WindowPlacementTests(unittest.TestCase):
+    def test_negative_monitor_offscreen_parent_and_oversized_dialog(self):
+        for parent, area, size in (
+            ((-2000, -200, -1400, 400), (-1920, 0, 0, 1040), (900, 650)),
+            ((1800, 1000, 2600, 1500), (0, 0, 1920, 1040), (980, 700)),
+            ((0, 0, 800, 600), (0, 0, 800, 560), (1050, 700)),
+        ):
+            x,y,w,h=window_placement.bounded_rect(*size,parent,area)
+            self.assertGreaterEqual(x,area[0]);self.assertGreaterEqual(y,area[1])
+            self.assertLessEqual(x+w,area[2]);self.assertLessEqual(y+h,area[3])
 
 
 @unittest.skipUnless(os.environ.get('FF11_RUN_INTEGRATION')=='1','Enable synthetic Tk checks')
 class DialogTests(unittest.TestCase):
+    def test_diff_buttons_remain_visible_when_content_exceeds_window(self):
+        window=tk.Toplevel(self.app);window.geometry('400x260')
+        body=tk.Text(window,height=40,width=100);body.pack(fill='both',expand=True)
+        body.insert('1.0','変更前と変更後\n'*100)
+        dialogs.confirm_buttons(window,lambda:None)
+        self.app.update()
+        for button in (window.accept_button,window.cancel_button):
+            self.assertTrue(button.winfo_ismapped())
+            self.assertLessEqual(button.winfo_rooty()+button.winfo_height(),window.winfo_rooty()+window.winfo_height())
+        body.yview_moveto(1)
+        self.assertGreater(body.yview()[0],0)
+        window.destroy()
+
+    def test_child_window_fits_work_area_including_frame(self):
+        window=tk.Toplevel(self.app);window.geometry('1050x900')
+        with patch.object(window_placement,'work_area',return_value=(0,0,800,560)):
+            window_placement.fit_to_screen(window)
+            self.app.update()
+        if os.name=='nt':
+            import ctypes
+            from ctypes import wintypes
+            api,handle=window_placement.native_window(window);rect=wintypes.RECT()
+            api.GetWindowRect(handle,ctypes.byref(rect))
+            self.assertGreater(rect.right-rect.left,100)
+            self.assertGreaterEqual(rect.left,0);self.assertGreaterEqual(rect.top,0)
+            self.assertLessEqual(rect.right,800);self.assertLessEqual(rect.bottom,560)
+        window.destroy()
+
     def setUp(self):
         self.app=tk.Tk()
         self.app.geometry('800x500');self.errors=[]
@@ -21,6 +62,9 @@ class DialogTests(unittest.TestCase):
             self.app.destroy()
         except tk.TclError:pass
         self.assertFalse(self.errors,self.errors)
+        del self.behind, self.app
+        import gc
+        gc.collect()
 
     def test_overlay_cancel_focus_and_confirm(self):
         modal=dialogs.Modal(self.app,'確認','本文','confirm')

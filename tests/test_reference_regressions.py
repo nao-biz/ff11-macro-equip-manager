@@ -90,14 +90,9 @@ class ReferenceRegressions(unittest.TestCase):
         with self.assertRaises(ValueError):apply_fixes(c,plan)
         self.assertEqual(asdict(c),before)
 
-    def test_old_draft_assessment_can_be_recomputed(self):
-        # Old draft fields remain readable; derived fields are recalculated.
-        from ff11reader.draft_store import encode, decode
+    def test_missing_assessment_can_be_recomputed(self):
         c=source();slot=assess_equipment(c)[0].slots[5]
-        record=encode(slot)
-        fields=record['fields']['item_reference']['fields']
-        fields.pop('reason');fields.pop('fix_target')
-        old_slot=decode(record)
+        old_slot=replace(slot,item_reference=replace(slot.item_reference,reason=None,fix_target=None))
         self.assertIsNone(old_slot.item_reference.fix_target)
         c.equipsets=[replace(c.equipsets[0],slots=tuple(old_slot if s.name=='body' else s for s in c.equipsets[0].slots))]
         reassessed=assess_equipment(c)[0].slots[5]

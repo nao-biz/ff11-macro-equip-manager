@@ -138,3 +138,4 @@ class Snapshot:
     phrases: dict = field(default_factory=dict)
     phrase_readings: dict = field(default_factory=dict)
     augment_names: dict = field(default_factory=dict)
+    rank_augments: object = None

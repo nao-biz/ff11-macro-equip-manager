@@ -7,6 +7,8 @@ DATA-003 / D-16。UTF-8 JSON、上限4 MiB。形式名 `ff11-inventory-export`�
 個体: index（1..80、収納内重複不可）, item_id（1..65534）, count（1以上の整数）, extdata（24バイトの小文字hex）, decode_state（decoded/unsupported/error）, augments（文字列配列）, path（A..Dまたはnull）, rank（0..127またはnull）。
 未取得収納のitemsは空配列。decodedはライブラリの解釈成功を意味する。能力の全文を得られる範囲はライブラリに従い、Pathだけの結果もある。生データは保持する。
 
+Bundle形式のRank付き装備は、アプリが生データとゲーム内DATから現在Rankの追加能力を解決する。[Rank能力](rank-augments.md)を参照する。既存JSONをそのまま利用できる。
+
 取り込みは選択中キャラへの明示確認を必要とする。USERフォルダIDとサーバーのキャラIDの対応を推定しない。各収納のローカル取得状態が取得済みであり、全位置・種類IDが出力と一致する場合だけ補助情報を公開する。日時を常時付記し、同種類の入替と取得後の強化には再取得が必要なことを取り込み時に示す。
 
 ## 操作
@@ -18,6 +20,6 @@ DATA-003 / D-16。UTF-8 JSON、上限4 MiB。形式名 `ff11-inventory-export`�
 
 ## アプリ側の保存形式 v1
 
-既定の保存先は `work/drafts/augment-observations/`。編集作業ファイルの親フォルダを基準とする。ファイル名はインストール識別子とキャラフォルダIDの組をSHA-256化した値。取り込みJSONの元ファイルは復元に必要ない。
+既定の保存先は `work/drafts/augment-observations/`。個体情報は編集セッションから独立して保持する。ファイル名はインストール識別子とキャラフォルダIDの組をSHA-256化した値。取り込みJSONの元ファイルは復元に必要ない。
 JSONラッパーのformatは `ff11-augment-store`、versionは1。installation_key, folder_id, export（上記の出力形式v1）を持つ。読み出し時は対応キーと出力内容を検証する。サイズ上限は8 MiB。
 起動・再読み込みのたびに収納を再照合する。不一致収納のデータも元の取得結果として保持し、新しいJSONの取り込みでキャラ単位に置換する。破損ファイルは保持して復元失敗を通知する。保存失敗時は一時ファイルを片付け、旧結果を維持する。

@@ -93,14 +93,14 @@ class PhraseTests(unittest.TestCase):
                 value=replace_range(value,4,4,phrase.label,phrase.identity)
                 f.set_value(value);self.assertEqual(f.bytes(),before)
                 f.editor.undo();self.assertFalse(f.editor.session.dirty)
-                f.editor.redo();f.reopen();self.assertIsNone(f.editor.blocked)
+                f.editor.redo();self.assertIsNone(f.editor.blocked)
                 plan=f.preview();self.assertIn(bytes.fromhex('FD'+phrase.identity+'FD'),plan.files[0].changes[0].replacement)
                 f.save(plan);f.reopen();self.assertIsNone(f.editor.blocked);self.assertFalse(f.editor.session.dirty)
                 other=PhraseCatalog(PHRASES).search('リジェネ')[1-seed%2]
                 changed=replace_range(value,4,len(value.display),other.label,other.identity)
                 f.set_value(changed);self.assertTrue(f.editor.session.dirty)
                 plan=f.preview();self.assertEqual(plan.files[0].changes[0].before,plan.files[0].changes[0].after)
-                f.save(plan);f.reopen();self.assertFalse(f.editor.session.dirty)
+                f.save(plan);self.assertFalse(f.editor.session.dirty)
                 f.editor.undo();self.assertTrue(f.editor.session.dirty)
                 self.assertIn(bytes.fromhex('FD'+phrase.identity+'FD'),f.preview().files[0].changes[0].replacement)
                 f.save(f.preview());f.reopen();self.assertFalse(f.editor.session.dirty)
@@ -122,26 +122,24 @@ class PhraseTests(unittest.TestCase):
                 self.assertEqual(codecs.text(encoded,resolver).tokens,value.tokens)
                 self.assertEqual([t.identity for t in value.tokens],expected)
 
-    def test_old_draft_without_token_fields_reopens(self):
+    def test_old_draft_is_ignored_and_game_tokens_are_loaded(self):
         with isolated() as base,patch('ff11reader.adapters.LocalReader.load_phrases',return_value=PHRASES):
             f=PhraseFixture(base,'macro',7,1);f.set_line(b'/echo '+bytes.fromhex('FD02010201FD'))
             f.edit_line('/say 【リジェネ】')
-            path=f.editor.store.path;data=json.loads(path.read_text(encoding='utf-8'))
-            def strip(value):
-                if isinstance(value,dict):
-                    if value.get('type')=='Text':
-                        value['fields'].pop('tokens',None)
-                        if value['fields']['state']=='draft':value['fields']['raw_hex']=''
-                    for v in value.values():strip(v)
-                elif isinstance(value,list):
-                    for v in value:strip(v)
-            strip(data);path.write_text(json.dumps(data),encoding='utf-8')
+            f.editor.state_path.write_text('old draft',encoding='utf-8')
             f.reopen();self.assertIsNone(f.editor.blocked)
-            self.assertIn(bytes.fromhex('FD02010201FD'),f.preview().files[0].changes[0].replacement)
-
+            self.assertEqual(f.editor.edit_status(),(0,0,False))
+            macro=next(m for m in f.editor.snapshot().characters[0].macros if macro_key(m)==f.specs[0]['key'])
+            line=macro.lines[f.specs[0]['line']-1]
+            self.assertIn('02010201',[t.identity for t in line.tokens])
 
 @unittest.skipUnless(os.environ.get('FF11_RUN_INTEGRATION')=='1','Enable synthetic Tk checks')
 class PhraseUITests(unittest.TestCase):
+    def tearDown(self):
+        # Release destroyed Tk cycles on their owner before another test starts a worker.
+        import gc
+        gc.collect()
+
     def test_keyboard_search_selection_cancel_and_atomic_delete(self):
         import tkinter as tk
         from ff11reader.phrase_ui import PhraseEntry
@@ -193,6 +191,8 @@ class PhraseUITests(unittest.TestCase):
                 view.inspect_macro(macro);view.edit_selected_macro();app.update()
                 editor=view.macro_panel.frame
                 fields=[w for w in descendants(editor) if isinstance(w,tk.Entry)]
+                with patch('ff11reader.macro_editor_ui.ime_composing',return_value=False):
+                    view.macro_panel.toggle_line(f.specs[0]['line'])
                 entry=fields[f.specs[0]['line']];entry.delete(0,'end');entry.insert(0,'/ma ')
                 entry.focus_force();entry.event_generate('<Tab>');app.update()
                 popup=next(w for w in descendants(editor) if isinstance(w,tk.Toplevel))
@@ -204,8 +204,8 @@ class PhraseUITests(unittest.TestCase):
                 preview=next(w for w in app.winfo_children() if isinstance(w,tk.Toplevel) and '作業データ' in w.title())
                 preview.accept_button.invoke();app.update()
                 plan=f.preview();self.assertIn(bytes.fromhex('FD02010201FD'),plan.files[0].changes[0].replacement)
-                before=f.bytes();button(app,'変更を保存…').invoke();app.update()
-                saving=next(w for w in app.winfo_children() if isinstance(w,tk.Toplevel) and '一括保存' in w.title())
+                before=f.bytes();button(app,'ゲームへ書き戻す…').invoke();app.update()
+                saving=next(w for w in app.winfo_children() if isinstance(w,tk.Toplevel) and 'ゲームへ書き戻す' in w.title())
                 self.assertEqual(f.bytes(),before)
                 save=f.editor.save_combined
                 with patch.object(application,'load_snapshot',side_effect=lambda _:f.load()),patch.object(f.editor,'save_combined',side_effect=lambda plan,root:save(plan,base/'backups')):

@@ -112,7 +112,7 @@ class ManualMacroSavingTests(unittest.TestCase):
                 folder=f.save(plan);self.assertEqual(f.bytes(),expected);self.assertFalse(f.editor.session.dirty)
                 receipt=json.loads((folder/'receipt.json').read_text(encoding='utf-8'));self.assertEqual(receipt['kind'],'macro-edit')
                 for i,file in enumerate(plan.files):self.assertEqual((folder/f'{i:03}.original.dat').read_bytes(),before[Path(file.target)])
-                f.reopen();self.assertIsNone(f.editor.blocked);self.assertFalse(f.editor.session.dirty)
+                self.assertIsNone(f.editor.blocked);self.assertFalse(f.editor.session.dirty)
                 f.editor.undo();self.assertTrue(f.editor.session.dirty);self.assertEqual(f.bytes(),expected)
                 f.editor.redo();self.assertFalse(f.editor.session.dirty)
                 self.assertEqual(len(macro_saving.restore_macro_backup(folder)),2)
@@ -121,9 +121,9 @@ class ManualMacroSavingTests(unittest.TestCase):
         with isolated() as base:
             f=ManualFixture(base,'macro',7,1);token=bytes.fromhex('fd07010064fd');f.set_line(b'/echo '+token)
             f.edit_line('/say 【Robe0】');f.edit_line('/echo 【Robe0】 <wait 1>')
-            f.reopen();self.assertIsNone(f.editor.blocked)
+            self.assertIsNone(f.editor.blocked)
             plan=f.preview();self.assertIn(token,plan.files[0].changes[0].replacement);f.save(plan)
-            f.edit_line('/echo removed');f.save(f.preview());f.reopen();f.editor.undo()
+            f.edit_line('/echo removed');f.save(f.preview());f.editor.undo()
             restored=f.preview();self.assertIn(token,restored.files[0].changes[0].replacement)
             f.save(restored);f.reopen();self.assertFalse(f.editor.session.dirty)
             self.assertIn(token,next(iter(f.original)).read_bytes())
@@ -182,13 +182,7 @@ class ManualMacroSavingTests(unittest.TestCase):
                         with self.assertRaises(RuntimeError):f.save(plan)
                     self.assertEqual(f.bytes(),before);self.assertTrue(f.editor.session.dirty)
                 else:
-                    save=f.editor.store.save;calls=0
-                    def broken(session):
-                        nonlocal calls
-                        calls+=1
-                        if calls==2:raise OSError('synthetic checkpoint failure')
-                        return save(session)
-                    with patch.object(f.editor.store,'save',side_effect=broken):
+                    with patch.object(f.editor.journal,'finish',side_effect=OSError('cleanup')):
                         with self.assertRaises(RuntimeError):f.save(plan)
                     f.reopen();self.assertIsNone(f.editor.blocked);self.assertFalse(f.editor.session.dirty)
 
@@ -207,7 +201,7 @@ class ManualMacroSavingTests(unittest.TestCase):
                     if result:return result
             try:
                 with patch('ff11reader.ui.Editor',return_value=f.editor):view=ReaderWindow(app,f.load())
-                before=f.bytes();find(app,'変更を保存…').invoke();app.update()
+                before=f.bytes();find(app,'ゲームへ書き戻す…').invoke();app.update()
                 window=next(w for w in app.winfo_children() if isinstance(w,tk.Toplevel))
                 detail=next(w for w in window.winfo_children() if isinstance(w,tk.Text)).get('1.0','end')
                 self.assertIn('名前',detail);self.assertIn('/echo custom',detail);self.assertEqual(f.bytes(),before)

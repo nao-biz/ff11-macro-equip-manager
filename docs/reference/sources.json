@@ -669,5 +669,27 @@
       "Installed dictionaries read successfully: 2048 entries per language; source hashes unchanged"
     ],
     "caution": "Dictionary IDs are not extdata encoded augment IDs. Join language resources by dictionary ID only. Single numeric templates are used for normalization; unsupported templates remain excluded. Game assets are not distributed."
+  },
+  {
+    "id": "S-RANK-AUGMENTS",
+    "type": "format documentation and local read-only verification",
+    "repo": "LandSandBoat/server",
+    "paths": [
+      "scripts/data/augments.lua",
+      "scripts/enum/augment.lua",
+      "src/map/items/exdata/augment_bundle.h"
+    ],
+    "supports": [
+      "MNC2 bundle index at file offset 176, six uint16 references; 76-byte records at offset 12464",
+      "bundle extdata bit layout and parametric effect definitions",
+      "local FTABLE logical 0x51 resolves to ROM/118/114.DAT; Japanese formats from 0xD914"
+    ],
+    "caution": "Format facts only; third-party tables and implementation code are not distributed. Runtime reads installed game DAT. Full in-game verification across all ranks remains outstanding.",
+    "accessed": "2026-11-09",
+    "urls": [
+      "https://github.com/LandSandBoat/server/blob/base/scripts/data/augments.lua",
+      "https://github.com/LandSandBoat/server/blob/base/scripts/enum/augment.lua",
+      "https://github.com/LandSandBoat/server/blob/base/src/map/items/exdata/augment_bundle.h"
+    ]
   }
 ]

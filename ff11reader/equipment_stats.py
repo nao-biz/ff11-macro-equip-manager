@@ -2,7 +2,7 @@
 from collections import defaultdict
 from dataclasses import dataclass
 from decimal import Decimal
-from .equipment_stat_parser import analyze_line, parse_line, path_metadata
+from .equipment_stat_parser import analyze_line, parse_line
 
 BASE=('HP','MP','STR','DEX','VIT','AGI','INT','MND','CHR')
 
@@ -79,10 +79,11 @@ def _slot_stats(slot, items, observation, names):
         if augmented is None or augmented.decode_state!='decoded':
             unavailable(source,'オグメ能力が未確認')
         else:
-            for line in augmented.augments:
+            resolved = observation.abilities(augmented)
+            for line in resolved.lines:
                 add(source+' / オグメ',line)
-            if augmented.path and not any(line.strip() and not path_metadata(line) for line in augmented.augments):
-                unavailable(source,'Path '+augmented.path+' の能力が未取得')
+            if not resolved.complete:
+                unavailable(source,resolved.reason)
     return EquipmentStats(_ordered(totals),tuple(excluded),tuple(included),incomplete,available or not incomplete,
                           unparsed=tuple(unparsed),missing=tuple(missing),uncertain=frozenset(uncertain))
 

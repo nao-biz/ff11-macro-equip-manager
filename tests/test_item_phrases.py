@@ -43,11 +43,12 @@ class ItemTests(unittest.TestCase):
                 phrase=next(p for p in PhraseCatalog({},items=ITEMS).search('') if p.identity==item_identity(item))
                 value=replace_range(Text('/item ','','draft'),6,6,phrase.label,phrase.identity)
                 before=f.bytes();f.set_value(value);self.assertEqual(f.bytes(),before)
-                f.editor.undo();f.editor.redo();f.reopen();self.assertIsNone(f.editor.blocked)
+                f.editor.undo();f.editor.redo();self.assertIsNone(f.editor.blocked)
                 plan=f.preview();expected=bytes.fromhex('FD'+phrase.identity+'FD')
                 self.assertIn(expected,plan.files[0].changes[0].replacement)
                 f.save(plan);f.reopen();self.assertIsNone(f.editor.blocked)
                 self.assertFalse(f.editor.session.dirty)
+                self.assertEqual(f.editor.edit_status(),(0,0,False))
 
     def test_unknown_item_rejected(self):
         value=replace_range(Text('','','draft'),0,0,'【未知】',item_identity(10))

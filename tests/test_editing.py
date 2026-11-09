@@ -10,7 +10,6 @@ from ff11reader.fixes import plan_fixes
 from ff11reader.macro_inventory import assess_macro_inventory, parse_equip
 from ff11reader.editing import EditSession, Edit, Change, edit_macro, plan_macro_fixes
 from ff11reader.edit_application import Editor
-from ff11reader.draft_store import DraftStore
 
 
 TEMP_ROOT=Path(__file__).resolve().parents[1]/'work'/'edit-tests'
@@ -96,24 +95,16 @@ class EditingTests(unittest.TestCase):
         good=edit_macro(other,m,'Other',[l.display for l in m.lines])
         session.apply(Edit('batch',edit.changes+good.changes));session.undo();self.assertFalse(session.dirty)
 
-    def test_persistence_redo_conflict_and_failed_save(self):
+    def test_restart_and_other_instance_begin_from_game(self):
         with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as tmp:
             path=Path(tmp)/'draft.json';s=snapshot();c=s.characters[0]
-            editor=Editor(s,path);plan=plan_macro_fixes(c,s.items)
-            editor.macro_fixes('one',plan);editor.undo()
-            resumed=Editor(s,path);self.assertFalse(resumed.blocked);self.assertEqual(len(resumed.session.history),1)
-            resumed.redo();self.assertTrue(resumed.session.dirty)
-            with self.assertRaises(ValueError):editor.redo()  # second app instance
-            self.assertFalse(path.with_suffix('.lock').exists())
-            with patch.object(resumed.store,'save',side_effect=OSError('disk full')):
-                with self.assertRaises(OSError):resumed.undo()
-            self.assertTrue(resumed.session.dirty)
-            changed=snapshot();changed.sources[0]['sha256']='changed'
-            conflict=Editor(changed,path);self.assertTrue(conflict.blocked)
-            before=path.read_bytes()
-            with self.assertRaises(ValueError):conflict.undo()
-            self.assertEqual(before,path.read_bytes())
-            conflict.start_fresh();self.assertTrue(list(Path(tmp).glob('*.archived-*.json')))
+            editor=Editor(s,path);editor.macro_fixes('one',plan_macro_fixes(c,s.items))
+            editor.undo();editor.redo();self.assertTrue(editor.session.dirty)
+            reopened=Editor(s,path);self.assertIsNone(reopened.blocked)
+            self.assertEqual(reopened.edit_status(),(0,0,False))
+            self.assertEqual(reopened.snapshot(),s)
+            self.assertFalse(path.exists())
+            editor.undo();self.assertFalse(editor.session.dirty)
 
     def test_fix_recomputed_and_no_game_save_dependency(self):
         with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as tmp:
@@ -127,10 +118,10 @@ class EditingTests(unittest.TestCase):
     def test_corrupt_draft_is_preserved(self):
         with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as tmp:
             path=Path(tmp)/'draft.json';path.write_text('broken')
-            e=Editor(snapshot(),path);self.assertTrue(e.blocked)
+            e=Editor(snapshot(),path);self.assertIsNone(e.blocked)
             self.assertEqual(path.read_text(),'broken')
 
-    def test_equipment_and_macro_share_persistent_history(self):
+    def test_equipment_and_macro_share_session_history(self):
         with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as tmp:
             s=snapshot();c=s.characters[0]
             from ff11reader.edit_values import SLOT_NAMES
@@ -139,7 +130,7 @@ class EditingTests(unittest.TestCase):
             path=Path(tmp)/'draft.json';e=Editor(s,path)
             e.equipment_fixes('one',plan_fixes(c))
             e.macro_fixes('one',plan_macro_fixes(e.session.working.characters[0],s.items))
-            resumed=Editor(s,path);self.assertFalse(resumed.blocked)
+            resumed=e;self.assertFalse(resumed.blocked)
             resumed.undo();self.assertEqual(resumed.session.working.characters[0].equipsets[0].slots[5].index,3)
             resumed.undo();self.assertFalse(resumed.session.dirty)
             resumed.redo();self.assertEqual(resumed.session.working.characters[0].equipsets[0].slots[5].index,3)

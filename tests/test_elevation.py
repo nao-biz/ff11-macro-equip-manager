@@ -34,7 +34,7 @@ class ElevationTests(unittest.TestCase):
                 with patch.object(module,function,side_effect=denied_once(real)),patch.object(elevation,'launch_elevated',side_effect=helper) as launch:
                     backup=f.save(plan)
                 launch.assert_called_once();self.assertTrue((backup/'verified.json').exists())
-                self.assertFalse(f.editor.session.dirty);f.reopen();self.assertIsNone(f.editor.blocked)
+                self.assertFalse(f.editor.session.dirty);self.assertIsNone(f.editor.blocked)
                 f.editor.undo();self.assertTrue(f.editor.session.dirty)
                 self.assertFalse(list((base/'backups').glob('save-request-*')))
 
@@ -44,7 +44,7 @@ class ElevationTests(unittest.TestCase):
             with patch.object(macro_saving,'execute_macro_save',side_effect=PermissionError()),patch.object(elevation,'launch_elevated',side_effect=RuntimeError('管理者確認を取り消しました')):
                 with self.assertRaisesRegex(RuntimeError,'取り消し'):f.save(plan)
             self.assertEqual(f.bytes(),before);self.assertTrue(f.editor.session.dirty)
-            self.assertFalse(f.editor.store.path.with_suffix('.pending.json').exists())
+            self.assertFalse(f.editor.journal.path.exists())
             self.assertFalse(list((base/'backups').glob('save-request-*')))
             f.save(plan);self.assertFalse(f.editor.session.dirty)
 
@@ -80,7 +80,7 @@ class ElevationTests(unittest.TestCase):
             real=equipment_saving.execute_equipment_save
             with patch.object(equipment_saving,'execute_equipment_save',side_effect=denied_once(real)),patch.object(elevation,'launch_elevated',side_effect=lost_result):
                 with self.assertRaises(RuntimeError):f.save(plan)
-            self.assertTrue(f.editor.blocked);self.assertTrue(f.editor.store.path.with_suffix('.pending.json').exists())
+            self.assertTrue(f.editor.blocked);self.assertTrue(f.editor.journal.path.exists())
             f.reopen();self.assertIsNone(f.editor.blocked);self.assertFalse(f.editor.session.dirty)
 
     def test_normal_save_does_not_request_elevation(self):
