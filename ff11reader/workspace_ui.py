@@ -3,7 +3,7 @@ import tkinter as tk
 from tkinter import ttk
 from .theme import BG, PANEL, FG, MUTED, SELECT, ACCENT, BORDER, WARNING, ModeTabs, install
 from .ui_actions import ActionButton
-from .equipment_summary_ui import EquipmentSummary, operation_menu
+from .equipment_summary_ui import EquipmentSummary
 from .macro_editor_ui import MacroPanel
 from .item_properties_ui import ItemPropertyPanel
 
@@ -26,7 +26,8 @@ def build(view):
     view.reload_button = ActionButton(toolbar, busy=True, busy_message='ゲームデータを読み込んでいます…',
                                      text='ゲームデータを再読み込み', command=view.reload_data,
                                      state='normal' if view.editor.root is not None else 'disabled')
-    view.reload_button.pack(side='right')
+    view.common_actions = ttk.Frame(app, padding=(18, 3))
+    view.common_actions.pack(fill='x')
     view.mode = tk.StringVar(value='装備セット')
     view.tabs = ModeTabs(app, view.mode, view.change_mode)
     view.tabs.pack(fill='x')
@@ -103,13 +104,10 @@ def build(view):
         ('edit_button', '選択マクロを編集', view.edit_selected_macro),
         ('undo_button', 'Undo', view.undo_fix), ('redo_button', 'Redo', view.redo_edit),
         ('reset_button', '未保存の変更を破棄', view.reset_edits)]
-    buttons = []
     for name, text, command in entries:
         button = ActionButton(hidden, busy=True, text=text, command=command)
         setattr(view, name, button)
-        buttons.append(button)
-    view.operation_button, view.operation_menu = operation_menu(heading, buttons)
-    view.operation_button.pack_configure(side='right')
+    # Shared actions are composed after save_button exists.
     view.side_content = ttk.Frame(view.right_panel)
     view.side_content.pack(fill='both', expand=True)
     right = view.side_content
@@ -157,6 +155,8 @@ def build(view):
     view.save_button = ActionButton(bottom, busy=True, text='ゲームへ書き戻す…', style='Primary.TButton',
                                    command=view.preview_combined_save)
     view.save_button.pack(side='right', padx=(10, 0))
+    from .common_actions_ui import build_common_actions
+    build_common_actions(view)
     view.body.pack_forget()
     view.legend.pack_forget()
     view.legend.pack(side='bottom',fill='x')

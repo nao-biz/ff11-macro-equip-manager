@@ -206,3 +206,52 @@ class CommonUIAcceptanceTests(MoveFixture):
                 self.key(windows[0],'Escape')
                 self.assertFalse(windows[0].winfo_exists())
                 self.assertIs(self.app.focus_get(),origin)
+
+    def test_common_actions_keep_scope_and_tab_during_checks(self):
+        view=self.open_view()
+        names=('編集','チェック','取り込み・再読込','書き戻し')
+        self.assertEqual(tuple(view.common_menus),names)
+        labels=lambda menu:tuple(menu.entrycget(i,'label') for i in range(menu.index('end')+1))
+        original={name:labels(menu) for name,menu in view.common_menus.items()}
+        history=self.editor.edit_status()
+        for mode in ('マクロ','装備セット','インベントリ'):
+            view.tabs.select(mode);self.app.update()
+            scope=view.common_scope.cget('text')
+            self.assertIn('abc',scope)
+            for name,control in view.common_menu_buttons.items():
+                self.assertTrue(control.winfo_ismapped())
+                self.assertLess(control.winfo_rooty(),view.tabs.winfo_rooty())
+                self.assertEqual(labels(view.common_menus[name]),original[name])
+            for index in range(4):
+                view.common_menus['チェック'].invoke(index);self.app.update()
+                self.assertEqual(view.mode.get(),mode)
+                self.assertEqual(self.editor.edit_status(),history)
+                window=next(w for w in self.app.winfo_children() if isinstance(w,tk.Toplevel))
+                self.key(window,'Escape')
+                self.assertFalse(window.winfo_exists())
+            with patch('ff11reader.ui.filedialog.askopenfilename',return_value='') as choose:
+                view.common_menus['取り込み・再読込'].invoke(0)
+                choose.assert_called_once()
+            self.assertEqual(view.mode.get(),mode)
+            self.assertEqual(self.editor.edit_status(),history)
+
+    def test_check_result_opens_target_only_on_decision(self):
+        from tkinter import ttk
+        from ff11reader.editing import macro_key
+        macro=self.source.characters[0].macros[0]
+        edit=self.editor.prepare_macro_edit('abc',macro_key(macro),macro.title,('/equipset 2',)+macro.lines[1:])
+        self.editor.apply(edit)
+        self.source=self.editor.snapshot()
+        view=self.open_view('インベントリ')
+        view.common_menus['チェック'].invoke(2);self.app.update()
+        self.assertEqual(view.mode.get(),'インベントリ')
+        window=next(w for w in self.app.winfo_children() if isinstance(w,tk.Toplevel))
+        notebook=next(w for w in window.winfo_children() if isinstance(w,ttk.Notebook))
+        page=notebook.nametowidget(notebook.tabs()[0])
+        listing=next(w for w in page.winfo_children() if isinstance(w,tk.Listbox))
+        listing.selection_set(0)
+        self.key(listing,'Return')
+        self.assertFalse(window.winfo_exists())
+        self.assertEqual(view.mode.get(),'マクロ')
+        self.assertIsNotNone(view.active_macro)
+        self.assertIs(self.app.focus_get(),view.macro_panel.entries[1])

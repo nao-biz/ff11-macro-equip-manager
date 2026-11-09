@@ -60,7 +60,7 @@ class AugmentUITests(MoveFixture):
                 texts=[card.itemcget(node,'text') for node in card.find_all() if card.type(node)=='text']
                 self.assertTrue(view.equipment_summary.frame.winfo_manager())
                 self.assertFalse(view.import_button.winfo_manager())
-                self.assertTrue(view.operation_button.winfo_manager())
+                self.assertTrue(view.common_menu_buttons['取り込み・再読込'].winfo_manager())
                 self.assertIn('集計外',view.equipment_summary.note.cget('text'))
                 self.assertIn('Path B',texts)
                 self.assertFalse(set(texts) & {'一致','Fix可能','候補が複数','候補なし'})

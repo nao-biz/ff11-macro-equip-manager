@@ -47,7 +47,7 @@ class ExecutionBoundaryTests(MoveFixture):
                 stack.enter_context(patch('ff11reader.ui.dialogs.askyesno',return_value=True))
                 stack.enter_context(patch('ff11reader.ui.dialogs.showerror',side_effect=AssertionError('Unexpected UI error')))
                 view.run_edit(lambda:self.editor.apply(edit))
-                edit_menu=app.nametowidget(view.operation_menu.entrycget(0,'menu'))
+                edit_menu=view.common_menus['編集']
                 edit_menu.invoke('Undo')
                 view.redo_button.invoke()
                 view.save_button.invoke()

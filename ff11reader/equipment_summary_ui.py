@@ -168,24 +168,3 @@ class EquipmentSummary:
         bar.pack(side='right', fill='y'); text.pack(fill='both', expand=True)
         text.insert('1.0', self.details_text()); text.configure(state='disabled')
         dialogs.child_navigation(window, text)
-
-
-def operation_menu(parent,buttons):
-    """Menu delegates to existing ActionButtons, preserving state and busy behavior."""
-    menu=tk.Menu(parent,tearoff=False,bg=PANEL,fg=FG,activebackground=SELECT)
-    groups={name:tk.Menu(menu,tearoff=False,bg=PANEL,fg=FG,activebackground=SELECT) for name in ('編集','確認・補正','個体情報','作業')}
-    entries=[]
-    for button in buttons:
-        label=button.cget('text')
-        group='個体情報' if '個体情報' in label else '作業' if 'リセット' in label else '確認・補正' if any(x in label for x in ('確認','補正','未参照')) else '編集'
-        child=groups[group];index=child.index('end');index=0 if index is None else index+1
-        child.add_command(label=label,command=button.invoke)
-        entries.append((child,index,button))
-        button.pack_forget()
-    def sync():
-        for child,index,button in entries:child.entryconfigure(index,state='disabled' if button.instate(['disabled']) else 'normal')
-    for name,child in groups.items():
-        child.configure(postcommand=sync);menu.add_cascade(label=name,menu=child)
-    menu.configure(postcommand=sync)
-    control=ttk.Menubutton(parent,text='操作 ▾',menu=menu);control.pack(side='left',padx=8)
-    return control,menu

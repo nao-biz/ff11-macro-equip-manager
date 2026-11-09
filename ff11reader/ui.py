@@ -95,15 +95,15 @@ class ReaderWindow:
   if name is None:return
   try:background(self.app,set_character_label,self.snapshot,self.character,name)
   except (ValueError,OSError) as e:dialogs.showerror('保存できません',str(e),parent=self.app);return
-  i=self.character_choice.current();self.character_choice.configure(values=self.character_labels());self.character_choice.current(i)
+  i=self.character_choice.current();self.character_choice.configure(values=self.character_labels());self.character_choice.current(i);self.update_edit_status()
  def preview_fixes(self):
   c=self.character
   if not c:return
-  plan=preview_reference_fixes(self.snapshot,c)
-  window=tk.Toplevel(self.app,background=BG);window.title('装備セットの参照位置を補正 / プレビュー');window.geometry('950x650')
+  plan=background(self.app,preview_reference_fixes,self.snapshot,c)
+  window=tk.Toplevel(self.app,background=BG);window.title('装備セットの参照位置チェック');window.geometry('950x650')
   dialogs.fit_to_screen(window)
   ttk.Label(window,text=f'{c.folder_id}  ·  更新案 {len(plan.changes)}枠  ·  保留 {len(plan.issues)}枠',padding=12).pack(anchor='w')
-  ttk.Label(window,text='表示した参照位置を作業データへ反映します。適用後はUndoで戻せます。\nゲームへの保存は別の操作です。この変更を適用してよいですか？',padding=8).pack(anchor='w')
+  ttk.Label(window,text='チェック結果です。「補正を適用」で作業データの参照位置を変更できます。適用後はUndoで戻せます。',padding=8).pack(anchor='w')
   text=tk.Text(window,wrap='word',bg=PANEL,fg=FG,font=('MS Gothic',11),padx=12,pady=12)
   text.pack(fill='both',expand=True,padx=12)
   for x in plan.changes:
@@ -120,8 +120,15 @@ class ReaderWindow:
    window.destroy()
    self.footer.configure(text=f'アプリ内の作業データに {len(plan.changes)}枠のFixを適用しました。')
   dialogs.confirm_buttons(window,apply,enabled=bool(plan.changes) and not self.editor.blocked)
+  window.accept_button.configure(text='補正を適用')
+  window.cancel_button.configure(text='閉じる')
  @traced('ui.update_edit_status')
  def update_edit_status(self):
+  character=getattr(self,'character',None)
+  name=(character.display_name or character.folder_id) if character else '未選択'
+  self.common_scope.configure(text=f'チェック・取り込み対象: {name}')
+  for button in (self.fix_button,self.macro_fix_button,self.links_button,self.unused_button,self.import_button):
+   button.configure(state='normal' if character else 'disabled')
   cursor,history_length,dirty=self.editor.edit_status()
   pending=self.macro_panel.has_pending()
   self.undo_button.configure(state='normal' if cursor and not self.editor.blocked else 'disabled')
@@ -262,6 +269,7 @@ class ReaderWindow:
  def change_character(self,event=None):
   self.editor.clear_transfer()
   self.change_mode()
+  self.update_edit_status()
  @traced('ui.change_mode')
  def change_mode(self):
   if not self.character:return
@@ -741,7 +749,7 @@ class ReaderWindow:
   if not c:return
   all_refs=background(self.app,assess_macro_inventory,c,self.snapshot.items)
   refs=[]
-  window=tk.Toplevel(self.app,background=BG);window.title('マクロの収納番号を確認・補正');window.geometry('1050x700')
+  window=tk.Toplevel(self.app,background=BG);window.title('マクロの収納番号を確認・補正 / '+(c.display_name or c.folder_id));window.geometry('1050x700')
   dialogs.child_navigation(window)
   dialogs.fit_to_screen(window)
   ttk.Label(window,text='選択中のキャラクターの /equip を照合 · Fixは収納番号を追加・変更',padding=10).pack(anchor='w')
@@ -773,9 +781,10 @@ class ReaderWindow:
   def open_macro():
    if not listing.curselection():return
    address=refs[listing.curselection()[0]].address
-   self.mode.set('マクロ');self.change_mode();item=f'palette-{address[0]}-{address[1]}'
+   self.character_choice.current(next(i for i,x in enumerate(self.snapshot.characters) if x.folder_id==c.folder_id))
+   self.mode.set('マクロ');self.change_character();item=f'palette-{address[0]}-{address[1]}'
    self.macro_tree.selection_set(item);self.macro_tree.see(item);self.select_macro_palette()
-   self.inspect_macro(next(m for m in self.character.macros if macro_key(m)==address));window.destroy()
+   self.inspect_macro(next(m for m in self.character.macros if macro_key(m)==address));window.destroy();self.macro_panel.entries[1].focus_set()
   ttk.Button(buttons,text='マクロを開く',command=open_macro).pack(side='left')
   listing.bind('<Return>',lambda event:(open_macro(),'break')[1])
   def populate(event=None):
@@ -797,7 +806,7 @@ class ReaderWindow:
   c=self.character
   if not c:return
   report=background(self.app,inspect_macro_set_links,self.snapshot,c)
-  window=tk.Toplevel(self.app,background=BG);window.title('マクロと装備セットの参照確認');window.geometry('950x620')
+  window=tk.Toplevel(self.app,background=BG);window.title('マクロと装備セットの参照確認 / '+(c.display_name or c.folder_id));window.geometry('950x620')
   dialogs.child_navigation(window)
   dialogs.fit_to_screen(window)
   ttk.Label(window,text='読み取ったマクロの /equipset・/lockstyleset を、同じキャラの装備セットと照合します。',padding=10).pack(anchor='w')
@@ -818,7 +827,7 @@ class ReaderWindow:
     if not selected or not items:return
     value=items[selected[0]][1]
     self.character_choice.current(next(i for i,x in enumerate(self.snapshot.characters) if x.folder_id==c.folder_id))
-    self.mode.set('装備セット' if isinstance(value,int) else 'マクロ');self.change_mode()
+    self.mode.set('装備セット' if isinstance(value,int) else 'マクロ');self.change_character()
     index=next(i for i,x in enumerate(self.navigation) if (x.number==value if isinstance(value,int) else x==(value.book,value.palette)))
     if isinstance(value,int):
      self.nav.selection_clear(0,'end');self.nav.selection_set(index);self.nav.see(index);self.select_navigation()
@@ -829,6 +838,8 @@ class ReaderWindow:
      macro=next(m for m in self.character.macros if (m.book,m.palette,m.bank,m.key)==value.address)
      self.inspect_macro(macro)
     window.destroy()
+    if isinstance(value,int):self.nav.focus_set()
+    else:self.macro_panel.entries[1].focus_set()
    ttk.Button(frame,text='選択した対象を開く',command=open_selected,state='normal' if rows else 'disabled').pack(pady=8)
    listing.bind('<Double-Button-1>',lambda event,command=open_selected:command())
    listing.bind('<Return>',lambda event,command=open_selected:(command(),'break')[1])
@@ -836,7 +847,7 @@ class ReaderWindow:
   c=self.character
   if not c:return
   report=background(self.app,inspect_wardrobe_usage,self.snapshot,c)
-  window=tk.Toplevel(self.app,background=BG);window.title('ワードローブの未参照アイテム');window.geometry('1000x680')
+  window=tk.Toplevel(self.app,background=BG);window.title('ワードローブの未参照アイテム / '+(c.display_name or c.folder_id));window.geometry('1000x680')
   dialogs.child_navigation(window)
   dialogs.fit_to_screen(window)
   counts=Counter(r.state for r in report)
@@ -865,6 +876,7 @@ class ReaderWindow:
    row=visible[int(selection[0])].item
    self.character_choice.current(next(i for i,x in enumerate(self.snapshot.characters) if x.folder_id==c.folder_id))
    self.open_inventory(row.container,row.index);window.destroy()
+   self.update_edit_status();self.card_widgets[row.index].focus_set()
   open_button=ttk.Button(window,text='インベントリで開く',command=open_selected);open_button.pack(pady=(0,10))
   listing.bind('<Double-Button-1>',lambda event:open_selected())
   listing.bind('<Return>',lambda event:(open_selected(),'break')[1])
