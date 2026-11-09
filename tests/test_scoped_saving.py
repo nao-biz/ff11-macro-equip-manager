@@ -10,11 +10,11 @@ from dataclasses import replace
 class ScopedSaveTests(MoveFixture):
     def test_narrow_plan_matches_full_plan_and_copies_only_changed_records(self):
         from ff11reader.combined_saving import prepare_combined_save
-        from ff11reader.save_state import scoped_snapshot
+        scoped_snapshot = SnapshotState.save_input
         self.rename('Narrow')
         session = self.editor._session
         expected = prepare_combined_save(session.saved, session.working, 'abc', ())
-        with patch('ff11reader.save_state.scoped_snapshot', wraps=scoped_snapshot) as copying:
+        with patch.object(SnapshotState, 'save_input', autospec=True, side_effect=scoped_snapshot) as copying:
             actual = self.editor.prepare_writeback()[0]
         self.assertEqual(actual, expected)
         for call in copying.call_args_list:
@@ -71,11 +71,11 @@ class ScopedSaveTests(MoveFixture):
 
     def test_unrelated_characters_are_not_materialized_or_selected(self):
         from ff11reader.edit_application import Editor
-        from ff11reader.save_state import scoped_snapshot
+        scoped_snapshot = SnapshotState.save_input
         extra = [replace(self.source.characters[0], folder_id=f'extra{i}') for i in range(20)]
         self.editor = Editor(replace(self.source, characters=self.source.characters+extra), self.base/'many.json')
         self.rename('B')
-        with patch('ff11reader.save_state.scoped_snapshot', wraps=scoped_snapshot) as materialize:
+        with patch.object(SnapshotState, 'save_input', autospec=True, side_effect=scoped_snapshot) as materialize:
             plans = self.editor.prepare_writeback()
         self.assertEqual([call.args[1] for call in materialize.call_args_list], ['abc', 'abc'])
         self.assertEqual(len(plans), 1)
@@ -100,7 +100,7 @@ class ScopedSaveTests(MoveFixture):
         return {p.name:p.read_bytes() for p in self.folder.iterdir()}
 
     def test_exported_plan_inputs_cannot_mutate_saved_or_working(self):
-        from ff11reader.save_state import scoped_snapshot
+        scoped_snapshot = SnapshotState.save_input
         before = self.editor.snapshot()
         detached = scoped_snapshot(self.editor._session._working, 'abc')
         detached.characters[0].macros.clear()

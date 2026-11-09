@@ -55,10 +55,12 @@ class SlotFixture(unittest.TestCase):
 
 class SlotEditingTests(SlotFixture):
     def test_save_context_keeps_new_item_dictionary_in_saved_side(self):
-        from ff11reader.save_state import SaveRequest, scoped_snapshot
+        from ff11reader.save_state import SaveRequest
+        from ff11reader.edit_state import SnapshotState
+        scoped_snapshot = SnapshotState.save_input
         self.edit('body', 'equip', (0x2801,8,7))
         request = SaveRequest.capture(self.editor._session)
-        with patch('ff11reader.save_state.scoped_snapshot', wraps=scoped_snapshot) as copying:
+        with patch.object(SnapshotState, 'save_input', autospec=True, side_effect=scoped_snapshot) as copying:
             request.prepare('abc')
         for call in copying.call_args_list:
             context = scoped_snapshot(*call.args)

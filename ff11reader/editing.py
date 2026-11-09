@@ -114,6 +114,27 @@ class EditSession:
     def read(self, folder, kind, address): return self._working.read(folder,kind,address)
     def history_length(self): return len(self._history)
 
+    def changes_since_save(self): return self._working.changed_identities(self._saved)
+
+    def character_folders(self): return self._working.character_folders()
+
+    def record_addresses(self, folder, kind): return self._working.record_addresses(folder, kind)
+
+    def save_inputs(self, folder, identities):
+        """Detached paired inputs plus the owned, persistent source index."""
+        item_ids = self._saved.equipment_item_ids(identities) | self._working.equipment_item_ids(identities)
+        return (self._saved.save_input(folder, identities, item_ids),
+                self._working.save_input(folder, identities, item_ids), self._saved.source_index())
+
+    def record_saved(self, folder, replacements):
+        if any(identity[0] != folder for identity in replacements):
+            raise ValueError('保存済み更新に別キャラのレコードが含まれています。')
+        self._saved = self._saved.updated(replacements)
+        self.mark_movement_saved(folder)
+
+    def record_saved_files(self, files):
+        self._saved = self._saved.with_saved_files(files)
+
     def has_pending_atomic(self,folder):
         if not any(e.atomic and any(c.character==folder for c in e.changes) for e in self._history):return False
         return character_value(self._working.read_character(folder))!=character_value(self._saved.read_character(folder))

@@ -272,3 +272,14 @@ def restore_macro_backup(folder,apply=False):
             atomic_replace(target,raw)
             if target.read_bytes()!=raw:raise OSError('復元後検証に失敗しました。')
     return tuple(str(p) for p,_,_ in entries)
+
+
+def sync_macro_raw(files, macro):
+    """Normalize model provenance from the verified file output."""
+    page = (macro.book-1)*10+macro.palette-1
+    file = next((f for f in files if f.page == page), None)
+    offset = 24+((0 if macro.bank == 'ctrl' else 10)+macro.key-1)*380
+    raw = file.replacement[offset:offset+380] if file else bytes.fromhex(macro.raw_hex)
+    if not raw: return macro
+    return replace(macro, raw_hex=raw.hex(), title=replace(macro.title, raw_hex=raw[370:380].hex()),
+                   lines=tuple(replace(t, raw_hex=raw[4+i*61:65+i*61].hex()) for i,t in enumerate(macro.lines)))

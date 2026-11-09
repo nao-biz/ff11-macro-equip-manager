@@ -15,7 +15,12 @@ jobs:
       - name: Enforce domain to UI boundary
         env:
           PYTHONPATH: work/architecture-tools
-        run: python -X utf8 -c "from importlinter.cli import lint_imports_command; lint_imports_command()" --config tools/architecture/contracts.ini --contract domain-ui --no-cache --no-logo
+        run: python -X utf8 -c "from importlinter.cli import lint_imports_command; lint_imports_command()" --config tools/architecture/contracts.ini --contract domain-ui --contract save-state-storage --no-cache --no-logo
+      - name: Enforce save coordinator public API usage
+        env:
+          PYTHONPATH: work/architecture-tools
+          PYLINTHOME: work/architecture-baseline/pylint-cache
+        run: python -X utf8 -m pylint ff11reader/save_state.py --disable=all --enable=protected-access --score=n --persistent=n
       - uses: actions/upload-artifact@v4
         if: always()
         with:

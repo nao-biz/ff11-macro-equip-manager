@@ -1,10 +1,11 @@
 """Owned persistent edit state. Domain values cross this boundary as detached values."""
-from copy import deepcopy
+from copy import deepcopy, copy
 from dataclasses import fields, is_dataclass, replace
 from immutables import Map
 from .edit_values import key, value, snapshot_value
 from .references import assess_equipment
 from .loaded_files import LoadedFiles
+from .domain import Snapshot
 
 _MISSING = object()
 
@@ -63,6 +64,27 @@ class SnapshotState:
     def same_values(self, other):
         return self._characters == other._characters and self._semantic == other._semantic
 
+    def changed_identities(self, saved):
+        if self._characters != saved._characters or len(self._semantic) != len(saved._semantic) or any(key not in saved._semantic for key in self._semantic):
+            raise ValueError('保存モデルの構成が変わりました。再読み込みしてください。')
+        return frozenset(key for key in self._semantic if self._semantic[key] != saved._semantic[key])
+
+    def character_folders(self): return tuple(c.folder_id for c in self._template.characters)
+
+    def record_addresses(self, folder, kind): return self._orders[folder, kind]
+
+    def equipment_item_ids(self, identities):
+        return {s.item_id for identity in identities if identity[1] == 'equipsets'
+                for s in self._entries[identity].slots if s.item_id}
+
+    def source_index(self): return self._files
+
+    def with_saved_files(self, files):
+        result = copy(self)
+        result._files = self._files.updated(files)
+        result._template = replace(self._template, sources=result._files.sources())
+        return result
+
     def read(self, folder, kind, address):
         return deepcopy(self._entries[folder, kind, address])
 
@@ -117,3 +139,19 @@ class SnapshotState:
                 for e in assess_equipment(c, sources): entries[folder, 'equipsets', (e.number,)] = e
             result._entries = entries.finish()
         return result
+
+    def save_input(self, folder, identities=None, item_ids=None):
+        character = next(c for c in self._template.characters if c.folder_id == folder)
+        if identities is None:
+            identities = {key for key in self._entries if key[0] == folder}
+        records = {kind:[self._entries[folder,kind,address]
+                         for address in self._orders[folder,kind]
+                         if (folder,kind,address) in identities] for kind in ('macros','equipsets')}
+        character = replace(character, **records)
+        template = self._template
+        # Macro token resolution needs the item dictionary; equipment needs only its slot items.
+        if item_ids is None:
+            item_ids = {slot.item_id for e in records['equipsets'] for slot in e.slots if slot.item_id}
+        items = template.items if records['macros'] else {key:template.items[key] for key in item_ids if key in template.items}
+        return deepcopy(Snapshot(template.id, template.captured_at, [character], items,
+                                 template.sources, [], template.installation_key))

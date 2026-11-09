@@ -485,3 +485,7 @@ GUI有効の全件検証は `FF11_RUN_INTEGRATION=1`、`FF11_RUN_GAME_INTEGRATIO
 ### D-01: 静的解析による依存契約と基準値
 
 `tools/architecture/measure.py`で本番2パッケージを測定し、Import Linter/Grimpの依存関係、Pylintの内部アクセス・規模・重複候補、Radonの複雑度を保存する。domain-ui契約を単独実行して適合を確認する。循環依存契約は現状不適合であり、測定成功と設計適合を区別する。CIで測定とdomain-ui契約を実行する。対象範囲と初回値は`tools/architecture/README.md`。
+
+### D-05: 編集状態と保存の公開契約
+
+`test_save_session_contract`で、保存候補・保存入力の独立性、別キャラを混ぜた保存済み更新の拒否、ディスク実行失敗時に候補を公開しないことを検証する。既存の部分保存・Undo・原本情報・差分範囲・保存失敗のテストを維持する。Import Linterのsave-state-storage契約と、save_state.pyのprotected-access警告0件をCIの合否条件に追加する。

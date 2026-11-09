@@ -41,7 +41,7 @@ def main():
         return call
 
     targets = [
-        (save_state, 'scoped_snapshot'),
+        (SnapshotState, 'save_input'),
         (save_state, 'prepare_writeback'),
         (save_state, 'save_checkpoint'),
         (combined_saving, 'prepare_combined_save'),

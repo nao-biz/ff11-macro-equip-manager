@@ -107,6 +107,13 @@ class Editor:
         from .save_state import save_combined
         return save_combined(self,preview,backup_root)
 
+    def capture_save_session(self):
+        return self._session.fork()
+
+    def publish_saved_session(self, session):
+        """Called by the save coordinator only after verified disk execution."""
+        self._session = session
+
     def equipment_candidates(self,character,slot,query=''):
         from .equipment_editing import candidates
         return candidates(self._session.character(character),self._session.item_catalog(),slot,query)
@@ -217,21 +224,10 @@ class Editor:
         next_session.saved=saved
         return self._save_checkpoint(preview,backup_root,next_session,execute_equipment_save)
 
-    @staticmethod
-    def _macro_raw(files,macro):
-        page=(macro.book-1)*10+macro.palette-1
-        file=next((f for f in files if f.page==page),None)
-        if file is None:return macro.raw_hex
-        offset=24+((0 if macro.bank=='ctrl' else 10)+macro.key-1)*380
-        return file.replacement[offset:offset+380].hex()
-
     @classmethod
     def _sync_macro_raw(cls,files,macro):
-        raw_hex=cls._macro_raw(files,macro)
-        if not raw_hex:return macro
-        raw=bytes.fromhex(raw_hex)
-        return replace(macro,raw_hex=raw_hex,title=replace(macro.title,raw_hex=raw[370:380].hex()),
-                       lines=tuple(replace(t,raw_hex=raw[4+i*61:65+i*61].hex()) for i,t in enumerate(macro.lines)))
+        from .macro_saving import sync_macro_raw
+        return sync_macro_raw(files, macro)
 
     def _save_checkpoint(self,preview,backup_root,next_session,execute_save):
         from .save_state import save_checkpoint
