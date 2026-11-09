@@ -16,7 +16,7 @@ import tempfile
 from unittest.mock import patch
 # Load lazy imports before enabling the I/O guard.
 from ff11reader import adapters, application, codecs, equipment_saving, macro_saving, saving, file_transaction, combined_saving, selection_ui, transfer_editing
-from ff11reader import workspace_ui, workspace_state, augment_store, window_placement, dialogs
+from ff11reader import workspace_ui, workspace_state, augment_store, window_placement, dialogs, save_state
 from ff11reader.domain import Character, Snapshot, Text
 from ff11reader.edit_application import Editor
 from ff11reader.editing import Change, Edit, plan_macro_fixes

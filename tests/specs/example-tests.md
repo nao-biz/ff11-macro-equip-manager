@@ -455,3 +455,9 @@ GUI有効の全件検証は `FF11_RUN_INTEGRATION=1`、`FF11_RUN_GAME_INTEGRATIO
 - 共通操作の取消・失敗時は呼出元のタブ、選択、未確定入力を保持する。再読込など編集破棄を伴う操作は既存の保存・終了規則に従う。
 
 2026-11-09 目的別メニューを本体反映。`test_common_actions_keep_scope_and_tab_during_checks`が3タブでの入口・対象表示・4種のチェックの非変更性と取り込み取消を、`test_check_result_opens_target_only_on_decision`が結果から該当マクロへの決定・フォーカス移動を検証する。実行境界・取り込み・終了/保存の既存回帰も実施。上記の「実装待ち」は採用時点の記録とする。
+
+### 保存状態の範囲限定（D-05 / PERF-001）
+
+`test_scoped_saving`で保存計画から書き戻しまで全体Snapshotのexportを禁止しても、装備移動と参照マクロの保存、保存後Undo/Redo、ゲームバイト不変が成立することを検証する。対象キャラだけの計画入力を変更しても内部のworking/savedへ漏れないことも確認する。保存失敗・競合・復旧・部分成功の既存条件は維持する。
+
+性能は合成UIだけでなく、実データをダミーのゲームフォルダへコピーしたE2Eで測る。プロダクションコードとは分離した実験で前後の入力バイト列と保存結果を検証し、結果・測定範囲はexperiments/stack-evaluation/SCOPED-SAVE.mdへ記録する。

@@ -88,15 +88,12 @@ class Editor:
     def has_pending_move(self,folder):return bool(self._session.movement_origins(folder)) or self._session.has_pending_atomic(folder)
 
     def prepare_combined_save(self,folder):
-        if self.blocked:raise ValueError(self.blocked)
-        from .combined_saving import prepare_combined_save
-        return prepare_combined_save(self._session.saved,self._session.working,folder,self._session.movement_origins(folder))
+        from .save_state import prepare_combined_save
+        return prepare_combined_save(self,folder)
 
     def prepare_writeback(self):
-        from .edit_values import character_value
-        saved = {c.folder_id: c for c in self._session.saved.characters}
-        return tuple(self.prepare_combined_save(c.folder_id) for c in self._session.working.characters
-                     if character_value(c) != character_value(saved[c.folder_id]))
+        from .save_state import prepare_writeback
+        return prepare_writeback(self)
 
     def writeback(self, plans, backup_root):
         if plans != self.prepare_writeback():
@@ -107,27 +104,8 @@ class Editor:
         return tuple(backups)
 
     def save_combined(self,preview,backup_root):
-        from .combined_saving import execute_combined_save
-        from .saving import require_game_closed
-        if preview!=self.prepare_combined_save(preview.character):raise ValueError('編集内容が変わりました。保存プレビューを開き直してください。')
-        require_game_closed()
-        next_session=self._session.fork();saved=next_session.saved
-        working=next_session.working
-        updated=next(c for c in working.characters if c.folder_id==preview.character)
-        # Rebuild raw source fields from the actual replacement files.
-        from .codecs import equipsets
-        from .domain import Text
-        decoded={e.number:e for f in (preview.equipment.files if preview.equipment else ()) for e in equipsets(f.replacement,f.page)}
-        updated.equipsets=[decoded.get(e.number,e) for e in updated.equipsets]
-        if preview.macro:
-            changes={(c.address,c.line):c for f in preview.macro.files for c in f.changes}
-            def changed(m,n,old):
-                c=changes.get((macro_key(m),n))
-                return Text(c.after,c.replacement.hex(),'cp932',c.tokens) if c else old
-            updated.macros=[self._sync_macro_raw(preview.macro.files,replace(m,title=changed(m,0,m.title),lines=tuple(changed(m,n,line) for n,line in enumerate(m.lines,1)))) for m in updated.macros]
-        saved.characters=[updated if c.folder_id==preview.character else c for c in saved.characters]
-        next_session.saved=saved;next_session.mark_movement_saved(preview.character)
-        return self._save_checkpoint(preview,backup_root,next_session,execute_combined_save)
+        from .save_state import save_combined
+        return save_combined(self,preview,backup_root)
 
     def equipment_candidates(self,character,slot,query=''):
         from .equipment_editing import candidates
@@ -255,30 +233,5 @@ class Editor:
                        lines=tuple(replace(t,raw_hex=raw[4+i*61:65+i*61].hex()) for i,t in enumerate(macro.lines)))
 
     def _save_checkpoint(self,preview,backup_root,next_session,execute_save):
-        from .saving import digest
-        saved=next_session.saved
-        for source in saved.sources:
-            file=next((f for f in preview.files if Path(f.target).resolve()==Path(source['path']).resolve()),None)
-            if file:source['sha256']=digest(file.replacement)
-        next_session.saved=saved
-        if self.journal.path.exists():raise ValueError('前回のゲーム保存の復旧確認が必要です。')
-        record = self.journal.begin(preview)
-        try:
-            from .elevation import execute_with_permission
-            with record:
-                backup=execute_with_permission(preview,backup_root,execute_save)
-        except Exception as exc:
-            try:unchanged=all(Path(f.target).read_bytes()==f.original for f in preview.files)
-            except OSError:unchanged=False
-            if unchanged:self.journal.finish()
-            else:
-                self.blocked='ゲームへの保存が途中で止まっています。バックアップと復旧用のpending記録を残しています。復旧確認が必要です。'
-                raise RuntimeError(self.blocked+' '+str(exc)) from exc
-            raise
-        try:
-            self._session=next_session
-            self.journal.finish()
-        except Exception as exc:
-            self.blocked=f'ゲームへの保存は完了しましたが、復旧記録の削除に失敗しました。アプリを再起動して復旧を確認してください。バックアップ: {backup}'
-            raise RuntimeError(self.blocked) from exc
-        return backup
+        from .save_state import save_checkpoint
+        return save_checkpoint(self,preview,backup_root,next_session,execute_save)
