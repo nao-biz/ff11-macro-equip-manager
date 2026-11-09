@@ -1,0 +1,1606 @@
+{
+  "source_files": 1871,
+  "copied_bytes": 170100536,
+  "characters": 7,
+  "macros": 33180,
+  "inventory_rows": 4061,
+  "selected_macros": 8000,
+  "rows": [
+    {
+      "sample": "1-0-save_preview",
+      "changed_macros": 1,
+      "iteration": 0,
+      "operation": "save_preview",
+      "elapsed_ms": 11492.057600058615,
+      "max_event_gap_ms": 515.5937999952585
+    },
+    {
+      "sample": "1-0-writeback",
+      "changed_macros": 1,
+      "iteration": 0,
+      "operation": "writeback",
+      "elapsed_ms": 46954.72309994511,
+      "max_event_gap_ms": 872.1593000227585
+    },
+    {
+      "sample": "1-1-save_preview",
+      "changed_macros": 1,
+      "iteration": 1,
+      "operation": "save_preview",
+      "elapsed_ms": 12764.740900020115,
+      "max_event_gap_ms": 763.0465000402182
+    },
+    {
+      "sample": "1-1-writeback",
+      "changed_macros": 1,
+      "iteration": 1,
+      "operation": "writeback",
+      "elapsed_ms": 48735.77789997216,
+      "max_event_gap_ms": 1130.083099938929
+    },
+    {
+      "sample": "1-2-save_preview",
+      "changed_macros": 1,
+      "iteration": 2,
+      "operation": "save_preview",
+      "elapsed_ms": 11823.16729996819,
+      "max_event_gap_ms": 889.035900007002
+    },
+    {
+      "sample": "1-2-writeback",
+      "changed_macros": 1,
+      "iteration": 2,
+      "operation": "writeback",
+      "elapsed_ms": 50044.28569995798,
+      "max_event_gap_ms": 1329.1367000201717
+    },
+    {
+      "sample": "20-0-save_preview",
+      "changed_macros": 20,
+      "iteration": 0,
+      "operation": "save_preview",
+      "elapsed_ms": 12229.606700013392,
+      "max_event_gap_ms": 1125.1335999695584
+    },
+    {
+      "sample": "20-0-writeback",
+      "changed_macros": 20,
+      "iteration": 0,
+      "operation": "writeback",
+      "elapsed_ms": 66743.89990000054,
+      "max_event_gap_ms": 1502.3968999739736
+    },
+    {
+      "sample": "20-1-save_preview",
+      "changed_macros": 20,
+      "iteration": 1,
+      "operation": "save_preview",
+      "elapsed_ms": 12575.496600009501,
+      "max_event_gap_ms": 1224.4453000603244
+    },
+    {
+      "sample": "20-1-writeback",
+      "changed_macros": 20,
+      "iteration": 1,
+      "operation": "writeback",
+      "elapsed_ms": 67524.54629994463,
+      "max_event_gap_ms": 1610.4350000387058
+    },
+    {
+      "sample": "20-2-save_preview",
+      "changed_macros": 20,
+      "iteration": 2,
+      "operation": "save_preview",
+      "elapsed_ms": 12777.531999978237,
+      "max_event_gap_ms": 1439.9029000196606
+    },
+    {
+      "sample": "20-2-writeback",
+      "changed_macros": 20,
+      "iteration": 2,
+      "operation": "writeback",
+      "elapsed_ms": 67697.31940003112,
+      "max_event_gap_ms": 1812.4980999855325
+    }
+  ],
+  "stages": [
+    {
+      "sample": "1-0-save_preview",
+      "stage": "editor.prepare_combined_save",
+      "ms": 6360.907300026156
+    },
+    {
+      "sample": "1-0-save_preview",
+      "stage": "editor.prepare_writeback",
+      "ms": 11322.964899940416
+    },
+    {
+      "sample": "1-0-writeback",
+      "stage": "editor.prepare_combined_save",
+      "ms": 6464.684800012037
+    },
+    {
+      "sample": "1-0-writeback",
+      "stage": "editor.prepare_writeback",
+      "ms": 11460.746899945661
+    },
+    {
+      "sample": "1-0-writeback",
+      "stage": "editor.prepare_combined_save",
+      "ms": 6192.511999979615
+    },
+    {
+      "sample": "1-0-writeback",
+      "stage": "os.fsync",
+      "ms": 2.526800031773746
+    },
+    {
+      "sample": "1-0-writeback",
+      "stage": "validate_macro_plan",
+      "ms": 0.8492999477311969
+    },
+    {
+      "sample": "1-0-writeback",
+      "stage": "os.fsync",
+      "ms": 2.996399998664856
+    },
+    {
+      "sample": "1-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.7231999188661575
+    },
+    {
+      "sample": "1-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.36529998760670424
+    },
+    {
+      "sample": "1-0-writeback",
+      "stage": "os.replace",
+      "ms": 1.2311000609770417
+    },
+    {
+      "sample": "1-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.412300112657249
+    },
+    {
+      "sample": "1-0-writeback",
+      "stage": "execute_batch",
+      "ms": 11418.90449996572
+    },
+    {
+      "sample": "1-0-writeback",
+      "stage": "editor._save_checkpoint",
+      "ms": 19278.68570003193
+    },
+    {
+      "sample": "1-0-writeback",
+      "stage": "editor.save_combined",
+      "ms": 34265.26110002305
+    },
+    {
+      "sample": "1-0-writeback",
+      "stage": "backend.writeback",
+      "ms": 45842.09499997087
+    },
+    {
+      "sample": "1-0-writeback",
+      "stage": "editor.snapshot",
+      "ms": 75.37809992209077
+    },
+    {
+      "sample": "1-0-writeback",
+      "stage": "ui.refresh_edits",
+      "ms": 911.4509000210091
+    },
+    {
+      "sample": "1-1-save_preview",
+      "stage": "editor.prepare_combined_save",
+      "ms": 6526.801400003023
+    },
+    {
+      "sample": "1-1-save_preview",
+      "stage": "editor.prepare_writeback",
+      "ms": 12594.679299974814
+    },
+    {
+      "sample": "1-1-writeback",
+      "stage": "editor.prepare_combined_save",
+      "ms": 7245.869100093842
+    },
+    {
+      "sample": "1-1-writeback",
+      "stage": "editor.prepare_writeback",
+      "ms": 12054.843900026754
+    },
+    {
+      "sample": "1-1-writeback",
+      "stage": "editor.prepare_combined_save",
+      "ms": 6228.3889999380335
+    },
+    {
+      "sample": "1-1-writeback",
+      "stage": "os.fsync",
+      "ms": 2.7981000021100044
+    },
+    {
+      "sample": "1-1-writeback",
+      "stage": "validate_macro_plan",
+      "ms": 0.8934999350458384
+    },
+    {
+      "sample": "1-1-writeback",
+      "stage": "os.fsync",
+      "ms": 2.359899925068021
+    },
+    {
+      "sample": "1-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.43889996595680714
+    },
+    {
+      "sample": "1-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.3291000612080097
+    },
+    {
+      "sample": "1-1-writeback",
+      "stage": "os.replace",
+      "ms": 1.2189000844955444
+    },
+    {
+      "sample": "1-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.4425999941304326
+    },
+    {
+      "sample": "1-1-writeback",
+      "stage": "execute_batch",
+      "ms": 11308.614200097509
+    },
+    {
+      "sample": "1-1-writeback",
+      "stage": "editor._save_checkpoint",
+      "ms": 19665.13879992999
+    },
+    {
+      "sample": "1-1-writeback",
+      "stage": "editor.save_combined",
+      "ms": 35416.44250007812
+    },
+    {
+      "sample": "1-1-writeback",
+      "stage": "backend.writeback",
+      "ms": 47590.22210002877
+    },
+    {
+      "sample": "1-1-writeback",
+      "stage": "editor.snapshot",
+      "ms": 73.08220001868904
+    },
+    {
+      "sample": "1-1-writeback",
+      "stage": "ui.refresh_edits",
+      "ms": 905.3816999075934
+    },
+    {
+      "sample": "1-2-save_preview",
+      "stage": "editor.prepare_combined_save",
+      "ms": 6538.653400028124
+    },
+    {
+      "sample": "1-2-save_preview",
+      "stage": "editor.prepare_writeback",
+      "ms": 11623.717700014822
+    },
+    {
+      "sample": "1-2-writeback",
+      "stage": "editor.prepare_combined_save",
+      "ms": 6823.949599987827
+    },
+    {
+      "sample": "1-2-writeback",
+      "stage": "editor.prepare_writeback",
+      "ms": 12659.0863999445
+    },
+    {
+      "sample": "1-2-writeback",
+      "stage": "editor.prepare_combined_save",
+      "ms": 6404.078899999149
+    },
+    {
+      "sample": "1-2-writeback",
+      "stage": "os.fsync",
+      "ms": 2.467100042849779
+    },
+    {
+      "sample": "1-2-writeback",
+      "stage": "validate_macro_plan",
+      "ms": 0.8217000868171453
+    },
+    {
+      "sample": "1-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.8789000567048788
+    },
+    {
+      "sample": "1-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.7823000196367502
+    },
+    {
+      "sample": "1-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.4743000026792288
+    },
+    {
+      "sample": "1-2-writeback",
+      "stage": "os.replace",
+      "ms": 1.1805000249296427
+    },
+    {
+      "sample": "1-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.7025999948382378
+    },
+    {
+      "sample": "1-2-writeback",
+      "stage": "execute_batch",
+      "ms": 12613.475700025447
+    },
+    {
+      "sample": "1-2-writeback",
+      "stage": "editor._save_checkpoint",
+      "ms": 20452.065200079232
+    },
+    {
+      "sample": "1-2-writeback",
+      "stage": "editor.save_combined",
+      "ms": 36159.8652000539
+    },
+    {
+      "sample": "1-2-writeback",
+      "stage": "backend.writeback",
+      "ms": 48930.932299932465
+    },
+    {
+      "sample": "1-2-writeback",
+      "stage": "editor.snapshot",
+      "ms": 80.1463999086991
+    },
+    {
+      "sample": "1-2-writeback",
+      "stage": "ui.refresh_edits",
+      "ms": 910.9923000214621
+    },
+    {
+      "sample": "20-0-save_preview",
+      "stage": "editor.prepare_combined_save",
+      "ms": 6737.004499998875
+    },
+    {
+      "sample": "20-0-save_preview",
+      "stage": "editor.prepare_writeback",
+      "ms": 12014.046999975108
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "editor.prepare_combined_save",
+      "ms": 6887.759499950334
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "editor.prepare_writeback",
+      "ms": 12186.181199969724
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "editor.prepare_combined_save",
+      "ms": 6751.1424999684095
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 2.471699961461127
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "validate_macro_plan",
+      "ms": 10.600600042380393
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 2.380399964749813
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.2741999924182892
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.2761000068858266
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.2699000760912895
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.2794000320136547
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.2528000622987747
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.2614000113680959
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.2845999551936984
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.2883999841287732
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.3649999853223562
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.27570000384002924
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.26080000679939985
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.26839994825422764
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.2625000197440386
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.2831000601872802
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.27520000003278255
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.3077000146731734
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.25100004859268665
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.30940002761781216
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.5898000672459602
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 1.5082999598234892
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.3557000309228897
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.35719992592930794
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.26480003725737333
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.2805000403895974
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.345999957062304
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.27199997566640377
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.33329997677356005
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.300500076264143
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.26759994216263294
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.2586999908089638
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.25669997557997704
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.25889999233186245
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.278300023637712
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.2707999665290117
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.69650006480515
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.8622000459581614
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.3451000666245818
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.3163999645039439
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.3377000102773309
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 0.3586000530049205
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.replace",
+      "ms": 1.1714999563992023
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.replace",
+      "ms": 1.1125999735668302
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.replace",
+      "ms": 1.1603999882936478
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.replace",
+      "ms": 1.0648999596014619
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.replace",
+      "ms": 1.14250008482486
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.replace",
+      "ms": 1.0831999825313687
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.replace",
+      "ms": 1.142099965363741
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.replace",
+      "ms": 1.027700025588274
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.replace",
+      "ms": 1.03859999217093
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.replace",
+      "ms": 2.557200030423701
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.replace",
+      "ms": 1.2131000403314829
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.replace",
+      "ms": 1.215200056321919
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.replace",
+      "ms": 1.0927999392151833
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.replace",
+      "ms": 1.058399910107255
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.replace",
+      "ms": 1.154799945652485
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.replace",
+      "ms": 1.066500088199973
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.replace",
+      "ms": 1.1763999937102199
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.replace",
+      "ms": 1.0891000274568796
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.replace",
+      "ms": 1.047199941240251
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.replace",
+      "ms": 1.0108000133186579
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "os.fsync",
+      "ms": 2.5324999587610364
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "execute_batch",
+      "ms": 11969.529499998316
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "editor._save_checkpoint",
+      "ms": 37828.37300002575
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "editor.save_combined",
+      "ms": 53355.28670006897
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "backend.writeback",
+      "ms": 65658.88839995023
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "editor.snapshot",
+      "ms": 73.0988000286743
+    },
+    {
+      "sample": "20-0-writeback",
+      "stage": "ui.refresh_edits",
+      "ms": 890.7614999916404
+    },
+    {
+      "sample": "20-1-save_preview",
+      "stage": "editor.prepare_combined_save",
+      "ms": 5778.501600027084
+    },
+    {
+      "sample": "20-1-save_preview",
+      "stage": "editor.prepare_writeback",
+      "ms": 12365.648800041527
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "editor.prepare_combined_save",
+      "ms": 5750.2655000425875
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "editor.prepare_writeback",
+      "ms": 12343.966800021008
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "editor.prepare_combined_save",
+      "ms": 6825.905999983661
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.5200000014156103
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "validate_macro_plan",
+      "ms": 10.072999983094633
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 2.360799931921065
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.3372000064700842
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.28989999555051327
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.33849989995360374
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.32380002085119486
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.27139997109770775
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.2924998989328742
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.34359993878751993
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.27409999165683985
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.278900028206408
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.34470006357878447
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.2853999612852931
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.291300006210804
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.2658000448718667
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.27900002896785736
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.3176000900566578
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.2552999649196863
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.2617000136524439
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.2756000030785799
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.27710001450031996
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.6423000013455749
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.33790001180022955
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.3504999913275242
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.2625000197440386
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.29500003438442945
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.34629995934665203
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.3304999554529786
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.3579000476747751
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.354900024831295
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.3700999077409506
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.2703999634832144
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.3100000321865082
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.3021999727934599
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.3328999737277627
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.32819993793964386
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.3138999454677105
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.2799999201670289
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.29619992710649967
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.3165999660268426
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.3109000390395522
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 0.4349000519141555
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.replace",
+      "ms": 0.9989000391215086
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.replace",
+      "ms": 0.9761999826878309
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.replace",
+      "ms": 1.0335000697523355
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.replace",
+      "ms": 1.105500035919249
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.replace",
+      "ms": 1.076800050213933
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.replace",
+      "ms": 1.0589000303298235
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.replace",
+      "ms": 1.0621000546962023
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.replace",
+      "ms": 1.0792999528348446
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.replace",
+      "ms": 1.0330999502912164
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.replace",
+      "ms": 0.9861999424174428
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.replace",
+      "ms": 1.1970000341534615
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.replace",
+      "ms": 1.006999984383583
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.replace",
+      "ms": 1.015300047583878
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.replace",
+      "ms": 1.0586000280454755
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.replace",
+      "ms": 0.991299981251359
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.replace",
+      "ms": 1.1011000024154782
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.replace",
+      "ms": 1.0195999639108777
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.replace",
+      "ms": 1.0560000082477927
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.replace",
+      "ms": 0.9988000383600593
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.replace",
+      "ms": 1.0798999574035406
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "os.fsync",
+      "ms": 2.4625000078231096
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "execute_batch",
+      "ms": 11931.69310002122
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "editor._save_checkpoint",
+      "ms": 36855.40490003768
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "editor.save_combined",
+      "ms": 53852.31340001337
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "backend.writeback",
+      "ms": 66323.20230000187
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "editor.snapshot",
+      "ms": 81.14599995315075
+    },
+    {
+      "sample": "20-1-writeback",
+      "stage": "ui.refresh_edits",
+      "ms": 1018.849499989301
+    },
+    {
+      "sample": "20-2-save_preview",
+      "stage": "editor.prepare_combined_save",
+      "ms": 7031.956300023012
+    },
+    {
+      "sample": "20-2-save_preview",
+      "stage": "editor.prepare_writeback",
+      "ms": 12536.437900038436
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "editor.prepare_combined_save",
+      "ms": 7140.924000064842
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "editor.prepare_writeback",
+      "ms": 12749.110399978235
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "editor.prepare_combined_save",
+      "ms": 5724.327800096944
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 2.5155000621452928
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "validate_macro_plan",
+      "ms": 11.311500100418925
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 2.3699000012129545
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.5043999990448356
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.6836999673396349
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.28519995976239443
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.41930004954338074
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.34629995934665203
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.4833000712096691
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.4825000651180744
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.42289996054023504
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.9933999972417951
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.5973000079393387
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.4365999484434724
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.4154000198468566
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.45220006722956896
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.31809997744858265
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.3331999760121107
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.3551000263541937
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.26540004182606936
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.2863999688997865
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.2704000798985362
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.5847999127581716
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.31459995079785585
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.268799951300025
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.26730005629360676
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.39060006383806467
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.2843000693246722
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.26220001745969057
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.28739997651427984
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.31649996526539326
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.2995000686496496
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.3200999926775694
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.443900004029274
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.354000017978251
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.27359998784959316
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.37999998312443495
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.45489997137337923
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.45419996604323387
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.5399000365287066
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.4097000928595662
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.35829993430525064
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 0.3525000065565109
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.replace",
+      "ms": 1.0249000042676926
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.replace",
+      "ms": 1.1651000240817666
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.replace",
+      "ms": 1.0599999222904444
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.replace",
+      "ms": 0.9700999362394214
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.replace",
+      "ms": 1.020299969241023
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.replace",
+      "ms": 1.074399915523827
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.replace",
+      "ms": 0.9676000336185098
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.replace",
+      "ms": 1.0708000045269728
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.replace",
+      "ms": 0.9803000139072537
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.replace",
+      "ms": 1.1459001107141376
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.replace",
+      "ms": 1.0822999756783247
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.replace",
+      "ms": 0.9356000227853656
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.replace",
+      "ms": 1.1023000115528703
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.replace",
+      "ms": 1.0367999784648418
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.replace",
+      "ms": 1.0571000166237354
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.replace",
+      "ms": 1.0669000912457705
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.replace",
+      "ms": 0.9740999666973948
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.replace",
+      "ms": 1.0683999862521887
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.replace",
+      "ms": 1.0384999914094806
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.replace",
+      "ms": 0.9576999582350254
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "os.fsync",
+      "ms": 2.5067999958992004
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "execute_batch",
+      "ms": 12391.906000091694
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "editor._save_checkpoint",
+      "ms": 37600.65720009152
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "editor.save_combined",
+      "ms": 53747.49509990215
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "backend.writeback",
+      "ms": 66608.82580000907
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "editor.snapshot",
+      "ms": 72.45790003798902
+    },
+    {
+      "sample": "20-2-writeback",
+      "stage": "ui.refresh_edits",
+      "ms": 909.1360999736935
+    }
+  ],
+  "source_hashes_unchanged": true,
+  "guard_violations": [],
+  "callback_errors": [],
+  "summary": [
+    {
+      "changed_macros": 1,
+      "operation": "save_preview",
+      "median_ms": 11823.17,
+      "max_event_gap_ms": 889.04,
+      "stages_median_ms": {
+        "editor.prepare_combined_save": 6526.8,
+        "editor.prepare_writeback": 11623.72
+      }
+    },
+    {
+      "changed_macros": 1,
+      "operation": "writeback",
+      "median_ms": 48735.78,
+      "max_event_gap_ms": 1329.14,
+      "stages_median_ms": {
+        "editor.prepare_combined_save": 13228.03,
+        "editor.prepare_writeback": 12054.84,
+        "os.fsync": 6.37,
+        "validate_macro_plan": 0.85,
+        "os.replace": 1.22,
+        "execute_batch": 11418.9,
+        "editor._save_checkpoint": 19665.14,
+        "editor.save_combined": 35416.44,
+        "backend.writeback": 47590.22,
+        "editor.snapshot": 75.38,
+        "ui.refresh_edits": 910.99
+      }
+    },
+    {
+      "changed_macros": 20,
+      "operation": "save_preview",
+      "median_ms": 12575.5,
+      "max_event_gap_ms": 1439.9,
+      "stages_median_ms": {
+        "editor.prepare_combined_save": 6737.0,
+        "editor.prepare_writeback": 12365.65
+      }
+    },
+    {
+      "changed_macros": 20,
+      "operation": "writeback",
+      "median_ms": 67524.55,
+      "max_event_gap_ms": 1812.5,
+      "stages_median_ms": {
+        "editor.prepare_combined_save": 12865.25,
+        "editor.prepare_writeback": 12343.97,
+        "os.fsync": 21.55,
+        "validate_macro_plan": 10.6,
+        "os.replace": 20.94,
+        "execute_batch": 11969.53,
+        "editor._save_checkpoint": 37600.66,
+        "editor.save_combined": 53747.5,
+        "backend.writeback": 66323.2,
+        "editor.snapshot": 73.1,
+        "ui.refresh_edits": 909.14
+      }
+    }
+  ],
+  "receipts": [
+    {
+      "files": 1,
+      "dependencies": 400,
+      "bytes": 7624
+    },
+    {
+      "files": 1,
+      "dependencies": 419,
+      "bytes": 7624
+    },
+    {
+      "files": 1,
+      "dependencies": 419,
+      "bytes": 7624
+    },
+    {
+      "files": 20,
+      "dependencies": 419,
+      "bytes": 152480
+    },
+    {
+      "files": 20,
+      "dependencies": 419,
+      "bytes": 152480
+    },
+    {
+      "files": 20,
+      "dependencies": 419,
+      "bytes": 152480
+    }
+  ],
+  "environment": {
+    "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+    "platform": "Windows-11-10.0.26300-SP0",
+    "production_commit": "518f746",
+    "baseline_branch_commit": "d9eaced0966675e1f753fbf22044b7e804f56c4a",
+    "repetitions": 3,
+    "scope": "Real data copied to dummy paths; macro name changes; Python filesystem audit and timing instrumentation enabled; warm sequential runs"
+  }
+}
