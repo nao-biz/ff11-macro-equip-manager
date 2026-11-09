@@ -1,6 +1,5 @@
 """Guarded macro text and storage-number persistence with token preservation."""
 from contextlib import ExitStack
-from copy import deepcopy
 from dataclasses import dataclass, replace
 import hashlib
 import json
@@ -9,7 +8,6 @@ import re
 import os
 from uuid import uuid4
 from .codecs import checked, macros, BAGS
-from .domain import Text
 from .macro_text import patch_text
 from .edit_values import validate_structure, text_value
 from .text_editing import remap_text
@@ -19,6 +17,7 @@ from .saving import digest, locked_read, atomic_replace, require_game_closed
 from .loaded_files import LoadedFiles
 from .file_transaction import execute_batch, write_json
 from .save_plan import DeferredChange, deferred_text, require_same_targets
+from .macro_save_proposal import replay_macro_proposal
 
 
 @dataclass(frozen=True)
@@ -215,15 +214,11 @@ def validate_macro_plan(plan):
         if p!=expected or not 0<=f.page<400:raise ValueError('保存先が不正です。')
     def validate(data):
         # Rebuild the domain proposal from the locked game data.
-        fresh=load_snapshot(root);proposed=deepcopy(fresh)
-        character=next(c for c in proposed.characters if c.folder_id==plan.character)
+        fresh=load_snapshot(root)
         changes={(change.address,change.line):change for f in plan.files for change in f.changes}
-        def changed(m,n,old):
-            change=changes.get((macro_key(m),n))
-            return Text(change.after,change.provenance.hex(),'draft',change.tokens) if change else old
         bases={address:base.hex() for f in plan.files for address,original,base in f.records}
-        character.macros=[replace(m,title=changed(m,0,m.title),lines=tuple(changed(m,n,line) for n,line in enumerate(m.lines,1)),raw_hex=bases.get(macro_key(m),m.raw_hex)) for m in character.macros]
-        verified=prepare_macro_save(fresh,proposed,plan.character,plan.scope)
+        before,proposed=replay_macro_proposal(fresh,plan.character,changes,bases)
+        verified=prepare_macro_save(before,proposed,plan.character,plan.scope)
         if verified.files!=plan.files or verified.dependencies!=plan.dependencies:raise ValueError('保存計画が現在のマクロ変更と一致しません。')
     return root,validate
 

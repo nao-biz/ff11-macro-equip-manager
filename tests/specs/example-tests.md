@@ -489,3 +489,7 @@ GUI有効の全件検証は `FF11_RUN_INTEGRATION=1`、`FF11_RUN_GAME_INTEGRATIO
 ### D-05: 編集状態と保存の公開契約
 
 `test_save_session_contract`で、保存候補・保存入力の独立性、別キャラを混ぜた保存済み更新の拒否、ディスク実行失敗時に候補を公開しないことを検証する。既存の部分保存・Undo・原本情報・差分範囲・保存失敗のテストを維持する。Import Linterのsave-state-storage契約と、save_state.pyのprotected-access警告0件をCIの合否条件に追加する。
+
+### D-05: マクロ再検証用入力の所有権と処理範囲
+
+`test_macro_save_proposal`で、全体入力と限定入力から再生成した計画の一致、元Snapshot・保存前後入力の独立性、他キャラと表示資料をコピーしないこと、対象欠落の拒否、実行時再ロードと不一致時の未書込を検証する。定型文・原本移動・収納Fix・復旧は既存マクロ保存テストを継続する。Import Linterのmacro-proposal契約で入力生成から保存・ロード・UIへの直接依存を禁止する。
