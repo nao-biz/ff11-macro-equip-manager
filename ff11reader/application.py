@@ -10,6 +10,7 @@ from .references import assess_equipment
 from .codecs import BAGS
 from .fixes import plan_fixes, apply_fixes
 from .snapshot_loading import resolve_macro_text, verify_sources
+from .resource_catalog import SHARED_RESOURCES
 
 
 def prepare_game_save(snapshot, character, number):
@@ -39,6 +40,7 @@ def load_snapshot(root):
     items=reader.load_items(icon_ids); phrases=reader.load_phrases()
     augment_names=reader.load_augment_names()
     rank_augments=reader.load_rank_augments()
+    reader.observe_resources(SHARED_RESOURCES)
     resolve_macro_text(characters, phrases, items)
     verify_sources(reader)
     for c in characters:

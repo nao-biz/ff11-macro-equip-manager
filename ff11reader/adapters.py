@@ -6,6 +6,9 @@ import struct
 from . import codecs
 from .domain import Character
 from . import dictionaries
+from .read_requests import CharacterReadRequest
+from .resource_catalog import (AUTO_TRANSLATE_RESOURCE, PHRASE_LINKS, AUGMENT_NAME_RESOURCES,
+                               RANK_RESOURCES, resource_path, resource_paths)
 
 
 def discover():
@@ -22,21 +25,14 @@ def discover():
     return roots
 
 
-def character_sources(root, macro_scope):
-    """Select files independently of their decoding, for UI or macro validation."""
-    allowed = None
-    if macro_scope is None:
-        folders = sorted((root/'USER').iterdir())
-    else:
-        folder_id, pages = macro_scope
-        if not re.fullmatch('[0-9a-fA-F]+', folder_id) or any(type(p) is not int or not 0 <= p < 400 for p in pages):
-            raise ValueError('マクロ再検証の読込範囲が不正です。')
-        folders = (root/'USER'/folder_id,)
-        allowed = set(codecs.BAGS) | {('mcr' + (str(p) if p else '') + '.dat') for p in pages}
+def character_sources(root, request):
+    """Enumerate the requested character files without choosing use-case policy."""
+    folders = (sorted((root/'USER').iterdir()) if request.folders is None
+               else (root/'USER'/folder for folder in request.folders))
     for folder in folders:
         if not folder.is_dir() or not re.fullmatch('[0-9a-fA-F]+', folder.name):
             continue
-        paths = (p for p in sorted(folder.iterdir()) if allowed is None or p.name.lower() in allowed)
+        paths = (p for p in sorted(folder.iterdir()) if request.filenames is None or p.name.lower() in request.filenames)
         yield folder, (p for p in paths if p.is_file())
 
 
@@ -62,16 +58,26 @@ class LocalReader:
             self.diagnostics.append({'code':'source_unreadable','path':str(path),'message':str(exc)})
             return None
 
+    def observe_resources(self, logical_ids):
+        """Capture raw source evidence independently of successful decoding."""
+        table = self.guarded(self.root/'FTABLE.DAT', lambda raw: raw)
+        if table is None:
+            return
+        observed = {Path(source['path']) for source in self.sources}
+        for path in resource_paths(self.root, table, logical_ids):
+            if path.resolve() not in observed:
+                self.guarded(path, lambda raw: None)
+
     def load_items(self, icon_ids=None):
         items={}; table=self.guarded(self.root/'FTABLE.DAT',lambda b:b)
         if table is None: return items
         for logical in codecs.DAT_IDS:
             if logical*2+2>len(table):
                 self.diagnostics.append({'code':'master_table_truncated','logical_id':logical}); continue
-            packed=struct.unpack_from('<H',table,logical*2)[0]
-            result=self.guarded(self.root/'ROM'/str(packed>>7)/f'{packed&127}.DAT',lambda b:codecs.item_records(b,icon_ids))
+            path=resource_path(self.root,table,logical)
+            result=self.guarded(path,lambda b:codecs.item_records(b,icon_ids))
             if result:
-                source_path=str((self.root/'ROM'/str(packed>>7)/f'{packed&127}.DAT').resolve())
+                source_path=str(path.resolve())
                 items.update({key:dict(value,source_path=source_path) for key,value in result.items()})
         return items
 
@@ -79,13 +85,11 @@ class LocalReader:
         table=self.guarded(self.root/'FTABLE.DAT',lambda b:b)
         if table is None: return {}
         def read_dat(logical,decode):
-            if logical*2+2>len(table): raise ValueError('Truncated FTABLE')
-            packed=struct.unpack_from('<H',table,logical*2)[0]
-            return self.guarded(self.root/'ROM'/str(packed>>7)/f'{packed&127}.DAT',decode) or {}
+            return self.guarded(resource_path(self.root,table,logical),decode) or {}
         self.phrase_readings={}
-        phrases=read_dat(0xD8F9,lambda data:dictionaries.auto_translate(data,self.phrase_readings))
+        phrases=read_dat(AUTO_TRANSLATE_RESOURCE,lambda data:dictionaries.auto_translate(data,self.phrase_readings))
         linked={key:read_dat(logical,dictionaries.dmsg_names)
-                for key,logical in {'A':0xD8EF,'C':0xD91E,'J':0xD8F0,'Y':0xD91D}.items()}
+                for key,logical in PHRASE_LINKS}
         for key,value in list(phrases.items()):
             if re.fullmatch(r'@[ACJY][0-9A-Fa-f]+',value):
                 phrases[key]=linked[value[1]].get(int(value[2:],16),value)
@@ -97,12 +101,11 @@ class LocalReader:
         if table is None:
             return {}
         languages = []
-        for logical in (0xD98C, 0xD914):
+        for logical in AUGMENT_NAME_RESOURCES:
             if logical * 2 + 2 > len(table):
                 self.diagnostics.append({'code': 'augment_dictionary_unavailable', 'logical_id': logical})
                 return {}
-            packed = struct.unpack_from('<H', table, logical * 2)[0]
-            path = self.root/'ROM'/str(packed >> 7)/f'{packed & 127}.DAT'
+            path = resource_path(self.root, table, logical)
             names = self.guarded(path, dictionaries.dmsg_names)
             if names is None:
                 return {}
@@ -115,20 +118,19 @@ class LocalReader:
         if table is None:
             return None
         results = []
-        for logical, decode in ((0x51, decode_bundles), (0xD914, dictionaries.dmsg_names)):
+        for logical, decode in zip(RANK_RESOURCES, (decode_bundles, dictionaries.dmsg_names)):
             if logical * 2 + 2 > len(table):
                 self.diagnostics.append({'code': 'rank_augments_unavailable', 'logical_id': logical})
                 return None
-            packed = struct.unpack_from('<H', table, logical * 2)[0]
-            result = self.guarded(self.root/'ROM'/str(packed >> 7)/f'{packed & 127}.DAT', decode)
+            result = self.guarded(resource_path(self.root, table, logical), decode)
             if result is None:
                 return None
             results.append(result)
         return RankCatalog(*results)
 
-    def load_characters(self, resolver=None, *, macro_scope=None):
+    def load_characters(self, resolver=None, *, request=CharacterReadRequest()):
         result=[]
-        for folder, paths in character_sources(self.root, macro_scope):
+        for folder, paths in character_sources(self.root, request):
             c=Character(folder.name); result.append(c)
             c.inventory_coverage={bag:'missing' for bag in codecs.BAGS.values()}
             for path in paths:

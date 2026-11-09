@@ -3,6 +3,7 @@ from copy import deepcopy
 from pathlib import Path
 from immutables import Map
 from .saving import digest
+from .resource_catalog import SHARED_RESOURCES, resource_paths
 
 
 def storage_member(identity):
@@ -51,6 +52,20 @@ class LoadedFiles:
         if digest(path.read_bytes()) != expected:
             raise ValueError('参照元のファイルが変わりました。再読み込みしてください。')
         return expected
+
+    def shared_resources(self, root):
+        """Select catalog-defined evidence, independent of incidental read history."""
+        root = Path(root).resolve()
+        table_path = (root/'FTABLE.DAT').resolve()
+        if table_path not in self._records:
+            return ()
+        table = table_path.read_bytes()
+        if digest(table) != self._records[table_path]['sha256']:
+            raise ValueError('共通資料の配置表が変わりました。再読み込みしてください。')
+        paths = (table_path, *(p.resolve() for p in resource_paths(root, table, SHARED_RESOURCES)))
+        if any(not p.is_relative_to(root) for p in paths):
+            raise ValueError('共通資料の取得元がインストール先の外です。')
+        return tuple(dict.fromkeys(p for p in paths if p in self._records))
 
     def updated(self, files):
         records = self._records

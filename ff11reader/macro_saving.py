@@ -120,7 +120,8 @@ def prepare_macro_save(saved,working,folder,scope='storage-fix', *, source_index
     original=next(c for c in saved.characters if c.folder_id==folder)
     edited=next(c for c in working.characters if c.folder_id==folder)
     require_same_targets(original,edited)
-    records=(source_index if source_index is not None else LoadedFiles(saved.sources)).records()
+    sources=source_index if source_index is not None else LoadedFiles(saved.sources)
+    records=sources.records()
     parent=next((p.parent for p in records if p.parent.name==folder and p.parent.parent.name.upper()=='USER'),None)
     if parent is None or not re.fullmatch('[0-9a-fA-F]+',folder):raise ValueError('キャラクターの保存先を確認してください。')
     root=parent.parent.parent
@@ -193,7 +194,7 @@ def prepare_macro_save(saved,working,folder,scope='storage-fix', *, source_index
     required={Path(f.target) for f in files}
     if scope=='storage-fix':required.update(parent/name for name in BAGS)
     # Item/phrase dictionaries are part of name-to-ID verification.
-    if needs_dictionary:required.update(p for p in records if not p.is_relative_to(root/'USER'))
+    if needs_dictionary:required.update(sources.shared_resources(root))
     dependencies=[]
     for p in sorted(required):
         raw=p.read_bytes()

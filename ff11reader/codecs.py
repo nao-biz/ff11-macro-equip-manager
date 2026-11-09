@@ -2,12 +2,13 @@
 import hashlib
 import struct
 from .domain import Text, TextToken, Macro, Slot, Equipset, InventoryRow
+from .resource_catalog import ITEM_RESOURCES
 
 SLOTS = 'main sub range ammo head body hands legs feet neck waist ear1 ear2 ring1 ring2 back'.split()
 BAGS = {'is.dat':0,'bs.dat':1,'cl.dat':2,'ti.dat':3,'mb.dat':4,
         'sb.dat':5,'sk.dat':6,'ca.dat':7,'wr.dat':8,'b2.dat':9,
         **{f'wr_{i}.dat':i+8 for i in range(2,9)}}
-DAT_IDS = [4,5,8,7,6,9,0xD8FB,0xD8FC,0xD8FF,0xD8FD]
+DAT_IDS = list(ITEM_RESOURCES)
 
 
 def text(raw, resolver=None):
