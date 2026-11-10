@@ -40,6 +40,8 @@ def prepare_book_save(saved, working, folder, *, source_index):
     for number, title in after.items():
         if text_value(before[number]) == text_value(title):continue
         raw = bytes.fromhex(title.raw_hex)
+        if title.state == 'draft' and not title.display and not title.tokens:
+            raw = b'\0' + raw[1:]
         if text_value(text(raw)) != text_value(title):raise ValueError('コピー元のブック名の原本が一致しません。')
         grouped.setdefault((number-1)//20, []).append(BookNameChange(number, before[number].display, title.display, raw))
     files = []

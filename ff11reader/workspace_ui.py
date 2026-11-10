@@ -95,6 +95,7 @@ def build(view):
     hidden = ttk.Frame(app)
     entries = [
         ('copy_book_button', '別キャラへブックをコピー…', view.copy_macro_book),
+        ('clear_character_button', '現在のキャラのマクロ・装備セットを全消去…', view.clear_character_data),
         ('links_button', 'マクロと装備セットの参照確認', view.show_macro_links),
         ('fix_button', '装備セットの参照位置を補正', view.preview_fixes),
         ('macro_fix_button', 'マクロの収納番号を確認・補正', view.show_macro_inventory),

@@ -98,6 +98,22 @@ class Editor:
         from .transfer_editing import plan_delete
         return plan_delete(self._session.character(folder),kind,selection)
 
+    def prepare_character_clear(self, folder):
+        if self.blocked:raise ValueError(self.blocked)
+        from .character_clear import plan_character_clear
+        import re
+        for diagnostic in self._session.saved.diagnostics:
+            path = Path(diagnostic.get('path', ''))
+            if path.parent.name == folder and re.fullmatch(r'(?:mcr(?:[0-9]+)?\.dat|mcr(?:_2)?\.ttl|es[0-9]\.dat)', path.name, re.I):
+                raise ValueError('マクロまたは装備セットを読み取れていません。対象ファイルを確認して再読み込みしてください。')
+        return plan_character_clear(self._session.character(folder))
+
+    def clear_character(self, folder, preview):
+        if preview != self.prepare_character_clear(folder):
+            raise ValueError('全消去の対象が変わりました。確認画面を開き直してください。')
+        self.apply(preview)
+        self.clear_transfer()
+
     def prepare_equipment_move(self,folder,source,target):
         if self.blocked:raise ValueError(self.blocked)
         from .equipment_moves import plan_move

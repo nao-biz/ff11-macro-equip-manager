@@ -32,6 +32,7 @@
 | EDIT-005 | [edit_application.py](../ff11reader/edit_application.py) | [test_reload.py](../tests/test_reload.py) | 再読込成功時の履歴初期化、取消・読込失敗時の保持、復旧未完了時の停止 |
 | EDIT-006 | [editing.py](../ff11reader/editing.py)、[edit_application.py](../ff11reader/edit_application.py)、[ui.py](../ff11reader/ui.py) | [EditingUITests.test_edit_preview_undo_redo_fix_and_reopen](../tests/test_editing_ui.py) | マクロ編集と[装備セット名の編集・履歴・保存](../tests/test_equipment_names.py)を合成データで検証。[装備枠の個別編集・部位別選択・履歴・保存](../tests/test_equipment_slots.py)も合成データで検証。2026-10-29にユーザーが各枠編集の保存後、ゲーム内で認識されることを確認済み。2026-10-29にユーザーが名前編集・Undo/Redoと保存後のゲーム内反映を確認済み |
 | EDIT-007 | [phrases.py](../ff11reader/phrases.py)、[text_editing.py](../ff11reader/text_editing.py)、[phrase_ui.py](../ff11reader/phrase_ui.py)、[macro_text.py](../ff11reader/macro_text.py) | [test_phrase_editing.py](../tests/test_phrase_editing.py) | 通常定型文・アイテム名の検索、読み、カテゴリ階層、初期フォーカス、ID保持を実装。2026-10-29に実機確認まで完了。詳細は下記「定型文入力」を参照 |
+| EDIT-008 | [character_clear.py](../ff11reader/character_clear.py)、[character_clear_ui.py](../ff11reader/character_clear_ui.py)、Editor、一括保存（D-22） | [test_character_clear.py](../tests/test_character_clear.py) / EX-CLEAR01〜06 | 全40ブック・8000マクロ・200セットの全消去、取消、他キャラと所持品保持、Undo/Redo、入力保持、隔離保存・再読込・バックアップ・失敗復旧を合成検証。実ゲームへの書込みは未実施 |
 | SAVE-001 | [save_plan.py](../ff11reader/save_plan.py)、[macro_saving.py](../ff11reader/macro_saving.py)、[equipment_saving.py](../ff11reader/equipment_saving.py)、[ui.py](../ff11reader/ui.py) | [MacroSavingTests.test_unrelated_manual_edits_are_retained](../tests/test_macro_saving.py) | Fix限定保存と保留に加え、[test_manual_macro_saving.py](../tests/test_manual_macro_saving.py)で名前・各行の一般保存を検証。[test_equipment_names.py](../tests/test_equipment_names.py)で装備セット名の単独保存・Fixとの混在・保留を検証 |
 | SAVE-002 | [macro_saving.py](../ff11reader/macro_saving.py)、[equipment_saving.py](../ff11reader/equipment_saving.py)、[file_transaction.py](../ff11reader/file_transaction.py) | [MacroSavingTests.test_stale_macro_inventory_and_plan_tamper_rejected](../tests/test_macro_saving.py) | マクロの競合を検証。装備保存にも同等テストあり |
 | SAVE-003 | [file_transaction.py](../ff11reader/file_transaction.py) | [EquipmentSavingTests.test_candidate_changes_and_staging_failure](../tests/test_equipment_saving.py) | 装備保存の準備失敗を検証 |
@@ -347,3 +348,10 @@ D-05 / SAVE-002〜006: 保存要求は内部で編集セッションをforkし�
 
 
 2026-11-09 D-05 / D-17 / DATA-005 / PERF-001: 起動時マスターを深い読み取り専用値として共有し、所持品の再ロードと寿命を分離。保存時の内容ハッシュ確認を維持し、マスター更新は編集保持・保存中止・再起動案内とする。可変辞書の従来入力と権限昇格補助プロセスの検証は維持。通常463テスト成功（104スキップ）、GUI35テスト、依存契約8件成功。既存4循環グループとD以上の複雑度40件を維持。隔離実データ3回で保存中央値2.621→1.966秒、再ロード6.155→4.374秒。全モデル・対象外ファイル・バックアップの一致を確認。復旧試験で断続的なWinError 5があり、最終全体実行は成功したが原因は未確定。詳細とログは[マスター寿命の検証](../experiments/stack-evaluation/MASTER-LIFECYCLE.md)。
+
+
+### EDIT-008 / D-22 全消去の検証（2026-11-10）
+
+通常テスト478件を実行し、106スキップで成功。一時フォルダのアクセス拒否はTEMP/TMPをwork/clear-test-tempへ変更して再検証した。その後追加した2番目のブック名ファイルの消去・Undo保存・他設定保持テストも成功。合成GUIの関連42件では既存ブックコピーの初期フォーカスが1件失敗し、同テストの単独再実行は成功した。実行境界テストは現在のSaveRequest.prepareを検査するよう更新し、保存計画のワーカー実行を維持した。
+
+Import Linterの適用契約10件は全件成功。静的解析の警告数は変更前後で同じ（既存の循環4・内部アクセス28等）。EditorとReaderWindowの公開メソッド追加を含む既存の規模警告は残る。新規の計画からUI・保存への禁止依存はない。比較元はwork/clear-all-architecture-before、変更後はwork/architecture-baseline。合成確認画面はwork/clear-confirmation.pngでキャラ・消去対象・復元案内とキャンセル初期選択の収まりを確認した。実ゲームへの書込みは行っていない。

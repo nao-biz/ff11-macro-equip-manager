@@ -351,10 +351,11 @@ class MacroPanel:
         self.capture()
         return any(folder is None or identity[0] == folder for identity in self.pending)
 
-    def apply_pending(self):
+    def apply_pending(self, folder=None):
         """Capture Tk inputs before validating and applying them in the worker."""
         self.capture()
-        requests = list(self.pending.items())
+        requests = [(identity, request) for identity, request in self.pending.items()
+                    if folder is None or identity[0] == folder]
         if not requests:
             return
         def apply():

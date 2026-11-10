@@ -132,6 +132,7 @@ class ReaderWindow:
   cursor,history_length,dirty=self.editor.edit_status()
   pending=self.macro_panel.has_pending()
   self.copy_book_button.configure(state='normal' if character and len(self.snapshot.characters)>1 and not self.editor.blocked else 'disabled')
+  self.clear_character_button.configure(state='normal' if character and not self.editor.blocked else 'disabled')
   self.undo_button.configure(state='normal' if cursor and not self.editor.blocked else 'disabled')
   self.redo_button.configure(state='normal' if cursor<history_length and not self.editor.blocked else 'disabled')
   self.save_button.configure(state='normal' if (dirty or pending) and not self.editor.blocked else 'disabled')
@@ -205,6 +206,9 @@ class ReaderWindow:
   try:background(self.app,self.editor.start_fresh)
   except (OSError,ValueError) as e:dialogs.showerror('リセット',str(e),parent=self.app);return
   self.macro_panel.discard();self.refresh_edits()
+ def clear_character_data(self):
+  from .character_clear_ui import clear_character
+  return clear_character(self)
  def preview_game_save(self,scope='storage-fix'):
   if not self.character:return
   if self.editor.has_pending_move(self.character.folder_id):return self.preview_combined_save()
