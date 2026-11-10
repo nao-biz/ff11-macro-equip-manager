@@ -2,7 +2,7 @@
 from copy import deepcopy, copy
 from dataclasses import fields, is_dataclass, replace
 from immutables import Map
-from .edit_values import key, value, snapshot_value
+from .edit_values import key, value, snapshot_value, EDIT_KINDS, records, record_fields
 from .references import assess_equipment
 from .loaded_files import LoadedFiles
 from .save_inputs import copy_save_input, required_item_ids
@@ -38,11 +38,11 @@ class SnapshotState:
         template = deepcopy(snapshot)
         entries, orders = {}, {}
         for c in template.characters:
-            for kind in ('macros', 'equipsets'):
-                values = getattr(c, kind)
+            for kind in EDIT_KINDS:
+                values = records(c, kind)
                 orders[c.folder_id, kind] = tuple(key(x) for x in values)
                 entries.update({(c.folder_id, kind, key(x)): x for x in values})
-                setattr(c, kind, [])
+                setattr(c, kind, {} if kind == 'books' else [])
         self._token = object()
         self._template = template
         self._files = LoadedFiles(template.sources)
@@ -56,7 +56,7 @@ class SnapshotState:
 
     def edit_records(self):
         return {c.folder_id: {kind: [deepcopy(self._entries[c.folder_id,kind,address])
-            for address in self._orders[c.folder_id,kind]] for kind in ('macros','equipsets')}
+            for address in self._orders[c.folder_id,kind]] for kind in EDIT_KINDS}
             for c in self._template.characters}
 
     def __deepcopy__(self, memo):
@@ -108,8 +108,11 @@ class SnapshotState:
         return Character(folder, inventory=deepcopy(rows)), deepcopy({item:self._template.items.get(item,{})})
 
     def _character(self, c):
-        return replace(c, **{kind: [self._entries[c.folder_id, kind, address]
-            for address in self._orders[c.folder_id, kind]] for kind in ('macros', 'equipsets')})
+        fields = {}
+        for kind in EDIT_KINDS:
+            fields.update(record_fields(kind, (self._entries[c.folder_id, kind, address]
+                for address in self._orders[c.folder_id, kind])))
+        return replace(c, **fields)
 
     def export(self, previous=None):
         # The assembled view is internal until detached() has processed it.
@@ -145,10 +148,11 @@ class SnapshotState:
         character = next(c for c in self._template.characters if c.folder_id == folder)
         if identities is None:
             identities = {key for key in self._entries if key[0] == folder}
-        records = {kind:[self._entries[folder,kind,address]
-                         for address in self._orders[folder,kind]
-                         if (folder,kind,address) in identities] for kind in ('macros','equipsets')}
-        return replace(character, **records)
+        fields = {}
+        for kind in EDIT_KINDS:
+            fields.update(record_fields(kind, (self._entries[folder,kind,address]
+                for address in self._orders[folder,kind] if (folder,kind,address) in identities)))
+        return replace(character, **fields)
 
     def save_input(self, folder, identities=None, item_ids=None):
         return copy_save_input(self._template, self._save_character(folder, identities), item_ids)

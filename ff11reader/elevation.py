@@ -13,10 +13,11 @@ def _types():
     from .macro_saving import MacroSavePlan, MacroFile, LineChange
     from .equipment_saving import EquipmentSavePlan, EquipmentFile, EquipmentNameChange, EquipmentSlotChange
     from .combined_saving import CombinedSavePlan
+    from .save_plan import BookSavePlan, BookFile, BookNameChange
     from .fixes import FixChange
     from .domain import TextToken
     from .save_plan import DeferredChange
-    return {c.__name__:c for c in (CombinedSavePlan,MacroSavePlan,MacroFile,LineChange,EquipmentSavePlan,EquipmentFile,EquipmentNameChange,EquipmentSlotChange,FixChange,TextToken,DeferredChange)}
+    return {c.__name__:c for c in (BookSavePlan,BookFile,BookNameChange,CombinedSavePlan,MacroSavePlan,MacroFile,LineChange,EquipmentSavePlan,EquipmentFile,EquipmentNameChange,EquipmentSlotChange,FixChange,TextToken,DeferredChange)}
 
 
 def encode(value):

@@ -41,6 +41,12 @@ class Text:
 
 
 @dataclass(frozen=True)
+class BookName:
+    number: int
+    title: Text
+
+
+@dataclass(frozen=True)
 class Macro:
     book: int
     palette: int

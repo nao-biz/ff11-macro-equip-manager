@@ -94,6 +94,7 @@ def build(view):
     view.equipment_candidates_panel = ttk.Frame(center)
     hidden = ttk.Frame(app)
     entries = [
+        ('copy_book_button', '別キャラへブックをコピー…', view.copy_macro_book),
         ('links_button', 'マクロと装備セットの参照確認', view.show_macro_links),
         ('fix_button', '装備セットの参照位置を補正', view.preview_fixes),
         ('macro_fix_button', 'マクロの収納番号を確認・補正', view.show_macro_inventory),

@@ -46,7 +46,7 @@
 | WARD-001 | [wardrobe_usage.py](../ff11reader/wardrobe_usage.py) | [WardrobeUsageTests.test_scope_and_both_reference_sources](../tests/test_wardrobe_usage.py) | 参照元と対象収納を検証 |
 | WARD-002 | [wardrobe_usage.py](../ff11reader/wardrobe_usage.py) | [WardrobeUsageTests.test_edit_and_undo_recompute_without_cross_character_references](../tests/test_wardrobe_usage.py) | 再計算とキャラ分離を検証 |
 | FUT-001 | [equipment_moves.py](../ff11reader/equipment_moves.py)、[editing.py](../ff11reader/editing.py)、[combined_saving.py](../ff11reader/combined_saving.py)、[edit_application.py](../ff11reader/edit_application.py)、[ui.py](../ff11reader/ui.py) | [test_equipment_moves.py](../tests/test_equipment_moves.py): EX-MOVE01〜06、PT-32初期範囲 | 装備セット移動・参照更新・Undo/Redo・一括保存を合成データで確認。2026-11-02、ユーザーが保存後のゲーム内動作を確認済み。パレット・マクロのブック間移動と同一キャラ内コピー、複数選択は合成データで検証。2026-11-02、今回の追加範囲もユーザーがゲーム内動作を確認済み |
-| FUT-002 | — | — | 未実装。参照セットの同時コピーと番号衝突の扱いは未決定 |
+| FUT-002 / D-21 | [book_copy.py](../ff11reader/book_copy.py)、[book_copy_ui.py](../ff11reader/book_copy_ui.py)、[book_saving.py](../ff11reader/book_saving.py) | [test_book_copy.py](../tests/test_book_copy.py) | ブック名・全200マクロ・参照セットの同番号上書き、先の参照確認、Undo/Redo、一括保存と復元を合成検証。[検証記録](book-copy-verification.md)。実ゲームの表示・実行確認は未実施 |
 | FUT-003 | [macro_inventory.py](../ff11reader/macro_inventory.py) | — | /equipの参照判定は実装済み。定型文候補の名前検索は実装済み。種類IDによる参照調査と誤記検出は未実装で、範囲・判定規則は未決定 |
 | OBS-001 | [tracing.py](../ff11reader/tracing.py)、[edit_application.py](../ff11reader/edit_application.py) | [test_tracing.py](../tests/test_tracing.py) | 親子の操作ID・所要時間・失敗・個人データ非記録を検証。ゲーム保存内部の詳細区間は未実装 |
 | PERF-001 | [edit_state.py](../ff11reader/edit_state.py)、[ui.py](../ff11reader/ui.py) | [test_persistent_edit_state.py](../tests/test_persistent_edit_state.py)、[benchmark_editor.py](../experiments/benchmark_editor.py) | 所有権・共有・編集検証失敗を検証。実機の応答はユーザー確認済み。数値基準は未確定 |
@@ -56,7 +56,7 @@
 | 要件 | 現在できること | 残件 |
 |---|---|---|
 | DATA-001 | キャラ別の閲覧・表示名・切替 | アカウント単位の整理 |
-| FUT-002 | キャラ別の参照判定 | キャラ間コピー。参照セットの同時コピーと番号衝突の扱いの確定 |
+| FUT-002 | キャラ間のブック名・全マクロ・参照セットの同番号コピー | ゲーム内での表示・実行確認 |
 | FUT-003 | /equipの参照判定、定型文候補の名前検索 | 種類IDによる参照調査、誤記検出。辞書未解決と未所持の区別・候補規則の確定 |
 | OBS-001 | 編集・画面更新・ゲーム保存入口の区間計測 | ゲーム保存内部の詳細区間 |
 | PERF-001 | 永続Mapによる編集高速化、待機カーソル。実機の応答をユーザー確認済み | 数値の合格基準。初期読込・全体取得・表示データの取得量依存 |

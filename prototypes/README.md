@@ -4,6 +4,7 @@
 
 | 対象 | 起動 | 合成GUI確認 |
 |---|---|---|
+| キャラ間ブックコピー | `python -m prototypes.book_copy` | `FF11_RUN_INTEGRATION=1` で `python -m unittest tests.test_book_copy -v` |
 | 共通プロパティ表示 | `python -m prototypes.item_properties` | `python -m unittest prototypes.test_item_properties prototypes.test_equipment_review -v` |
 | 装備評価 | `python -m prototypes.equipment_review` | `python -m unittest prototypes.test_equipment_review -v` |
 | 従来の3タブ構成 | `python -m prototypes.macro_editor` | `python -m prototypes.test_macro_editor` |

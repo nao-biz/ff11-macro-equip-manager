@@ -1,17 +1,27 @@
 """Pure semantic edit values and structural validation."""
-from .domain import Macro, Equipset, Text, Slot
+from .domain import BookName, Macro, Equipset, Text, Slot
 
 SLOT_NAMES=tuple('main sub range ammo head body hands legs feet neck waist ear1 ear2 ring1 ring2 back'.split())
+EDIT_KINDS = ('macros', 'equipsets', 'books')
+
+
+def records(character, kind):
+    return [BookName(n, t) for n, t in character.books.items()] if kind == 'books' else getattr(character, kind)
+
+
+def record_fields(kind, items):
+    return {kind: {b.number: b.title for b in items} if kind == 'books' else list(items)}
 
 def key(value):
     if isinstance(value,Macro):return value.book,value.palette,value.bank,value.key
-    if isinstance(value,Equipset):return (value.number,)
+    if isinstance(value,(Equipset,BookName)):return (value.number,)
     raise ValueError('編集対象の型が不正です。')
 
 def text_value(text):return text.display,tuple(text.tokens or ())
 
 
 def value(item):
+    if isinstance(item,BookName):return key(item),text_value(item.title)
     if isinstance(item,Macro):return key(item),text_value(item.title),tuple(text_value(x) for x in item.lines)
     if isinstance(item,Equipset):return key(item),item.title.display,tuple(slot_value(s) for s in item.slots)
     raise ValueError('編集対象の型が不正です。')
@@ -23,7 +33,7 @@ def character_value(c):
         pairs=[(key(x),value(x)) for x in items]
         if len(dict(pairs))!=len(pairs):raise ValueError('編集対象のキーが重複しています。')
         return dict(pairs)
-    return indexed(c.macros),indexed(c.equipsets)
+    return tuple(indexed(records(c, kind)) for kind in EDIT_KINDS)
 
 def snapshot_value(snapshot):
     pairs=[(c.folder_id,character_value(c)) for c in snapshot.characters]
@@ -39,9 +49,12 @@ def validate_text(text):
 def integer(n,low,high):return type(n) is int and low<=n<=high
 
 def validate_structure(item,kind):
-    expected=Macro if kind=='macros' else Equipset if kind=='equipsets' else None
+    expected={'macros':Macro, 'equipsets':Equipset, 'books':BookName}.get(kind)
     if expected is None or not isinstance(item,expected):raise ValueError('編集対象の型が不正です。')
     validate_text(item.title)
+    if kind == 'books':
+        if not integer(item.number,1,40):raise ValueError('ブック番号が不正です。')
+        return
     if kind=='macros':
         if not integer(item.book,1,40) or not integer(item.palette,1,10) or item.bank not in ('ctrl','alt') or not integer(item.key,1,10):raise ValueError('マクロの位置が不正です。')
         if not isinstance(item.lines,tuple) or len(item.lines)!=6:raise ValueError('マクロは6行必要です。')

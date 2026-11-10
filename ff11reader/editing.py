@@ -174,7 +174,7 @@ class EditSession:
                 from .edit_values import validate_structure
                 validate_structure(change.before,change.kind);validate_structure(change.after,change.kind)
             identity = (change.character, change.kind, change.key)
-            if identity in seen or change.kind not in ('macros', 'equipsets'):
+            if identity in seen or change.kind not in ('macros', 'equipsets', 'books'):
                 raise ValueError('編集操作の対象が不正です。')
             seen.add(identity)
             before, after = (change.after, change.before) if reverse else (change.before, change.after)

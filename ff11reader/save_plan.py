@@ -2,6 +2,30 @@
 from dataclasses import dataclass
 from .edit_values import character_value, validate_structure
 
+
+@dataclass(frozen=True)
+class BookNameChange:
+    number: int
+    before: str
+    after: str
+    replacement: bytes
+
+
+@dataclass(frozen=True)
+class BookFile:
+    target: str
+    page: int
+    original: bytes
+    replacement: bytes
+    changes: tuple
+
+
+@dataclass(frozen=True)
+class BookSavePlan:
+    character: str
+    files: tuple
+    dependencies: tuple
+
 @dataclass(frozen=True)
 class DeferredChange:
     target: str

@@ -11,7 +11,7 @@ def storage_member(identity):
     if kind == 'macros':
         book, palette, _, _ = address
         return folder, kind, (book - 1) * 10 + palette - 1
-    if kind == 'equipsets':
+    if kind in ('equipsets', 'books'):
         return folder, kind, (address[0] - 1) // 20
     raise ValueError('保存モデルの種類が不正です。')
 

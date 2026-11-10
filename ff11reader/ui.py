@@ -131,6 +131,7 @@ class ReaderWindow:
    button.configure(state='normal' if character else 'disabled')
   cursor,history_length,dirty=self.editor.edit_status()
   pending=self.macro_panel.has_pending()
+  self.copy_book_button.configure(state='normal' if character and len(self.snapshot.characters)>1 and not self.editor.blocked else 'disabled')
   self.undo_button.configure(state='normal' if cursor and not self.editor.blocked else 'disabled')
   self.redo_button.configure(state='normal' if cursor<history_length and not self.editor.blocked else 'disabled')
   self.save_button.configure(state='normal' if (dirty or pending) and not self.editor.blocked else 'disabled')
@@ -570,6 +571,9 @@ class ReaderWindow:
   self.macro_panel.show(self.character.folder_id,macro)
   self.macro_panel.reference_text=(warning+'\n\n' if warning else '')+body
   self.update_edit_status()
+ def copy_macro_book(self):
+  from .book_copy_ui import open_book_copy
+  return open_book_copy(self)
  def move_selected_equipment(self):
   if self.mode.get()!='装備セット' or not self.selected:return
   from .equipment_moves import vacant
@@ -610,6 +614,11 @@ class ReaderWindow:
   from .edit_values import value,slot_value
   for plan in plans:
    text.insert('end',self.character_labels()[next(i for i,c in enumerate(self.snapshot.characters) if c.folder_id==plan.character)]+'\n\n')
+   if plan.books:
+    for file in plan.books.files:
+     text.insert('end',file.target+'\n')
+     for change in file.changes:
+      text.insert('end',f'ブック {change.number:02} の名前\n  前: {change.before}\n  後: {change.after}\n\n')
    for file in (plan.equipment.files if plan.equipment else ()):
     text.insert('end',file.target+'\n')
     for before,after in zip(equipsets(file.original,file.page),equipsets(file.replacement,file.page)):
@@ -703,7 +712,7 @@ class ReaderWindow:
   except (ValueError,OSError) as e:dialogs.showerror('装備セット名の変更',str(e),parent=self.app)
  def edit_selected_macro(self):
   if self.active_macro:self.macro_panel.entries[0].focus_set()
- def preview_edit(self,edit,apply,parent=None,*,on_applied=None,after_close=None):
+ def preview_edit(self,edit,apply,parent=None,*,on_applied=None,after_close=None,summary=''):
   window=tk.Toplevel(self.app,background=BG);window.title(edit.label+' / 作業データ');window.geometry('900x600')
   dialogs.fit_to_screen(window)
   window.transient(self.app);window.grab_set();window.bind('<Escape>',lambda e:window.destroy());dialogs.after_idle_alive(window,window.focus_set)
@@ -712,11 +721,14 @@ class ReaderWindow:
   text=tk.Text(window,bg=PANEL,fg=FG,wrap='word',padx=12,pady=12)
   scrollbar=ttk.Scrollbar(window,command=text.yview);text.configure(yscrollcommand=scrollbar.set)
   scrollbar.pack(side='right',fill='y');text.pack(fill='both',expand=True)
+  if summary:text.insert('end',summary+'\n\n対象の変更\n\n')
   count=0
   from .edit_values import value
   for change in edit.changes:
    if value(change.before)==value(change.after):continue
    count+=1
+   if change.kind=='books':
+    text.insert('end',f'ブック {change.key[0]:02} の名前\n  前: {change.before.title.display}\n  後: {change.after.title.display}\n\n');continue
    if change.kind=='equipsets':
     from .edit_values import slot_value
     slot_fields=lambda s:slot_value(s)[1:]

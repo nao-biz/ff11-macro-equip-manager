@@ -69,6 +69,19 @@ class Editor:
 
     def clear_transfer(self):self._transfer=None
 
+    def prepare_book_copy(self, source, destination, source_book, destination_book):
+        if self.blocked:raise ValueError(self.blocked)
+        from .book_copy import plan_book_copy
+        return plan_book_copy(self._session.character(source), self._session.character(destination),
+                              source_book, destination_book)
+
+    def copy_book(self, preview):
+        current = self.prepare_book_copy(preview.source, preview.destination,
+                                         preview.source_book, preview.destination_book)
+        if current != preview:
+            raise ValueError('コピー内容が変わりました。確認画面を開き直してください。')
+        self.apply(preview.edit)
+
     def prepare_paste(self,folder,anchor,*,overwrite=False):
         if self.blocked:raise ValueError(self.blocked)
         if self._transfer is None:raise ValueError('先にコピーまたは切り取りをしてください。')

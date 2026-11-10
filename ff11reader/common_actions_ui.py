@@ -6,7 +6,8 @@ from .theme import PANEL, FG, SELECT
 
 def build_common_actions(view):
     groups = {
-        '編集': [('move_button', '選択した装備セットを移動…'),
+        '編集': [('copy_book_button', '別キャラへブックをコピー…'),
+               ('move_button', '選択した装備セットを移動…'),
                ('equipment_name_button', '選択した装備セットの名前を編集'),
                ('edit_button', '選択マクロを編集'), ('undo_button', 'Undo'),
                ('redo_button', 'Redo'), ('reset_button', '全キャラの未保存変更を破棄…')],

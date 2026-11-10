@@ -36,7 +36,7 @@ class SaveRequest:
 
     def validate_scope(self, plan):
         actual = {(plan.character, kind, file.page)
-                  for kind, part in (('macros', plan.macro), ('equipsets', plan.equipment))
+                  for kind, part in (('macros', plan.macro), ('equipsets', plan.equipment), ('books', plan.books))
                   if part for file in part.files}
         if actual != self.members(plan.character):
             raise ValueError('保存計画のファイル範囲が編集差分と一致しません。')
