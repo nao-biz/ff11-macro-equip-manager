@@ -26,7 +26,7 @@ class WindowerSettingsTests(unittest.TestCase):
         self.settings.save(first)
         restored = WindowerSettings(self.settings.path)
         self.assertEqual(restored.read(), first.resolve())
-        self.assertEqual(restored.inbox(), first/'addons/ff11export/data')
+        self.assertEqual(restored.inbox(), first.resolve()/'addons/ff11export/data')
         self.assertTrue((first/'addons/ff11export/ff11export.lua').is_file())
         self.assertIn(b'lua load ff11export', (first/'scripts/init.txt').read_bytes())
         second = make_windower(self.base/'Moved')

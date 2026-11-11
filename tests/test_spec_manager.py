@@ -295,7 +295,7 @@ class SpecManagerTests(unittest.TestCase):
         self.assertIn("[設計](#d-01)", output["markdown"])
         self.assertIn("未確定: 数値の基準は検討中。", output["markdown"])
         self.assertIn("実機確認は未実施", output["markdown"])
-        self.assertIn((self.root / "module.py").as_posix(), output["markdown"])
+        self.assertIn((self.root / "module.py").resolve().as_posix(), output["markdown"])
         self.assertEqual(before, self.snapshot())
         output_path = self.root / ".spec-manager/view.md"
         process = self.cli("render", "--out", str(output_path))

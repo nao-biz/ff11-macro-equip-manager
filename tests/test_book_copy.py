@@ -217,6 +217,7 @@ class BookCopyUITests(unittest.TestCase):
         owner = get_ident()
         try:
             view = ReaderWindow(app, source, editor=editor);app.update()
+            app.focus_force();app.update()
             view.common_menus['編集'].invoke('別キャラへブックをコピー…');app.update()
             window = next(w for w in app.winfo_children() if hasattr(w, 'copy_choices'))
             for choice in window.copy_choices.values():

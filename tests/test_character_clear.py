@@ -138,6 +138,7 @@ class CharacterClearUITests(unittest.TestCase):
         owner=get_ident()
         try:
             view=ReaderWindow(app, editor.snapshot(), editor=editor);app.update()
+            app.focus_force();app.update()
             before=editor.snapshot()
             a,b=before.characters
             for c in (a,b):

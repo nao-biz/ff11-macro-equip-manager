@@ -443,7 +443,7 @@ D-20: 文字編集中のCtrl+Z/Yは入力内の履歴を操作し、Editorの履
 
 VIEW-008 / D-19: `test_auxiliary_windows_escape_restores_caller`で装備移動、装備詳細、マクロ収納参照、マクロと装備セットの参照、未参照アイテム、集計内訳の6画面を開き、Escで閉じて呼出元へ戻ることを検証する。`test_input_enter_and_escape_respect_composition`で名前入力のEnter確定とIME変換中のEnter/Escを、`test_candidate_search_keeps_composition_enter_and_escape`で定型文検索を検証する。IME状態の差替えテストであり実IME操作とは区別する。
 
-GUI有効の全件検証は `FF11_RUN_INTEGRATION=1`、`FF11_RUN_GAME_INTEGRATION=0` で `python -m unittest discover -s tests -v` を実行する。通常CIのGUIジョブにも装備移動・装備保存・マクロ保存の確認ボタン経路を含める。
+GUI有効の全件検証は `FF11_RUN_INTEGRATION=1`、`FF11_RUN_GAME_INTEGRATION=0` で `python -m unittest discover -s tests -v` を実行する。CIのsynthetic-uiジョブは通常テストから独立して同じ全件検出を実行する。テスト名の列挙を廃止し、装備移動・装備保存・マクロ保存・起動・自動同期・Windower設定を含む追加UIテストも検出する。実ゲーム必須のテストだけを明示的に無効にする。
 
 ### 目的別メニューとタブからの独立（VIEW-008 / D-19、実装待ち）
 

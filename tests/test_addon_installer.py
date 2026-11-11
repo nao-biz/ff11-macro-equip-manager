@@ -45,7 +45,7 @@ class InstallerTests(unittest.TestCase):
         restored = WindowerSettings(self.settings.path)
         with patch.object(installer, 'install', side_effect=AssertionError('Repeated deployment')):
             restored.save(self.root)
-            self.assertEqual(restored.read(), self.root)
+            self.assertEqual(restored.read(), self.root.resolve())
             restored.inbox()
         self.assertEqual(stamps, {p:p.stat().st_mtime_ns for p in stamps})
 
@@ -79,7 +79,7 @@ class InstallerTests(unittest.TestCase):
         first = contents(self.root)
         self.settings.save(other)
         self.assertEqual(first, contents(self.root))
-        self.assertEqual(self.settings.read(), other)
+        self.assertEqual(self.settings.read(), other.resolve())
         self.assertTrue((other/'addons/ff11export/ff11export.lua').is_file())
 
     def test_old_config_migrates_only_on_explicit_save(self):
@@ -145,8 +145,11 @@ class InstallerTests(unittest.TestCase):
     def test_link_outside_selected_folder_is_rejected(self):
         outside = self.base/'external-init.txt'; outside.write_bytes(b'outside')
         original_resolve = Path.resolve
+        init_target = self.init.resolve()
+        outside_target = outside.resolve()
         def resolve(path, *args, **kwargs):
-            return outside if path == self.init else original_resolve(path, *args, **kwargs)
+            resolved = original_resolve(path, *args, **kwargs)
+            return outside_target if resolved == init_target else resolved
         before = contents(self.root)
         with patch.object(Path, 'resolve', resolve):
             with self.assertRaisesRegex(ValueError, 'フォルダ外'): self.settings.save(self.root)

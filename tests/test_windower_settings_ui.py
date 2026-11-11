@@ -59,8 +59,8 @@ class FolderUITests(unittest.TestCase):
             return dialog.result
         with patch.object(FolderDialog, 'wait', autospec=True, side_effect=change):
             self.assertTrue(configure(self.app, self.settings))
-        self.assertEqual(seen, [str(folder)])
-        self.assertEqual(self.settings.read(), second)
+        self.assertEqual(seen, [str(folder.resolve())])
+        self.assertEqual(self.settings.read(), second.resolve())
 
     def test_folder_picker_cancel_and_layout(self):
         dialog = FolderDialog(self.app, str(self.base), first=True)
@@ -114,7 +114,7 @@ class WorkspaceSettingsTests(MoveFixture):
                 return dialog.result
             with patch.object(FolderDialog, 'wait', autospec=True, side_effect=answer):
                 view.settings_button.invoke()
-            self.assertEqual(view.augment_store.settings.read(), folder)
+            self.assertEqual(view.augment_store.settings.read(), folder.resolve())
             self.assertEqual(self.editor.edit_status(), before)
             self.assertEqual(view.macro_panel.pending, pending)
             self.assertEqual(self.original, {p:p.read_bytes() for p in self.folder.iterdir()})
