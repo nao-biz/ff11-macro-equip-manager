@@ -54,6 +54,19 @@ class SnapshotState:
     def source_header(self):
         return self._template.installation_key, deepcopy(self._template.sources)
 
+    def with_context(self, snapshot):
+        """Keep edit values while adopting fresh inventory, masters and provenance."""
+        fresh = deepcopy(snapshot)
+        for character in fresh.characters:
+            sources = {slot.container: slot.item_reference.inventory_source
+                       for equipset in character.equipsets for slot in equipset.slots
+                       if slot.container is not None and slot.item_reference is not None}
+            old = self.read_character(character.folder_id)
+            for kind in EDIT_KINDS:
+                setattr(character, kind, getattr(old, kind))
+            character.equipsets = assess_equipment(character, sources)
+        return SnapshotState(fresh)
+
     def edit_records(self):
         return {c.folder_id: {kind: [deepcopy(self._entries[c.folder_id,kind,address])
             for address in self._orders[c.folder_id,kind]] for kind in EDIT_KINDS}

@@ -49,6 +49,18 @@ class StartupTests(unittest.TestCase):
         details=[w for w in self.startup.panel.winfo_children() if isinstance(w,tk.Text)]
         self.assertIn('合成データの読込エラー',details[0].get('1.0','end'))
 
+    def test_game_running_defers_read_until_exit(self):
+        from unittest.mock import Mock
+        from types import SimpleNamespace
+        running=[True];results=[]
+        prepare=Mock(return_value=(SimpleNamespace(sources=[]),None))
+        self.startup=Startup(self.app,prepare,results.append,probe=lambda:running[0])
+        self.until(lambda:'ゲームの終了' in self.startup.status['text'])
+        prepare.assert_not_called()
+        running[0]=False
+        self.until(lambda:bool(results))
+        prepare.assert_called_once()
+
     def test_close_during_prepare_never_opens_main_window(self):
         entered=threading.Event();results=[]
         def prepare(report):

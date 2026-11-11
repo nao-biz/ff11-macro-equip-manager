@@ -1,12 +1,14 @@
 """Application-owned individual-item observations, independent of edit drafts."""
 import hashlib
+from dataclasses import replace
 import json
-import os
-import tempfile
 from pathlib import Path
 from .augment_import import parse, export_value, object_keys
 from .augment_observation import reconcile
 from .tracing import traced
+from .augment_sources import AugmentSources, atomic_json
+from .augment_inbox import latest, ExportPending, EXPORT_PENDING
+from .windower_settings import WindowerSettings
 
 MAX_STORE_BYTES = 8 * 1024 * 1024
 
@@ -14,6 +16,8 @@ MAX_STORE_BYTES = 8 * 1024 * 1024
 class AugmentStore:
     def __init__(self, directory):
         self.directory = Path(directory)
+        self.sources = AugmentSources(self.directory.parent / 'augment-sources.json')
+        self.settings = WindowerSettings(self.directory.parent / 'windower-settings.json')
 
     def path(self, installation, folder):
         key = json.dumps([installation, folder], ensure_ascii=True).encode('ascii')
@@ -31,44 +35,54 @@ class AugmentStore:
         try:
             value = json.loads(data.decode('utf-8'), object_pairs_hook=object_keys)
             if (value['format'] != 'ff11-augment-store' or type(value['version']) is not int
-                    or value['version'] != 1 or value['installation_key'] != installation
+                    or value['version'] not in (1, 2) or value['installation_key'] != installation
                     or value['folder_id'] != folder):
                 raise ValueError('保存済み個体情報の版またはキャラ対応が一致しません。')
-            return parse(json.dumps(value['export'], ensure_ascii=False).encode('utf-8'))
+            export = parse(json.dumps(value['export'], ensure_ascii=False).encode('utf-8'))
+            source = self.sources.require(installation, folder)
+            source.verify(export)
+            if value['version'] == 2 and value.get('binding') != [source.character_id, source.server]:
+                raise ValueError('保存済み個体情報のキャラ対応が一致しません。')
+            return export
         except (KeyError, TypeError, UnicodeError, RecursionError) as exc:
             raise ValueError('保存済み個体情報の構造が不正です。') from exc
 
     @traced('augment.save')
     def save(self, installation, folder, export):
-        data = json.dumps(dict(format='ff11-augment-store', version=1,
+        source = self.sources.require(installation, folder)
+        source.verify(export)
+        value = dict(format='ff11-augment-store', version=2,
                               installation_key=installation, folder_id=folder,
-                              export=export_value(export)), ensure_ascii=False).encode('utf-8')
+                              binding=[source.character_id, source.server],
+                              export=export_value(export))
+        data = json.dumps(value, ensure_ascii=False, indent=2).encode('utf-8')
         if len(data) > MAX_STORE_BYTES:
             raise ValueError('個体情報が保存サイズ上限を超えています。')
         # Validate before creating any file, including programmatic callers.
         parse(json.dumps(export_value(export), ensure_ascii=False).encode('utf-8'))
-        self.directory.mkdir(parents=True, exist_ok=True)
-        path = self.path(installation, folder)
-        temp = None
-        try:
-            with tempfile.NamedTemporaryFile(dir=self.directory, suffix='.tmp', delete=False) as stream:
-                temp = Path(stream.name)
-                stream.write(data)
-                stream.flush()
-                os.fsync(stream.fileno())
-            temp.replace(path)
-        finally:
-            if temp is not None:
-                temp.unlink(missing_ok=True)
+        atomic_json(self.path(installation, folder), value)
 
     @traced('augment.restore')
     def restore(self, snapshot):
         observations, errors = {}, {}
         for character in snapshot.characters:
+            export = None
             try:
                 export = self.load(snapshot.installation_key, character.folder_id)
-                if export is not None:
-                    observations[character.folder_id] = reconcile(export, character, snapshot.rank_augments)
+                source = self.sources.get(snapshot.installation_key, character.folder_id)
+                if source:
+                    inbox = self.settings.inbox()
+                    if inbox is not None:
+                        source = replace(source, directory=str(inbox))
+                    incoming = latest(source)
+                    if isinstance(incoming, ExportPending) or (incoming is None and export is None):
+                        errors[character.folder_id] = EXPORT_PENDING
+                    elif incoming is not None and (export is None or
+                            (incoming.captured_at >= export.captured_at and incoming != export)):
+                        self.save(snapshot.installation_key, character.folder_id, incoming)
+                        export = incoming
             except (OSError, ValueError) as exc:
                 errors[character.folder_id] = str(exc)
+            if export is not None:
+                observations[character.folder_id] = reconcile(export, character, snapshot.rank_augments)
         return observations, errors

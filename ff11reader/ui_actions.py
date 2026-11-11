@@ -75,7 +75,7 @@ def input_wait(widget):
 def run_action(widget, command, *, busy=False, message="処理中です…"):
     """Shared entry for buttons and keyboard commands; paint before doing work."""
     from .ui_tasks import is_running
-    if is_running(widget):return
+    if is_running(widget) or getattr(state(widget).root,'game_blocked',False):return
     if not busy:return command()
     with state(widget).handling(message):return command()
 

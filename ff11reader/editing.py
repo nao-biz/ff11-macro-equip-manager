@@ -108,6 +108,15 @@ class EditSession:
     def saved_header(self): return self._saved.source_header()
 
     def view(self, previous=None): return self._working.export(previous)
+
+    def refresh_context(self, snapshot):
+        """Transactionally refresh non-edit data without losing undo/redo state."""
+        candidate = SnapshotState(snapshot)
+        if not self._saved.same_values(candidate):
+            raise ValueError('ゲーム側のマクロ・装備セットが変更されています。')
+        baseline = self._baseline.with_context(snapshot)
+        working = self._working.with_context(snapshot)
+        self._baseline, self._working, self._saved = baseline, working, candidate
     def character(self, folder): return self._working.read_character(folder)
     def item_catalog(self): return self._working.items()
     def slot_edit_context(self, folder, selection): return self._working.slot_edit_context(folder, selection)

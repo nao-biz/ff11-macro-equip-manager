@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 from ff11reader.augment_store import AugmentStore
 from ff11reader.augment_import import parse
+from ff11reader.augment_sources import AugmentSource
 from ff11reader.domain import Snapshot
 from tests.test_augment_import import fixture, encoded, character
 
@@ -17,6 +18,8 @@ class StoreTests(unittest.TestCase):
         self.store=AugmentStore(self.directory/'observations')
         self.export=parse(encoded(fixture()))
         self.snapshot=Snapshot('test','now',[character()],{},[],[],installation_key='installation')
+        for folder in ('abc','def'):
+            self.store.sources.register(AugmentSource('installation',folder,123,1,str(self.directory),'synthetic observation'))
     def test_restart_and_reconcile_without_original_export(self):
         before=copy.deepcopy(self.snapshot)
         self.store.save('installation','abc',self.export)
@@ -42,7 +45,7 @@ class StoreTests(unittest.TestCase):
         self.store.save('installation','abc',self.export)
         old=self.store.path('installation','abc').read_bytes()
         newer=replace(self.export,captured_at='2026-11-04T00:00:00Z')
-        for fault in (patch.object(Path,'replace',side_effect=OSError('replace failed')),patch('ff11reader.augment_store.os.fsync',side_effect=OSError('fsync failed'))):
+        for fault in (patch.object(Path,'replace',side_effect=OSError('replace failed')),patch('ff11reader.augment_sources.os.fsync',side_effect=OSError('fsync failed'))):
             with fault,self.assertRaises(OSError):self.store.save('installation','abc',newer)
             self.assertEqual(self.store.path('installation','abc').read_bytes(),old)
             self.assertEqual(list(self.store.directory.glob('*.tmp')),[])

@@ -13,8 +13,9 @@ from tkinter import ttk
 
 class TaskScreen:
     """Block application input while keeping the native event loop running."""
-    def __init__(self, root, message):
+    def __init__(self, root, message, *, on_close=None):
         self.root = root
+        self.on_close = on_close
         self.focus = root.focus_get()
         self.grab = root.grab_current()
         self.grab_status = self.grab.grab_status() if self.grab else None
@@ -69,6 +70,8 @@ class TaskScreen:
         self.layer.destroy()
 
     def request_close(self):
+        if self.on_close:
+            self.on_close();return
         self.label.configure(text='処理中です。完了してから閉じてください。')
 
     def close(self):

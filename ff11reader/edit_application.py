@@ -39,6 +39,26 @@ class Editor:
     @property
     def master_data(self): return self._masters
 
+    def synchronize(self, *, pending_input=False, validate=lambda:None):
+        """Adopt external data only after validation; preserve an unchanged edit base."""
+        from .application import load_snapshot
+        from .edit_values import snapshot_value
+        from .sync_observation import SyncConflict
+        if self.root is None:raise ValueError('読込元が設定されていません。')
+        if self.journal.path.exists():raise ValueError('ゲーム保存の復旧記録があります。')
+        fresh = load_snapshot(self.root)
+        if fresh.installation_key != self._session.saved.installation_key:
+            raise ValueError('読込元のインストール先が一致しません。')
+        unchanged = snapshot_value(fresh) == snapshot_value(self._session.saved)
+        if not unchanged and (self._session.history_length() or pending_input):
+            raise SyncConflict('ゲーム側のマクロ・装備セットとアプリの編集が競合しています。編集内容は保持しています。')
+        next_session = self._session.fork() if unchanged else EditSession(fresh)
+        if unchanged:next_session.refresh_context(fresh)
+        validate()
+        self._session = next_session
+        self._masters = fresh.master_data
+        self.clear_transfer()
+
     @property
     def transfer(self):return deepcopy(self._transfer)
 

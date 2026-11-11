@@ -48,3 +48,11 @@ master-values契約は起動単位の読み取り専用マスター値からI/O�
 book-copy契約はキャラ間コピー計画からUI・保存実行・Editorへの直接依存を禁止する。コピー先の参照判定、元の保持、上書き確認、ブック名を含む保存と復元は`test_book_copy`で確認する。名前保存の計画値は`save_plan`に置き、管理者ヘルパーから名前保存実装への循環を作らない。
 
 character-clear契約はD-22の全消去計画からUI・保存実行・Editorへの直接依存を禁止する。入力不変・一括Undo/Redo・既存保存への接続はtest_character_clearで確認する。
+
+augment-import-boundary契約はD-16の対応設定・Export選択・保存・名前投影からUI・編集・ゲーム保存への逆依存を禁止する。自動取得の世代取消と情報安定待ち、自動取り込みの対応照合・失敗保持・名前反映はtest_augment_import、test_auto_augments、test_augment_uiで確認する。
+
+Windowerフォルダの永続化もaugment-import-boundary契約に含め、設定UIへの逆依存を禁止する。設定変更・保存失敗・初回案内・入力保持とワーカー境界はtest_windower_settings、test_windower_settings_uiで合成検証する。
+
+同梱アドオン配置と自動ロード設定を担当するaddon_installerも同契約へ含める。設定保存を最後に実行し、通常の失敗では配置を復旧する。完了記録による再実行省略、版更新、原文バックアップ、対象外保持、途中失敗と復旧失敗はtest_addon_installerで検証する。
+
+game-observation契約はD-23のプロセス・ファイル観測からUI・編集・ゲーム書戻しへの直接・間接依存を禁止する。監視は読取専用で、状態キューを受けるsync_uiが既存の排他ワーカーへ更新を依頼する。入力停止・自動再開・編集保持はtest_auto_sync、test_sync_ui、test_startupで検証する。

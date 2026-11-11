@@ -14,14 +14,76 @@ from ff11reader.augment_import import load_observation
 
 @unittest.skipUnless(os.environ.get('FF11_RUN_INTEGRATION')=='1','Synthetic Tk checks')
 class AugmentUITests(MoveFixture):
+    def setUp(self):
+        super().setUp()
+        handle=patch('ff11reader.ui.dialogs.showinfo')
+        self.info=handle.start();self.addCleanup(handle.stop)
+
     def tearDown(self):
         gc.collect()
+
+    def test_export_wait_is_information_and_clears_after_first_export(self):
+        from ff11reader.augment_sources import AugmentSource, AugmentSources
+        inbox=self.base/'inbox'
+        AugmentSources(self.base/'augment-sources.json').register(AugmentSource(
+            self.source.installation_key,'abc',123,1,str(inbox),'synthetic observation'))
+        app=tk.Tk();app.tk=TkThreadGuard(app.tk)
+        try:
+            with patch('ff11reader.ui.dialogs.showwarning') as warning:
+                view=ReaderWindow(app,self.editor.snapshot(),editor=self.editor)
+                app.update()
+                warning.assert_not_called()
+                self.info.assert_called_once()
+                self.assertIn('ゲームにログインすると自動取得されます',self.info.call_args.args[1])
+                self.info.reset_mock()
+                inbox.mkdir()
+                path=inbox/'auto-1-123-20261103T000000Z-000001.json'
+                path.write_bytes(encoded(fixture()))
+                view.restore_augments();app.update()
+                self.info.assert_not_called();warning.assert_not_called()
+                path.write_bytes(b'broken')
+                view.restore_augments();app.update()
+                self.info.assert_not_called();warning.assert_called_once()
+        finally:
+            app.destroy()
+            del app
+            gc.collect()
+
+    def test_automatic_startup_reload_and_edit_name(self):
+        from ff11reader.augment_sources import AugmentSource, AugmentSources
+        self.editor=Editor(self.source,self.base/'draft.json',root=self.folder.parent.parent)
+        AugmentSources(self.base/'augment-sources.json').register(AugmentSource(
+            self.source.installation_key,'abc',123,1,str(self.base),'synthetic observation'))
+        value=fixture();value['character']['name']='AutoFirst'
+        (self.base/'auto-1-123-20261103T000000Z-000001.json').write_bytes(encoded(value))
+        app=tk.Tk();app.tk=TkThreadGuard(app.tk)
+        try:
+            with patch('ff11reader.ui.dialogs.askyesno',return_value=True):
+                view=ReaderWindow(app,self.source,editor=self.editor)
+                self.assertEqual(view.character.display_name,'AutoFirst')
+                before=self.editor.edit_status()
+                view.refresh_edits()
+                self.assertEqual(view.character.display_name,'AutoFirst')
+                self.assertEqual(self.editor.edit_status(),before)
+                value['captured_at']='2026-11-04T00:00:00Z';value['character']['name']='AutoSecond'
+                (self.base/'auto-1-123-20261104T000000Z-000001.json').write_bytes(encoded(value))
+                view.reload_data()
+                self.assertEqual(view.character.display_name,'AutoSecond')
+                self.assertIn('AutoSecond',view.character_choice.get())
+                self.assertEqual(self.original,{p:p.read_bytes() for p in self.folder.iterdir()})
+        finally:
+            app.destroy()
+            del view,app
+            gc.collect()
 
     def test_import_cancel_failure_history_and_reload(self):
         c=character()
         self.source.characters[0].inventory=c.inventory
         self.source.characters[0].inventory_coverage=c.inventory_coverage
         self.editor=Editor(self.source,self.base/'draft.json',root=self.folder.parent.parent)
+        from ff11reader.augment_sources import AugmentSource, AugmentSources
+        AugmentSources(self.base/'augment-sources.json').register(AugmentSource(
+            self.source.installation_key,'abc',123,1,str(self.base),'synthetic observation'))
         path=self.base/'export.json';path.write_bytes(encoded(fixture()))
         app=tk.Tk();app.tk=TkThreadGuard(app.tk)
         owner=get_ident();calls=[]

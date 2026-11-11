@@ -31,7 +31,7 @@ end
 local function integer(x, low, high)
     return type(x)=='number' and x==math.floor(x) and x>=low and x<=high
 end
-function M.capture(api, decode, stamp, complete, utf8)
+function M.capture(api, decode, stamp, complete, utf8, require_complete)
     assert(complete, 'Inventory loading has not completed. Zone once after loading ff11export.')
     local info, player = api.get_info(), api.get_player()
     assert(info and info.logged_in and player, 'Log in before exporting.')
@@ -75,9 +75,13 @@ function M.capture(api, decode, stamp, complete, utf8)
                 else entry.items=array() end
             end
         end
+        assert(not require_complete or entry.state ~= 'incomplete', 'Inventory is still incomplete')
     end
     local after=api.get_player()
-    assert(api.get_info().logged_in and after and after.id==player.id, 'Character changed during export')
+    local after_info=api.get_info()
+    assert(after_info and after_info.logged_in and after and after.id==player.id
+        and after.name==player.name and after_info.server==info.server and after_info.zone==info.zone,
+        'Character or area changed during export')
     return json(result)
 end
 return M

@@ -150,6 +150,9 @@ class RankAugmentTests(unittest.TestCase):
             original = export_value(observation.export)
             storage = AugmentStore(root/'saved')
             c = character()
+            from ff11reader.augment_sources import AugmentSource
+            storage.sources.register(AugmentSource('install',c.folder_id,
+                observation.export.character_id,observation.export.server,str(root),'synthetic observation'))
             storage.save('install', c.folder_id, observation.export)
             dictionary.write_bytes(dmsg({**FORMATS, 133: '更新能力%+d'}))
             snapshot = Snapshot('id', '', [c], {}, [], [], 'install', rank_augments=reader.load_rank_augments())

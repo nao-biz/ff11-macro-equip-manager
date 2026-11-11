@@ -146,6 +146,7 @@ class Modal:
 
 
 def showwarning(title,message,*,parent):return Modal(parent,title,message,'warning').wait()
+def showinfo(title,message,*,parent):return Modal(parent,title,message).wait()
 def showerror(title,message,*,parent):return Modal(parent,title,message,'error').wait()
 def askyesno(title,message,*,parent,accept_label=None):return Modal(parent,title,message,'confirm',accept_label=accept_label).wait()
 def askstring(title,message,*,parent,initialvalue=''):return Modal(parent,title,message,'input',initialvalue).wait()

@@ -16,6 +16,7 @@ from .macro_inventory import assess_macro_inventory, LABELS as MACRO_ITEM_LABELS
 from .application import inspect_macro_set_links, inspect_wardrobe_usage
 from pathlib import Path
 from .tracing import configure, traced
+from .augment_names import apply_names
 
 
 ACTION_STYLE = {
@@ -136,10 +137,11 @@ class ReaderWindow:
   self.undo_button.configure(state='normal' if cursor and not self.editor.blocked else 'disabled')
   self.redo_button.configure(state='normal' if cursor<history_length and not self.editor.blocked else 'disabled')
   self.save_button.configure(state='normal' if (dirty or pending) and not self.editor.blocked else 'disabled')
-  self.draft_label.configure(text='ゲーム保存の復旧確認が必要' if self.editor.blocked else ('未保存の変更あり' if dirty or pending else 'ゲームデータと同じ'))
+  self.draft_label.configure(text='ゲームデータとの確認が必要' if self.editor.blocked else ('未保存の変更あり' if dirty or pending else 'ゲームデータと同じ'))
  @traced('ui.refresh_edits')
  def refresh_edits(self):
   self.snapshot=background(self.app,self.editor.snapshot,self.snapshot)
+  apply_names(self.snapshot,self.augment_observations)
   self.change_mode()
   self.update_edit_status()
   self.commands.schedule_focus_restore()
@@ -171,17 +173,37 @@ class ReaderWindow:
   except (OSError,ValueError) as e:
    dialogs.showerror('個体情報を保存できませんでした',str(e),parent=self.app);return
   self.augment_observations[character.folder_id]=observation
+  apply_names(self.snapshot,self.augment_observations)
+  i=self.character_choice.current();self.character_choice.configure(values=self.character_labels());self.character_choice.current(i)
+  self.update_edit_status()
   self.footer.configure(text=f'{source.character_name} の個体情報を取り込みました（{source.captured_at}）。')
   self.change_mode()
- def restore_augments(self):
-  observations,errors=background(self.app,self.augment_store.restore,self.snapshot,message='保存した個体情報を確認しています…')
+ def restore_augments(self, *, notify=True):
+  from .augment_inbox import ExportPending, EXPORT_PENDING
+  observations,errors=background(self.app,self.augment_store.restore,self.snapshot,message='最新の個体情報を取り込んでいます…')
   self.augment_observations=observations
-  if errors:
-   message='\n'.join(f'{folder}: {error}' for folder,error in errors.items())
-   dialogs.when_visible(self.app,lambda:dialogs.showwarning('個体情報を復元できませんでした',message,parent=self.app))
+  apply_names(self.snapshot,observations)
+  self.character_choice.configure(values=self.character_labels())
+  failures={folder:error for folder,error in errors.items() if not isinstance(error,ExportPending)}
+  if not notify:
+   if errors:self.footer.configure(text=' / '.join(str(error) for error in errors.values()))
+   return errors
+  if failures:
+   message='\n'.join(f'{folder}: {error}' for folder,error in failures.items())
+   dialogs.when_visible(self.app,lambda:dialogs.showwarning('個体情報の自動取り込み・復元',message,parent=self.app))
+  elif errors:
+   dialogs.when_visible(self.app,lambda:dialogs.showinfo('個体情報の自動取得',EXPORT_PENDING,parent=self.app))
  def augment_text(self,row):
   from .augment_presentation import describe
   return describe(self.augment_observations.get(self.character.folder_id),row)
+ def configure_windower(self, *, first=False):
+  from .windower_settings_ui import configure
+  if configure(self.app,self.augment_store.settings,first=first):
+   index=self.character_choice.current()
+   self.restore_augments()
+   if index>=0:self.character_choice.current(index)
+   self.change_mode()
+   self.footer.configure(text='ゲームにログインすると自動取得されます。ゲーム終了後に自動で反映されます。')
  def reload_data(self):
   if not dialogs.askyesno('ゲームデータを再読み込み','全キャラの未保存の変更と入力中のマクロを破棄し、最新のゲームデータを読み込みます。\n再読み込みしてよいですか？',parent=self.app,accept_label='再読み込み'):return
   folder=self.character.folder_id if self.character else None

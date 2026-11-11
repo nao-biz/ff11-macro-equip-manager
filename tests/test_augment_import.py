@@ -64,6 +64,7 @@ class AddonTests(unittest.TestCase):
     def setUp(self):
         self.lua=LuaRuntime(unpack_returned_tuples=True)
         self.lua.globals().core=self.lua.execute((ROOT/'addons/ff11export/export_core.lua').read_text(encoding='utf-8'))
+        self.lua.globals().auto_module=self.lua.execute((ROOT/'addons/ff11export/auto_export.lua').read_text(encoding='utf-8'))
         self.lua.execute("""
         api={get_info=function() return {logged_in=true,server=1} end,
         get_player=function() return {id=123,name='Test'} end,
@@ -101,6 +102,7 @@ class AddonTests(unittest.TestCase):
         self.lua.execute("""
         package.preload.export_core=function() return core end
         package.preload.extdata=function() return {decode=decode} end
+        package.preload.auto_export=function() return auto_module end
         _addon={};events={};messages={};scheduled={};writes={}
         windower={ffxi=api,addon_path='synthetic/',from_shift_jis=function(s)return s end,
          register_event=function(n,f) events[n]=f end,
@@ -120,15 +122,72 @@ class AddonTests(unittest.TestCase):
         self.lua.execute("events['incoming chunk'](0x01D,string.rep('x',4)..string.char(1)..string.rep('x',3)); scheduled[1]();events['addon command']('export')")
         self.assertEqual(len(parse(self.lua.eval('writes[1]').encode()).bags),17)
         self.lua.execute("events['logout'](); events['addon command']('export')")
-        self.assertEqual(self.lua.eval('#writes'),1)
+        self.assertEqual(self.lua.eval('#writes'),2)
 
     def test_pending_completion_cancelled_by_zone(self):
         # Run the adapter harness first, then schedule a completion invalidated by a zone.
         self.test_adapter_gates_and_no_game_mutations()
         self.lua.execute("events['incoming chunk'](0x01D,string.rep('x',4)..string.char(1)..string.rep('x',3)); events['incoming chunk'](0x00B,''); scheduled[2](); events['addon command']('export')")
-        self.assertEqual(self.lua.eval('#writes'),1)
+        self.assertEqual(self.lua.eval('#writes'),2)
 
     def test_publish_failure_reports_error(self):
         self.test_adapter_gates_and_no_game_mutations()
-        self.lua.execute("events['incoming chunk'](0x01D,string.rep('x',4)..string.char(1)..string.rep('x',3)); scheduled[2](); os.rename=function() return nil,'rename failed' end; events['addon command']('export')")
+        self.lua.execute("events['incoming chunk'](0x01D,string.rep('x',4)..string.char(1)..string.rep('x',3)); scheduled[#scheduled](); os.rename=function() return nil,'rename failed' end; events['addon command']('export')")
         self.assertIn('rename failed',self.lua.eval('messages[#messages]'))
+
+    def test_automatic_completion_is_once_and_publishes_parseable_export(self):
+        self.test_adapter_gates_and_no_game_mutations()
+        self.lua.execute("events['incoming chunk'](0x01D,string.rep('x',4)..string.char(1)..string.rep('x',3)); scheduled[#scheduled](); scheduled[#scheduled]()")
+        self.assertEqual(self.lua.eval('#writes'),3)
+        self.assertEqual(parse(self.lua.eval('writes[3]').encode()).character_id,123)
+        self.assertIn('auto-1-123-',self.lua.eval('messages[#messages]'))
+        self.lua.execute("events['incoming chunk'](0x01D,string.rep('x',4)..string.char(1)..string.rep('x',3)); scheduled[#scheduled]()")
+        self.assertEqual(self.lua.eval('#writes'),3)
+
+    def test_last_item_update_flushed_before_logout_and_old_timer_cancelled(self):
+        self.test_adapter_gates_and_no_game_mutations()
+        self.lua.execute("events['incoming chunk'](0x01D,string.rep('x',4)..string.char(1)..string.rep('x',3)); scheduled[#scheduled](); scheduled[#scheduled]()")
+        self.lua.execute("events['incoming chunk'](0x020,''); old_items=api.get_items; api.get_items=function(b) local r=old_items(b); if b==12 then r[63]=r[62];r[63].slot=63;r[62]={id=0} end;return r end; events['outgoing chunk'](0x00D,''); events['logout'](); scheduled[#scheduled]()")
+        self.assertEqual(self.lua.eval('#writes'),4)
+        self.assertEqual([r.index for r in parse(self.lua.eval('writes[4]').encode()).bags[12].items], [1,63])
+
+    def test_debounce_exports_latest_value_and_flushes_pending_change(self):
+        self.lua.execute('''
+            timers={};outputs={};current=1
+            local w={ffxi=api,add_to_chat=function()end}
+            a=auto_module.new(w,function(f,d)timers[#timers+1]=f end,
+                             function()outputs[#outputs+1]=current end)
+            a.ready();timers[1]();current=2;a.changed();current=3;a.changed()
+            timers[2]();timers[3]();current=4;a.changed();a.flush();timers[4]();a.flush()
+        ''')
+        self.assertEqual([self.lua.eval('outputs[%d]'%i) for i in (1,2,3)], [1,3,4])
+        self.assertEqual(self.lua.eval('#outputs'),3)
+
+    def test_capture_rejects_server_change_and_auto_incomplete(self):
+        self.lua.execute('calls=0; api.get_info=function() calls=calls+1; return {logged_in=true,server=calls} end')
+        with self.assertRaises(Exception):self.lua.eval('run(true)')
+        self.lua.execute('api.get_info=function() return {logged_in=true,server=1} end; api.get_items=function() return {} end')
+        with self.assertRaises(Exception):
+            self.lua.eval("core.capture(api,decode,'2026-11-03T00:00:00Z',true,function(s)return s end,true)")
+
+    def test_auto_waits_for_stable_server_and_cancels_old_generation(self):
+        self.lua.execute('''
+            timers={}; emitted=0; server=31; notices={}
+            w={ffxi={get_info=function()return {logged_in=true,server=server,zone=1}end,
+                     get_player=function()return {id=123,name='Test'}end},
+               add_to_chat=function(_,s)notices[#notices+1]=s end}
+            a=auto_module.new(w,function(f)timers[#timers+1]=f end,function()emitted=emitted+1 end)
+            a.ready(); server=5; timers[#timers]();
+        ''')
+        self.assertEqual(self.lua.eval('emitted'),0)
+        self.lua.execute('timers[#timers](); a.ready()')
+        self.assertEqual(self.lua.eval('emitted'),1)
+        self.lua.execute('a.invalidate(); a.ready(); a.invalidate(); timers[#timers]()')
+        self.assertEqual(self.lua.eval('emitted'),1)
+
+    def test_auto_retries_are_bounded_and_previous_export_survives(self):
+        self.test_adapter_gates_and_no_game_mutations()
+        self.lua.execute("os.rename=function()return nil,'rename failed' end; events['incoming chunk'](0x01D,string.rep('x',4)..string.char(1)..string.rep('x',3)); scheduled[#scheduled](); for i=1,5 do scheduled[#scheduled]() end")
+        self.assertIn('ff11export auto:',self.lua.eval('messages[#messages]'))
+        self.assertIn('rename failed',self.lua.eval('messages[#messages]'))
+        self.assertEqual(parse(self.lua.eval('writes[1]').encode()).character_id,123)
