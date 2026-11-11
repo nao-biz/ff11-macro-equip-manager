@@ -1531,6 +1531,11 @@
           "type": "detail",
           "label": "機械的な測定と依存契約",
           "text": "本番Pythonを対象にImport Linter/Grimpで依存辺・禁止依存・循環依存、Pylintで内部属性アクセス・規模・重複の警告、Radonで関数の複雑度を測定する。版を固定したtools/architecture/measure.pyでJSONと元出力を保存し、CIでも同じ測定を行う。適合済みの指定ドメインからUIへの依存禁止をCIの合否条件とする。既存の循環・内部アクセス・複雑度は基準値を記録し、未整理の警告を全件合否条件にはしない。凝集性の意味や責務の妥当性は点数だけで確定せず、候補をレビューする。静的解析の対象範囲、動的依存の限界、契約と報告の区別はtools/architecture/README.mdで管理する。"
+        },
+        {
+          "type": "detail",
+          "label": "CI計測レポート",
+          "text": "CIのSummaryには合否条件の結果、計測値、前回との差分、比較元のコミットと実行を表示する。pushは同じブランチ、pull requestは取り込み先ブランチの、現在の実行より前に成功した直近のpush計測を比較元とする。Artifact取得不可・初回・計測版または対象範囲の相違は比較不可と表示する。AnnotationsにはPylintと複雑度D以上の指摘を新規優先で最大10件表示し、全指摘・比較結果・依存辺・複雑度・元出力はArtifactに保持する。行番号だけの移動は新規指摘としない。計測と公開をtools/architectureへ分離し、本番コードの依存とCIの既存合否条件を維持する。比較不能、増減、行移動、Annotationsの位置とエスケープをtest_architecture_reportで検証する。"
         }
       ]
     },

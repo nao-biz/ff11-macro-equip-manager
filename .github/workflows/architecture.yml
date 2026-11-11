@@ -1,5 +1,8 @@
 name: Architecture measurements
 on: [push, pull_request]
+permissions:
+  contents: read
+  actions: read
 jobs:
   measure:
     runs-on: windows-latest
@@ -11,16 +14,31 @@ jobs:
           python-version: '3.12'
       - run: python -m pip install --target work/architecture-tools -r tools/architecture/requirements.txt
       - run: python -m pip install -r requirements-test.txt
+      - name: Retrieve previous successful measurement
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASELINE_BRANCH: ${{ github.base_ref || github.ref_name }}
+        run: python -X utf8 -B tools/architecture/previous.py
       - run: python -X utf8 -B tools/architecture/measure.py
+        id: measurement
       - name: Enforce domain to UI boundary
+        id: boundary
         env:
           PYTHONPATH: work/architecture-tools
         run: python -X utf8 -c "from importlinter.cli import lint_imports_command; lint_imports_command()" --config tools/architecture/contracts.ini --contract domain-ui --contract save-state-storage --contract macro-proposal --contract snapshot-loading --contract reader-boundary --contract read-descriptors --contract save-inputs --contract master-values --contract book-copy --contract character-clear --contract augment-import-boundary --contract game-observation --no-cache --no-logo
       - name: Enforce save coordinator public API usage
+        id: public-api
         env:
           PYTHONPATH: work/architecture-tools
           PYLINTHOME: work/architecture-baseline/pylint-cache
         run: python -X utf8 -m pylint ff11reader/save_state.py --disable=all --enable=protected-access --score=n --persistent=n
+      - name: Publish architecture report
+        if: always()
+        env:
+          MEASURE_OUTCOME: ${{ steps.measurement.outcome }}
+          BOUNDARY_OUTCOME: ${{ steps.boundary.outcome }}
+          API_OUTCOME: ${{ steps.public-api.outcome }}
+        run: python -X utf8 -B tools/architecture/report.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:

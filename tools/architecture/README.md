@@ -28,6 +28,18 @@ Import Linterは間接依存も検査する。関数内importも静的依存と�
 
 ## CIと評価方法
 
+### GitHub上のレポート
+
+- **Summary**: 合否条件の結果、モジュール・依存辺・関数・警告・複雑度ランクの集計、前回値と差分、複雑度上位10件を表示する。
+- **Annotations**: Pylintと複雑度D以上の指摘をファイル・行付きで最大10件表示する。新規指摘を優先し、残りは規則・パス・行の順。観測用の警告として扱う。
+- **Artifacts / architecture-measurements**: `report.md`に全指摘、`findings.json`に位置と内容、`comparison.json`に比較元・比較可否・集計差分を保存する。既存の集計JSON、依存辺、全複雑度、ツール元出力も保持する。
+
+`previous.py`がGitHub CLIで比較元のArtifactを取得し、`report.py`が計測結果から表示を生成する。本番パッケージへの依存を追加せず、既存の合否条件を維持する。pushでは同じブランチ、PRでは取り込み先ブランチの、現在の実行IDより前に成功した直近のpush計測を使う。再実行時も同じ実行IDは除外する。比較元の実行・コミットをSummaryに明示する。
+
+前回がない場合、Artifact取得不可・必要ファイル不足・計測版や対象範囲の相違がある場合は「比較不可」とし、前回値や差分を0で埋めない。指摘の同一性はパス・規則・対象名・メッセージで比較し、行番号移動は新規扱いにしない。同じ指摘の複数出現は件数を比較する。CIゲート失敗時も公開ステップを実行し、計測自体が未完了ならその旨を表示する。
+
+ローカルでは計測後に `.venv/Scripts/python.exe -X utf8 -B tools/architecture/report.py` を実行する。比較元は既定で`work/architecture-previous/`、取得情報は`work/architecture-previous.json`。`GITHUB_STEP_SUMMARY`が設定されていれば要約を追記する。詳細は毎回計測結果のフォルダへ出力する。
+
 マクロ再検証入力の生成部品にはmacro-proposal契約を適用する。ロード・保存実行・UI・編集ストレージへの直接依存を禁止し、独立した値の組み立てに責務を限定する。入出力の所有権と実行時I/Oは振る舞いのテストで補完する。
 
 snapshot-loading契約は保存用読込・共通デコード部品から保存実行・編集状態・UIへの直接依存を禁止する。対象範囲・原本照合・通常ロードとの同値性は`test_validation_loading`で検証する。
