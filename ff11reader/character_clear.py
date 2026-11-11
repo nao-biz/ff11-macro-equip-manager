@@ -19,6 +19,8 @@ def plan_character_clear(character):
             seen.add(address)
             after = (replace(item, title=Text('', item.title.raw_hex, 'draft', ()))
                      if kind == 'books' else cleared(item))
+            if kind == 'equipsets':
+                after = replace(after, title=Text(f'Set{item.number:03}', item.title.raw_hex, 'draft', ()))
             if value(item) != value(after):
                 changes.append(Change(character.folder_id, kind, address, item, after))
     return Edit('キャラのマクロ・装備セットを全消去', tuple(changes), atomic=True)

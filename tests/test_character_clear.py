@@ -37,7 +37,7 @@ class CharacterClearTests(unittest.TestCase):
         self.assertTrue(all(not m.title.display and all(not t.display and not t.tokens for t in m.lines)
                             for m in cleared.characters[0].macros))
         self.assertTrue(all(not t.display for t in cleared.characters[0].books.values()))
-        self.assertTrue(all(not e.title.display and all(s.action=='keep' for s in e.slots)
+        self.assertTrue(all(e.title.display == f'Set{e.number:03}' and all(s.action=='keep' for s in e.slots)
                             for e in cleared.characters[0].equipsets))
         self.assertEqual(cleared.characters[0].inventory, character.inventory)
         self.assertEqual(cleared.characters[1], original.characters[1])
@@ -98,14 +98,21 @@ class CharacterClearSaveTests(unittest.TestCase):
         loaded = self.load().characters[0]
         self.assertTrue(all(not t.display for t in loaded.books.values()))
         self.assertTrue(all(not m.title.display and all(not t.display for t in m.lines) for m in loaded.macros))
-        self.assertTrue(all(not e.title.display and all(s.action=='keep' for s in e.slots) for e in loaded.equipsets))
+        self.assertTrue(all(e.title.display == f'Set{e.number:03}' and all(s.action=='keep' for s in e.slots) for e in loaded.equipsets))
         for path, raw in self.original.items():
             if path.parent.name=='def':self.assertEqual(path.read_bytes(), raw)
         self.editor.undo()
         self.assertEqual([value(m) for m in self.editor.snapshot().characters[0].macros],
                          [value(m) for m in before.characters[0].macros])
         self.editor.save_combined(self.editor.prepare_writeback()[0], self.base/'undo-backups')
-        for path, raw in self.original.items():self.assertEqual(path.read_bytes(), raw)
+        restored = self.load().characters[0]
+        self.assertEqual([value(e) for e in restored.equipsets],
+                         [value(e) for e in before.characters[0].equipsets])
+        self.assertEqual([value(m) for m in restored.macros],
+                         [value(m) for m in before.characters[0].macros])
+        # Name saves preserve bytes after NUL; backup restoration is byte-exact.
+        self.editor.redo()
+        self.editor.save_combined(self.editor.prepare_writeback()[0], self.base/'redo-backups')
         restore_combined_backup(backup, apply=True)
         for path, raw in self.original.items():self.assertEqual(path.read_bytes(), raw)
 
@@ -155,6 +162,7 @@ class CharacterClearUITests(unittest.TestCase):
                 self.assertIn('[abc]',modal.message)
                 self.assertIn('全40ブック',modal.message)
                 self.assertIn('全200件',modal.message)
+                self.assertIn('Set001〜Set200',modal.message)
                 modal.layout();app.update()
                 for button in (modal.ok_button,modal.cancel_button):
                     self.assertLessEqual(button.winfo_rooty()+button.winfo_height(),

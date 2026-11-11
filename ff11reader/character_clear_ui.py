@@ -8,7 +8,8 @@ def clear_character(view):
     if character is None or view.editor.blocked:return
     folder = character.folder_id
     message = (f'対象キャラ: {character.display_name or "名前未確認"} [{folder}]\n\n'
-               '全40ブックのブック名・マクロ名・本文と、全200件の装備セット名・装備内容を空にします。\n'
+               '全40ブックのブック名・マクロ名・本文と、全200件の装備内容を空にします。\n'
+               '装備セット名は番号に対応する既定名（Set001〜Set200）へ戻します。\n'
                'このキャラの入力中のマクロも消去対象です。所持品情報と他キャラのデータは保持します。\n\n'
                '全消去はUndoで戻せます。ゲームへの反映は「ゲームへ書き戻す…」で行います。\n\n'
                'マクロと装備セットを全消去しますか？')
