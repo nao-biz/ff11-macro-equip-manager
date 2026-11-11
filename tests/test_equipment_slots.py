@@ -54,6 +54,20 @@ class SlotFixture(unittest.TestCase):
 
 
 class SlotEditingTests(SlotFixture):
+    def test_save_reports_all_unmatched_slots_and_correction_action(self):
+        self.edit()
+        plan=self.preview()
+        data={Path(p):Path(p).read_bytes() for p,_ in plan.dependencies}
+        changes=tuple(saving.EquipmentSlotChange(number,slot,('keep',None,None,None),
+                      ('equip',0x4001,1,99)) for number,slot in ((1,'main'),(21,'sub')))
+        with self.assertRaises(ValueError) as caught:
+            saving.validate_evidence(self.folder,changes,plan.catalogs,data)
+        message=str(caught.exception)
+        for expected in ('abc','装備セット 001 / main','装備セット 021 / sub',
+                         '種類ID 16385','収納 1','位置 99','装備セットの参照位置を補正'):
+            self.assertIn(expected,message)
+        for path,raw in data.items():self.assertEqual(path.read_bytes(),raw)
+
     def test_save_context_keeps_new_item_dictionary_in_saved_side(self):
         from ff11reader.save_state import SaveRequest
         from ff11reader.edit_state import SnapshotState

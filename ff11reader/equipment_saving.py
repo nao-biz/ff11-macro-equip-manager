@@ -90,8 +90,19 @@ def validate_evidence(parent, changes, catalogs, data, masters=None):
         allowed=plan_fixes(source).changes
         if any(isinstance(c,FixChange) and c not in allowed for c in changes):raise ValueError('一意な補正条件を満たしていません。')
     items = validation_items(root, catalogs, data, masters) if manual_equips(changes) else {}
+    failures=[]
     for change in changes:
-        if isinstance(change,EquipmentSlotChange):validate_selection(source,items,changed_slot(change))
+        if not isinstance(change,EquipmentSlotChange):continue
+        try:validate_selection(source,items,changed_slot(change))
+        except ValueError as exc:
+            slot=changed_slot(change)
+            failures.append(f'装備セット {change.equipset:03} / {change.slot} '
+                            f'（種類ID {slot.item_id}、収納 {slot.container}、位置 {slot.index}）: {exc}')
+    if failures:
+        raise ValueError(f'キャラクター {parent.name} の装備枠を確認してください。\n'
+                         +'\n'.join(failures)
+                         +'\nコピー先のキャラクターで「装備セットの参照位置を補正」を実行し、'
+                         '残る枠は持ち物を選び直してください。所持していない装備の枠は「変更しない」または「外す」に変更できます。')
 
 
 def patch_name(raw,before,after):
