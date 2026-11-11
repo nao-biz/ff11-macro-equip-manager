@@ -7,7 +7,7 @@ from tkinter import ttk, filedialog
 from . import dialogs
 from .ui_actions import ActionButton
 from .ui_tasks import background
-from .application import set_character_label, preview_reference_fixes
+from .application import preview_reference_fixes
 from .presentation import present_slot, format_token_ids
 from .macro_links import is_empty
 from .edit_application import Editor
@@ -90,13 +90,6 @@ class ReaderWindow:
    try:self.photos[item]=tk.PhotoImage(master=self.app,data=raw).zoom(2,2) if raw else None
    except tk.TclError:self.photos[item]=None
   return self.photos[item]
- def rename(self):
-  if not self.character:return
-  name=dialogs.askstring('表示名を登録','アプリ専用の表示名（空欄で解除）',initialvalue=self.character.display_name or '',parent=self.app)
-  if name is None:return
-  try:background(self.app,set_character_label,self.snapshot,self.character,name)
-  except (ValueError,OSError) as e:dialogs.showerror('保存できません',str(e),parent=self.app);return
-  i=self.character_choice.current();self.character_choice.configure(values=self.character_labels());self.character_choice.current(i);self.update_edit_status()
  def preview_fixes(self):
   c=self.character
   if not c:return

@@ -32,6 +32,7 @@ class AugmentUITests(MoveFixture):
             with patch('ff11reader.ui.dialogs.showwarning') as warning:
                 view=ReaderWindow(app,self.editor.snapshot(),editor=self.editor)
                 app.update()
+                self.assertIn('名前未確認', view.character_choice.get())
                 warning.assert_not_called()
                 self.info.assert_called_once()
                 self.assertIn('ゲームにログインすると自動取得されます',self.info.call_args.args[1])
@@ -40,6 +41,7 @@ class AugmentUITests(MoveFixture):
                 path=inbox/'auto-1-123-20261103T000000Z-000001.json'
                 path.write_bytes(encoded(fixture()))
                 view.restore_augments();app.update()
+                self.assertEqual(view.snapshot.characters[0].display_name, fixture()['character']['name'])
                 self.info.assert_not_called();warning.assert_not_called()
                 path.write_bytes(b'broken')
                 view.restore_augments();app.update()

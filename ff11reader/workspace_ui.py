@@ -22,7 +22,6 @@ def build(view):
     view.character_choice = ttk.Combobox(toolbar, state='readonly', width=22, values=view.character_labels())
     view.character_choice.pack(side='left')
     view.character_choice.bind('<<ComboboxSelected>>', view.change_character)
-    ActionButton(toolbar, busy=True, text='表示名を登録', command=view.rename).pack(side='left', padx=8)
     view.settings_button = ActionButton(toolbar, text='設定', command=view.configure_windower)
     view.settings_button.pack(side='right', padx=8)
     view.reload_button = ActionButton(toolbar, busy=True, busy_message='ゲームデータを読み込んでいます…',

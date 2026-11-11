@@ -3,7 +3,6 @@ from datetime import datetime, timezone
 from uuid import uuid4
 import hashlib
 from pathlib import Path
-from . import store
 from .adapters import LocalReader, discover
 from .domain import Snapshot
 from .references import assess_equipment
@@ -50,24 +49,8 @@ def load_snapshot(root, masters=None):
                 sources[BAGS[path.name.lower()]]=dict(source)
         c.equipsets=assess_equipment(c,sources)
     installation_key=hashlib.sha256(str(Path(root).resolve()).casefold().encode()).hexdigest()
-    try:
-        labels=store.read_labels().get(installation_key,{})
-        for c in characters:
-            if isinstance(labels.get(c.folder_id),str) and labels[c.folder_id]:
-                c.display_name=labels[c.folder_id]; c.identity_status='user_mapped'
-    except (OSError,ValueError) as exc:
-        reader.diagnostics.append({'code':'labels_unreadable','message':str(exc)})
     return Snapshot(str(uuid4()),datetime.now(timezone.utc).isoformat(),
                     characters,items,reader.sources,reader.diagnostics,installation_key,phrases=masters.phrases,phrase_readings=masters.phrase_readings,augment_names=masters.augment_names,rank_augments=masters.rank_augments,master_data=masters)
-
-
-def set_character_label(snapshot,character,name):
-    name=name.strip()
-    if len(name)>40: raise ValueError('名前は40文字以内で指定してください')
-    if character not in snapshot.characters: raise ValueError('Unknown character')
-    store.save_label(snapshot.installation_key,character.folder_id,name)
-    character.display_name=name or None
-    character.identity_status='user_mapped' if name else 'unknown'
 
 
 def preview_reference_fixes(snapshot, character):

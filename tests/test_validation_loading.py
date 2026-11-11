@@ -19,7 +19,7 @@ from tests.test_equipment_slots import record
 
 @contextmanager
 def fixture():
-    with isolated() as base, patch.object(application.store, 'read_labels', return_value={}):
+    with isolated() as base:
         f = ManualFixture(base, 'macro', 7, 2)
         root = f.folder.parent.parent
         master = root/'ROM'/'1'/'1.DAT'
@@ -42,6 +42,18 @@ def regenerated(snapshot, plan):
 
 
 class ValidationLoadingTests(unittest.TestCase):
+    def test_character_name_waits_for_export_without_reading_legacy_labels(self):
+        read_text = Path.read_text
+        def guarded_read(path, *args, **kwargs):
+            if path.name == 'character-labels.json':
+                self.fail('Legacy character labels were read')
+            return read_text(path, *args, **kwargs)
+        with patch.object(Path, 'read_text', guarded_read), fixture() as (_, root, _):
+            snapshot = application.load_snapshot(root)
+            self.assertTrue(snapshot.characters)
+            self.assertTrue(all(c.display_name is None for c in snapshot.characters))
+            self.assertTrue(all(c.identity_status == 'unknown' for c in snapshot.characters))
+
     def test_scoped_and_full_reads_regenerate_identical_token_and_fix_plans(self):
         for scope in ('all', 'storage-fix'):
             with self.subTest(scope=scope), fixture() as (f, root, _):
