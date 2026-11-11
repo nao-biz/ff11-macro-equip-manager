@@ -16,8 +16,14 @@ def read_json(path):
 def findings(directory):
     result = []
     for item in read_json(directory / 'pylint.txt'):
-        result.append(dict(path=item['path'].replace('\\', '/'), line=item['line'],
-            rule=item['symbol'], name=item['obj'], message=item['message']))
+        path, line = item['path'].replace('\\', '/'), item['line']
+        if item['symbol'] == 'duplicate-code':
+            # Pylint attaches global duplicate reports to the last scanned module.
+            location = re.search(r'^==([\w.]+):\[(\d+):\d+\]', item['message'], re.MULTILINE)
+            if location:
+                path, line = location[1].replace('.', '/') + '.py', int(location[2]) + 1
+        result.append(dict(path=path, line=line, rule=item['symbol'],
+                           name=item['obj'], message=item['message']))
     for item in read_json(directory / 'complexity.json'):
         if item['kind'] != 'Class' and item['rank'] in 'DEF':
             result.append(dict(path=item['path'], line=item['line'], rule='complexity',
@@ -29,7 +35,11 @@ def identity(item):
     # Moving a function down the file does not create a new finding.
     message = item['message'].rstrip()
     if item['rule'] == 'duplicate-code':
-        message = re.sub(r'(==[^\n]+):\[\d+:\d+\]', r'\1', message)
+        # Pylint may quote either source range (including different trailing
+        # blank lines/comments). The same participating ranges are one finding.
+        ranges = re.findall(r'^==([^\n]+):\[(\d+):(\d+)\]', message, re.MULTILINE)
+        if ranges:
+            message = str(sorted((module, int(end) - int(start)) for module, start, end in ranges))
     return (item['path'], item['rule'], item['name'], message)
 
 

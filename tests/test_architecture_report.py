@@ -82,6 +82,16 @@ class ArchitectureReportTests(unittest.TestCase):
         moved = dict(item, message='==sample:[2:10]\nvalue')
         self.assertEqual(identity(item), identity(moved))
 
+    def test_duplicate_report_uses_source_location_and_stable_ranges(self):
+        warning = dict(self.warning, path='spec_manager/__main__.py', line=1, symbol='duplicate-code',
+                       message='Similar lines\n==sample.one:[10:20]\n==sample.two:[30:42]\nquoted source A')
+        self.write(self.previous, 'pylint.txt', [warning])
+        self.write(self.current, 'pylint.txt', [dict(warning, message=warning['message'].replace('source A', 'source B'))])
+        _, _, items, comparison = self.report(available=True)
+        duplicate = next(item for item in items if item['rule'] == 'duplicate-code')
+        self.assertEqual((duplicate['path'], duplicate['line']), ('sample/one.py', 11))
+        self.assertEqual((comparison['added'], comparison['resolved']), (0, 0))
+
     def test_select_previous_success_excludes_current_and_future(self):
         runs = [dict(id=i, conclusion=status, event=event) for i, status, event in
                 [(12, 'success', 'push'), (11, 'success', 'push'), (10, 'failure', 'push'),

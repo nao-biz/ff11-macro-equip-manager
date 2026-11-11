@@ -40,6 +40,8 @@ Import Linterは間接依存も検査する。関数内importも静的依存と�
 
 ローカルでは計測後に `.venv/Scripts/python.exe -X utf8 -B tools/architecture/report.py` を実行する。比較元は既定で`work/architecture-previous/`、取得情報は`work/architecture-previous.json`。`GITHUB_STEP_SUMMARY`が設定されていれば要約を追記する。詳細は毎回計測結果のフォルダへ出力する。
 
+重複コード警告は、Pylintが最後に走査したモジュールへ一括付与するため、報告内の先頭の対象範囲からAnnotationsのファイル・行を得る。比較には重複に参加するモジュールと各範囲の長さを使う。抜粋元の選択や行移動による偽の増減を避けるためで、同じ組み合わせ・長さの範囲内での内容変更は件数の増減には含めない。内容と全対象範囲は詳細Artifactで確認できる。
+
 マクロ再検証入力の生成部品にはmacro-proposal契約を適用する。ロード・保存実行・UI・編集ストレージへの直接依存を禁止し、独立した値の組み立てに責務を限定する。入出力の所有権と実行時I/Oは振る舞いのテストで補完する。
 
 snapshot-loading契約は保存用読込・共通デコード部品から保存実行・編集状態・UIへの直接依存を禁止する。対象範囲・原本照合・通常ロードとの同値性は`test_validation_loading`で検証する。
