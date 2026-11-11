@@ -65,6 +65,14 @@ class AugmentStore:
     @traced('augment.restore')
     def restore(self, snapshot):
         observations, errors = {}, {}
+        try:
+            from .augment_binding import discover
+            inbox = self.settings.inbox()
+            if inbox is not None:
+                discover(inbox, snapshot.installation_key,
+                         {c.folder_id for c in snapshot.characters}, self.sources)
+        except (OSError, ValueError) as exc:
+            errors['キャラ対応'] = str(exc)
         for character in snapshot.characters:
             export = None
             try:

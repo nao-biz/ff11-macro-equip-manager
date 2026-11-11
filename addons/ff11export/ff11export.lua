@@ -1,10 +1,26 @@
 -- Output-only Windower addon. No equipment/movement/packet injection calls.
 _addon.name='ff11export'
 _addon.author='ff11-macro-equip-manager'
-_addon.version='1.2.0'
+_addon.version='1.4.1'
 _addon.commands={'ff11export'}
 local core=require('export_core')
 local extdata=require('extdata')
+local directory_reader
+local directory_module, directory_error
+local function origin(player,info)
+    if not directory_reader then
+        if directory_error then error(directory_error,0) end
+        if not directory_module then
+            local ok, result=pcall(require,'user_directory_win32')
+            if not ok then directory_error=result;error(result,0) end
+            directory_module=result
+        end
+        directory_reader=directory_module.new(windower.from_shift_jis)
+    end
+    local server=require('resources').servers[info.server]
+    assert(server and server.en,'Server identity unavailable')
+    return directory_reader(windower.from_shift_jis(player.name),server.en)
+end
 if windower.file_exists(windower.addon_path..'observe-login.enabled') then
     require('login_observation').start(windower,coroutine.schedule)
 end
@@ -60,13 +76,36 @@ local function save(data, auto_stem)
     if not renamed then os.remove(temp);error(rename_err) end
     return path
 end
+local cleanup_times={}
+local function cleanup(path, server, character)
+    local key=tostring(server)..'-'..tostring(character)
+    local now=os.time()
+    local last=cleanup_times[key]
+    if last and now>=last and now-last<3600 then return end
+    cleanup_times[key]=now
+    local ok,err=pcall(function()
+        local dir=windower.addon_path..'data/'
+        local current=path:sub(#dir+1)
+        local pattern='^auto%-'..server..'%-'..character..'%-%d%d%d%d%d%d%d%dT%d%d%d%d%d%dZ%-%d%d%d%d%d%d%.json$'
+        local older={}
+        for _,name in pairs(assert(windower.get_dir(dir), 'Cannot list export directory')) do
+            if name:match(pattern) and name<current then older[#older+1]=name end
+        end
+        table.sort(older,function(a,b)return a>b end)
+        for i=3,#older do
+            local removed,why=os.remove(dir..older[i])
+            assert(removed,why)
+        end
+    end)
+    if not ok then windower.add_to_chat(123,'ff11export cleanup: '..tostring(err)) end
+end
 automatic=require('auto_export').new(windower,coroutine.schedule,function()
     local info, player = windower.ffxi.get_info(), windower.ffxi.get_player()
     local stamp=os.date('!%Y-%m-%dT%H:%M:%SZ')
-    local data=core.capture(windower.ffxi,extdata.decode,stamp,ready,windower.from_shift_jis,true)
+    local data=core.capture(windower.ffxi,extdata.decode,stamp,ready,windower.from_shift_jis,true,origin)
     local stem='auto-'..info.server..'-'..player.id..'-'..stamp:gsub('[-:]','')
     local path=save(data,stem)
-    windower.add_to_chat(207,'ff11export auto: '..path)
+    cleanup(path,info.server,player.id)
 end)
 windower.register_event('addon command',function(command)
     if command~='export' then
@@ -74,7 +113,7 @@ windower.register_event('addon command',function(command)
         return
     end
     local ok,result=pcall(function()
-        local data=core.capture(windower.ffxi,extdata.decode,os.date('!%Y-%m-%dT%H:%M:%SZ'),ready,windower.from_shift_jis)
+        local data=core.capture(windower.ffxi,extdata.decode,os.date('!%Y-%m-%dT%H:%M:%SZ'),ready,windower.from_shift_jis,false,origin)
         return save(data)
     end)
     windower.add_to_chat(ok and 207 or 123,'ff11export: '..tostring(result))

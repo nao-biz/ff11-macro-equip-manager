@@ -31,7 +31,7 @@ end
 local function integer(x, low, high)
     return type(x)=='number' and x==math.floor(x) and x>=low and x<=high
 end
-function M.capture(api, decode, stamp, complete, utf8, require_complete)
+function M.capture(api, decode, stamp, complete, utf8, require_complete, origin_reader)
     assert(complete, 'Inventory loading has not completed. Zone once after loading ff11export.')
     local info, player = api.get_info(), api.get_player()
     assert(info and info.logged_in and player, 'Log in before exporting.')
@@ -39,6 +39,7 @@ function M.capture(api, decode, stamp, complete, utf8, require_complete)
     assert(integer(info.server,0,65535), 'Server ID unavailable')
     local result = {format='ff11-inventory-export',version=1,captured_at=stamp,
         character={id=player.id,name=utf8(player.name),server=info.server},bags=array()}
+    if origin_reader then result.origin=origin_reader(player,info) end
     for bag=0,16 do
         local ok, meta = pcall(api.get_bag_info,bag)
         local entry = {id=bag,state='unavailable',items=array()}
@@ -82,6 +83,10 @@ function M.capture(api, decode, stamp, complete, utf8, require_complete)
     assert(after_info and after_info.logged_in and after and after.id==player.id
         and after.name==player.name and after_info.server==info.server and after_info.zone==info.zone,
         'Character or area changed during export')
+    if origin_reader then
+        local after_origin=origin_reader(after,after_info)
+        assert(json(after_origin)==json(result.origin),'Character storage changed during export')
+    end
     return json(result)
 end
 return M

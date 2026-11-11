@@ -18,8 +18,8 @@ class StoreTests(unittest.TestCase):
         self.store=AugmentStore(self.directory/'observations')
         self.export=parse(encoded(fixture()))
         self.snapshot=Snapshot('test','now',[character()],{},[],[],installation_key='installation')
-        for folder in ('abc','def'):
-            self.store.sources.register(AugmentSource('installation',folder,123,1,str(self.directory),'synthetic observation'))
+        for folder, cid in (('abc',123),('def',456)):
+            self.store.sources.register(AugmentSource('installation',folder,cid,1,str(self.directory),'synthetic observation'))
     def test_restart_and_reconcile_without_original_export(self):
         before=copy.deepcopy(self.snapshot)
         self.store.save('installation','abc',self.export)
@@ -53,7 +53,7 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(self.store.load('installation','abc'),newer)
     def test_corrupt_character_does_not_block_others(self):
         self.store.save('installation','abc',self.export)
-        self.store.save('installation','def',self.export)
+        self.store.save('installation','def',replace(self.export,character_id=456))
         self.snapshot.characters.append(replace(character(),folder_id='def'))
         path=self.store.path('installation','abc');path.write_bytes(b'broken')
         observations,errors=self.store.restore(self.snapshot)

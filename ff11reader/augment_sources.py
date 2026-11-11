@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import tempfile
+import hashlib
 from .augment_import import integer, string, object_keys
 
 
@@ -27,6 +28,11 @@ class AugmentSource:
     def verify(self, export):
         if (export.character_id, export.server) != (self.character_id, self.server):
             raise ValueError('確認済みキャラID・サーバーとExportが一致しません。')
+        if export.origin is not None:
+            root = Path(export.origin.installation).resolve()
+            installation = hashlib.sha256(str(root).casefold().encode()).hexdigest()
+            if installation != self.installation_key or export.origin.folder_id != self.folder_id.casefold():
+                raise ValueError('確認済みのUSER保存先とExportが一致しません。')
 
 
 def atomic_json(path, value):
@@ -89,12 +95,25 @@ class AugmentSources:
 
     def register(self, source):
         """Register an already observed binding; conflicting bindings require review."""
+        self.register_many([source], update_existing=True)
+
+    def register_many(self, additions, *, update_existing=False):
+        """Validate the whole observed batch before publishing any binding."""
         sources = self.read()
-        key = source.installation_key, source.folder_id
-        old = sources.get(key)
-        if old and (old.character_id, old.server) != (source.character_id, source.server):
-            raise ValueError('既存のキャラ対応と競合しています。観測結果を再確認してください。')
-        sources[key] = source
+        before = dict(sources)
+        for source in additions:
+            key = source.installation_key, source.folder_id
+            old = sources.get(key)
+            if old and (old.character_id, old.server) != (source.character_id, source.server):
+                raise ValueError('既存のキャラ対応と競合しています。観測結果を再確認してください。')
+            if any(s.installation_key == source.installation_key and s.folder_id != source.folder_id
+                   and (s.character_id, s.server) == (source.character_id, source.server)
+                   for s in sources.values()):
+                raise ValueError('同じキャラが複数のUSERフォルダに対応しています。')
+            if old is None or update_existing:
+                sources[key] = source
+        if sources == before:
+            return
         value = dict(format='ff11-augment-sources', version=1,
                      sources=[asdict(s) for s in sources.values()])
         atomic_json(self.path, value)

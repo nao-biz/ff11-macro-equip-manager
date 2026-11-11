@@ -103,11 +103,16 @@ class AddonTests(unittest.TestCase):
         package.preload.export_core=function() return core end
         package.preload.extdata=function() return {decode=decode} end
         package.preload.auto_export=function() return auto_module end
+        package.preload.resources=function()return {servers={[1]={en='Synthetic'}}}end
+        package.preload.user_directory_win32=function()return {new=function()
+          return function()return {method='ffxi-user-directory-v1',installation='C:/synthetic',folder_id='abc'}end
+        end}end
         _addon={};events={};messages={};scheduled={};writes={}
         windower={ffxi=api,addon_path='synthetic/',from_shift_jis=function(s)return s end,
          register_event=function(n,f) events[n]=f end,
          add_to_chat=function(_,s) messages[#messages+1]=s end,
-         create_dir=function()end,file_exists=function()return false end}
+         create_dir=function()end,file_exists=function()return false end,
+         get_dir=function()return {} end}
         coroutine.schedule=function(f) scheduled[#scheduled+1]=f end
         io.open=function(path,mode)
           assert(path:sub(1,10)=='synthetic/' and mode=='wb')
@@ -130,6 +135,17 @@ class AddonTests(unittest.TestCase):
         self.lua.execute("events['incoming chunk'](0x01D,string.rep('x',4)..string.char(1)..string.rep('x',3)); events['incoming chunk'](0x00B,''); scheduled[2](); events['addon command']('export')")
         self.assertEqual(self.lua.eval('#writes'),2)
 
+    def test_module_load_failure_preserves_original_cause_across_retries(self):
+        self.test_adapter_gates_and_no_game_mutations()
+        self.lua.execute("""
+            package.loaded.user_directory_win32=nil
+            package.preload.user_directory_win32=function()error('original module failure')end
+        """)
+        self.lua.execute((ROOT/'addons/ff11export/ff11export.lua').read_text(encoding='utf-8'))
+        self.lua.execute("events['incoming chunk'](0x01D,string.rep('x',4)..string.char(1)..string.rep('x',3)); scheduled[#scheduled](); for i=1,5 do scheduled[#scheduled]() end")
+        self.assertIn('original module failure',self.lua.eval('messages[#messages]'))
+        self.assertNotIn('loop or previous',self.lua.eval('messages[#messages]'))
+
     def test_publish_failure_reports_error(self):
         self.test_adapter_gates_and_no_game_mutations()
         self.lua.execute("events['incoming chunk'](0x01D,string.rep('x',4)..string.char(1)..string.rep('x',3)); scheduled[#scheduled](); os.rename=function() return nil,'rename failed' end; events['addon command']('export')")
@@ -140,7 +156,7 @@ class AddonTests(unittest.TestCase):
         self.lua.execute("events['incoming chunk'](0x01D,string.rep('x',4)..string.char(1)..string.rep('x',3)); scheduled[#scheduled](); scheduled[#scheduled]()")
         self.assertEqual(self.lua.eval('#writes'),3)
         self.assertEqual(parse(self.lua.eval('writes[3]').encode()).character_id,123)
-        self.assertIn('auto-1-123-',self.lua.eval('messages[#messages]'))
+        self.assertFalse(any('ff11export auto:' in value for value in self.lua.globals().messages.values()))
         self.lua.execute("events['incoming chunk'](0x01D,string.rep('x',4)..string.char(1)..string.rep('x',3)); scheduled[#scheduled]()")
         self.assertEqual(self.lua.eval('#writes'),3)
 
@@ -150,6 +166,54 @@ class AddonTests(unittest.TestCase):
         self.lua.execute("events['incoming chunk'](0x020,''); old_items=api.get_items; api.get_items=function(b) local r=old_items(b); if b==12 then r[63]=r[62];r[63].slot=63;r[62]={id=0} end;return r end; events['outgoing chunk'](0x00D,''); events['logout'](); scheduled[#scheduled]()")
         self.assertEqual(self.lua.eval('#writes'),4)
         self.assertEqual([r.index for r in parse(self.lua.eval('writes[4]').encode()).bags[12].items], [1,63])
+
+    def prepare_cleanup(self):
+        self.test_adapter_gates_and_no_game_mutations()
+        self.lua.execute('''
+            now=os.time()+3600; os.time=function()return now end
+            os.date=function()return '2026-11-11T00:00:00Z' end
+            removed={}; listings=0; files={}
+            for i=1,5 do files[#files+1]='auto-1-123-20261110T000000Z-00000'..i..'.json' end
+            for _,name in ipairs({'auto-2-123-20261110T000000Z-000001.json',
+                'auto-1-456-20261110T000000Z-000001.json',
+                'inventory-20261110T000000Z-000001.json',
+                'auto-1-123-20261110T000000Z-000001.json.tmp',
+                '../auto-1-123-20261110T000000Z-000001.json',
+                'auto-1-123-20261112T000000Z-000001.json', 'login-observation'}) do
+                files[#files+1]=name
+            end
+            windower.get_dir=function()listings=listings+1;return files end
+            os.remove=function(path)removed[#removed+1]=path;return true end
+            function emit_auto()
+                events['incoming chunk'](0x01D,string.rep('x',4)..string.char(1)..string.rep('x',3))
+                scheduled[#scheduled]();scheduled[#scheduled]()
+                events['incoming chunk'](0x020,'');scheduled[#scheduled]()
+            end
+        ''')
+
+    def test_cleanup_keeps_two_previous_exports_and_scopes_deletion(self):
+        self.prepare_cleanup()
+        self.lua.execute('emit_auto()')
+        self.assertEqual(set(self.lua.globals().removed.values()), {
+            f'synthetic/data/auto-1-123-20261110T000000Z-00000{i}.json' for i in (1,2,3)})
+        self.assertEqual(self.lua.eval('listings'), 1)
+        self.lua.execute('now=now+3599;emit_auto()')
+        self.assertEqual(self.lua.eval('listings'), 1)
+        self.lua.execute('now=now+1;emit_auto()')
+        self.assertEqual(self.lua.eval('listings'), 2)
+
+    def test_cleanup_failure_does_not_retry_successful_export(self):
+        self.prepare_cleanup()
+        self.lua.execute("os.remove=function()return nil,'denied' end;emit_auto()")
+        self.assertIn('ff11export cleanup:', self.lua.eval('messages[#messages]'))
+        self.assertEqual(self.lua.eval('listings'), 1)
+        self.assertEqual(self.lua.eval('#writes'), 4)
+
+    def test_failed_publication_never_cleans_previous_exports(self):
+        self.prepare_cleanup()
+        self.lua.execute("os.rename=function()return nil,'rename failed' end;emit_auto()")
+        self.assertEqual(self.lua.eval('listings'), 0)
+        self.assertTrue(all(path.endswith('.tmp') for path in self.lua.globals().removed.values()))
 
     def test_debounce_exports_latest_value_and_flushes_pending_change(self):
         self.lua.execute('''
@@ -169,6 +233,18 @@ class AddonTests(unittest.TestCase):
         self.lua.execute('api.get_info=function() return {logged_in=true,server=1} end; api.get_items=function() return {} end')
         with self.assertRaises(Exception):
             self.lua.eval("core.capture(api,decode,'2026-11-03T00:00:00Z',true,function(s)return s end,true)")
+
+    def test_capture_rejects_storage_change_before_publication(self):
+        self.lua.execute('''
+            origin_calls=0
+            function unstable_origin()
+                origin_calls=origin_calls+1
+                return {method='ffxi-user-directory-v1',installation='C:/synthetic',
+                        folder_id=origin_calls==1 and 'abc' or 'def'}
+            end
+        ''')
+        with self.assertRaises(Exception):
+            self.lua.eval("core.capture(api,decode,'2026-11-03T00:00:00Z',true,function(s)return s end,true,unstable_origin)")
 
     def test_auto_waits_for_stable_server_and_cancels_old_generation(self):
         self.lua.execute('''

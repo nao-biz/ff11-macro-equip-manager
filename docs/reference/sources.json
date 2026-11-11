@@ -691,5 +691,18 @@
       "https://github.com/LandSandBoat/server/blob/base/scripts/enum/augment.lua",
       "https://github.com/LandSandBoat/server/blob/base/src/map/items/exdata/augment_bundle.h"
     ]
+  },
+  {
+    "id": "S-AUTO-BINDING",
+    "type": "local-readonly-analysis",
+    "title": "FFXiMain USERパス生成処理と選択キャラ保存先ID",
+    "accessed": "2026-11-11",
+    "sha256": "d809ebe333019395ad43ab7ec1d94d9f58fe1f62c2ae730334f730fa8e7d48fb",
+    "supports": [
+      "USER path formatter reads selected character storage ID",
+      "selected character record stride and name/world guards"
+    ],
+    "evidence": "Git対象外 work/auto-binding: module.json, identity-check.json, disassembly.txt",
+    "caution": "確認したインストール版と一キャラの読み取り結果。実装は命令列・書式を照合して未対応版を拒否する。ゲーム資産と個人情報を収録しない。"
   }
 ]

@@ -7,7 +7,8 @@ import re
 from uuid import uuid4
 from .augment_sources import atomic_bytes as replace_bytes
 
-FILES = ('ff11export.lua', 'export_core.lua', 'auto_export.lua', 'login_observation.lua')
+FILES = ('ff11export.lua', 'export_core.lua', 'auto_export.lua', 'login_observation.lua',
+         'user_directory.lua', 'user_directory_win32.lua', 'ff11identity-v1.dll')
 BUNDLE = Path(__file__).resolve().parent.parent / 'addons' / 'ff11export'
 AUTOLOAD_REVISION = 1
 

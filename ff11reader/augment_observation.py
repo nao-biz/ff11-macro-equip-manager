@@ -19,12 +19,18 @@ class AugmentBag:
     items: tuple[AugmentItem, ...]
 
 @dataclass(frozen=True)
+class ExportOrigin:
+    installation: str
+    folder_id: str
+
+@dataclass(frozen=True)
 class AugmentExport:
     captured_at: str
     character_id: int
     character_name: str
     server: int
     bags: tuple[AugmentBag, ...]
+    origin: ExportOrigin | None = None
 
 @dataclass(frozen=True)
 class AugmentObservation:

@@ -55,3 +55,9 @@ class WindowerSettings:
     def inbox(self):
         root = self.read()
         return root / 'addons' / 'ff11export' / 'data' if root is not None else None
+
+    def update_installed(self):
+        """Refresh a configured installation using the existing deployment receipt."""
+        root = self.read()
+        if root is not None:
+            self.save(root)

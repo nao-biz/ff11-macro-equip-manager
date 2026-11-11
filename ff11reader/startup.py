@@ -1,5 +1,6 @@
 """Startup preparation off the Tk thread; one-way ownership handoff to the UI."""
 from .theme import BG, FG, PANEL, install
+from .window_placement import work_area
 from pathlib import Path
 from queue import Queue, Empty
 from threading import Thread, Event
@@ -39,7 +40,8 @@ class Startup:
         self.app=app;self.prepare_work=prepare_work;self.ready=ready
         self.messages=Queue();self.closed=False;self.started=False;self.poll_id=None
         self.probe=probe;self.stop_event=Event()
-        app.title('FF11 ワークスペース — 起動中');app.geometry('480x180');app.configure(bg=BG)
+        left, top, _, _ = work_area(app)
+        app.title('FF11 ワークスペース — 起動中');app.geometry(f'480x180+{left}+{top}');app.configure(bg=BG)
         self.panel=tk.Frame(app,bg=BG,padx=24,pady=24);self.panel.pack(fill='both',expand=True)
         tk.Label(self.panel,text='FF11 ワークスペースを起動しています',bg=BG,fg=FG,font=('MS Gothic',13,'bold')).pack(anchor='w')
         self.status=tk.Label(self.panel,text='準備しています…',bg=BG,fg=FG,wraplength=430,justify='left');self.status.pack(anchor='w',pady=12)
@@ -113,12 +115,23 @@ class Startup:
         self.progress.stop();self.app.destroy()
 
 
+def update_exporter(app, settings):
+    from .ui_tasks import background
+    from . import dialogs
+    try:
+        background(app, settings.update_installed, message='Exportアドオンを確認しています…')
+    except (OSError, ValueError) as exc:
+        message='Exportアドオンを更新できませんでした。次回起動時に再試行します。\n'+str(exc)
+        dialogs.when_visible(app,lambda:dialogs.showwarning('Exportアドオンの更新',message,parent=app))
+
+
 def launch(root=None):
     app=tk.Tk()
     def ready(result):
         from .ui import ReaderWindow
         snapshot,editor=result
         app.view=ReaderWindow(app,snapshot,editor=editor)
+        update_exporter(app,app.view.augment_store.settings)
         from . import dialogs
         dialogs.when_visible(app,lambda:app.view.configure_windower(first=True))
         from .sync_ui import SyncMonitor

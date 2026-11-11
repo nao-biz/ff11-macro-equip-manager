@@ -53,6 +53,37 @@ class WindowerSettingsTests(unittest.TestCase):
             self.settings.path.write_bytes(value)
             with self.assertRaises(ValueError): self.settings.read()
 
+    def test_startup_updates_configured_bundle_and_skips_current(self):
+        from ff11reader.addon_installer import bundled
+        with patch('ff11reader.addon_installer.install') as install:
+            self.settings.update_installed()
+            install.assert_not_called()
+        root = make_windower(self.base/'Windower')
+        self.settings.save(root)
+        files, receipt = bundled()
+        files['ff11export.lua'] += b'\n-- synthetic update\n'
+        receipt['bundle_sha256'] = 'synthetic-update'
+        with patch('ff11reader.addon_installer.bundled', return_value=(files, receipt)):
+            WindowerSettings(self.settings.path).update_installed()
+            self.assertEqual((root/'addons/ff11export/ff11export.lua').read_bytes(), files['ff11export.lua'])
+            self.assertEqual(json.loads(self.settings.path.read_text())['deployment'], receipt)
+            with patch('ff11reader.addon_installer.install') as install:
+                self.settings.update_installed()
+                install.assert_not_called()
+
+    def test_startup_update_failure_preserves_receipt_and_retries(self):
+        root = make_windower(self.base/'Windower')
+        self.settings.save(root)
+        original = json.loads(self.settings.path.read_text())
+        original['deployment']['bundle_sha256'] = 'old'
+        self.settings.path.write_text(json.dumps(original))
+        before = self.settings.path.read_bytes()
+        with patch('ff11reader.addon_installer.install', side_effect=OSError('denied')):
+            with self.assertRaises(OSError): self.settings.update_installed()
+        self.assertEqual(self.settings.path.read_bytes(), before)
+        self.settings.update_installed()
+        self.assertNotEqual(self.settings.path.read_bytes(), before)
+
 
 class WindowerInboxTests(unittest.TestCase):
     setUp = auto_cases.AutoImportTests.setUp

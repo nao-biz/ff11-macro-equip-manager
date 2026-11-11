@@ -49,6 +49,40 @@ class StartupTests(unittest.TestCase):
         details=[w for w in self.startup.panel.winfo_children() if isinstance(w,tk.Text)]
         self.assertIn('合成データの読込エラー',details[0].get('1.0','end'))
 
+    def test_startup_position_survives_main_window_resize(self):
+        from unittest.mock import patch
+        results=[]
+        def prepare(report):
+            self.release.wait(3)
+            return 'ready'
+        def ready(value):
+            self.app.geometry('1440x900')
+            results.append(value)
+        with patch('ff11reader.startup.work_area',return_value=(0,40,1920,1080)):
+            self.startup=Startup(self.app,prepare,ready)
+        self.until(lambda:self.app.winfo_viewable())
+        self.assertEqual((self.app.winfo_x(),self.app.winfo_y()),(0,40))
+        self.release.set();self.until(lambda:bool(results))
+        self.app.update_idletasks()
+        self.assertEqual((self.app.winfo_x(),self.app.winfo_y()),(0,40))
+
+    def test_exporter_update_runs_in_worker_and_failure_returns_to_app(self):
+        from unittest.mock import Mock, patch
+        from ff11reader.startup import update_exporter
+        threads=[]
+        settings=Mock()
+        settings.update_installed.side_effect=lambda:threads.append(threading.get_ident())
+        self.app.update()
+        update_exporter(self.app,settings)
+        self.assertEqual(len(threads),1)
+        self.assertNotEqual(threads[0],threading.get_ident())
+        settings.update_installed.side_effect=OSError('denied')
+        with patch('ff11reader.dialogs.when_visible',side_effect=lambda app,fn:fn()), \
+             patch('ff11reader.dialogs.showwarning') as warning:
+            update_exporter(self.app,settings)
+            self.assertIn('denied',warning.call_args.args[1])
+        self.assertTrue(self.app.winfo_exists())
+
     def test_game_running_defers_read_until_exit(self):
         from unittest.mock import Mock
         from types import SimpleNamespace

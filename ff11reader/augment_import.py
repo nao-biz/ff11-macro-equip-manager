@@ -4,7 +4,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 from .tracing import traced
-from .augment_observation import AugmentItem, AugmentBag, AugmentExport, reconcile
+from .augment_observation import AugmentItem, AugmentBag, AugmentExport, ExportOrigin, reconcile
 
 MAX_BYTES = 4 * 1024 * 1024
 
@@ -75,7 +75,17 @@ def parse(data):
                     raise ValueError('未解析の個体に解析結果が含まれています。')
                 items.append(AugmentItem(index, item_id, count, raw, decoded, augments, path, rank))
             bags.append(AugmentBag(bid, state, tuple(items)))
-        return AugmentExport(stamp, cid, name, server, tuple(bags))
+        origin = None
+        if 'origin' in value:
+            raw = value['origin']
+            if raw['method'] != 'ffxi-user-directory-v1':
+                raise ValueError('キャラ保存先の取得方式が未対応です。')
+            installation = string(raw['installation'], 4096)
+            folder = string(raw['folder_id'], 8)
+            if not Path(installation).is_absolute() or not re.fullmatch('[0-9a-f]{1,8}', folder):
+                raise ValueError('キャラ保存先のパスが不正です。')
+            origin = ExportOrigin(installation, folder)
+        return AugmentExport(stamp, cid, name, server, tuple(bags), origin)
     except (KeyError, TypeError, UnicodeError, RecursionError, OverflowError) as e:
         raise ValueError('個体情報ファイルの構造が不正です。') from e
 
@@ -89,7 +99,10 @@ def load_observation(path, character, rank_catalog=None):
 def export_value(export):
     """Serialize validated immutable values in the original interchange format."""
     from dataclasses import asdict
-    return dict(format='ff11-inventory-export', version=1,
+    value = dict(format='ff11-inventory-export', version=1,
                 captured_at=export.captured_at,
                 character=dict(id=export.character_id, name=export.character_name, server=export.server),
                 bags=[asdict(bag) for bag in export.bags])
+    if export.origin is not None:
+        value['origin'] = dict(method='ffxi-user-directory-v1', **asdict(export.origin))
+    return value
