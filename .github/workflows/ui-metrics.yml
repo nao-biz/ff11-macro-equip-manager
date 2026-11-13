@@ -1,0 +1,32 @@
+name: UI operation measurements
+on: [push, pull_request]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  measure:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    env:
+      FF11_RUN_GAME_INTEGRATION: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements-test.txt
+      - name: Retrieve previous successful push measurement
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASELINE_BRANCH: ${{ github.base_ref || github.ref_name }}
+        run: python -X utf8 -m tools.ui_metrics.previous
+      - name: Measure synthetic UI operations
+        run: python -X utf8 -m tools.ui_metrics.measure
+      - name: Publish operation counts
+        if: always()
+        run: python -X utf8 -m tools.ui_metrics.report
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-operation-metrics
+          path: work/ui-metrics/

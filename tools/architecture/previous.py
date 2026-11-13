@@ -18,13 +18,12 @@ def gh(*args):
     return result.stdout
 
 
-def main():
-    destination = Path('work/architecture-previous')
+def retrieve(workflow, artifact, destination):
     metadata = {'branch': os.environ['BASELINE_BRANCH'], 'available': False}
     try:
         query = urlencode(dict(branch=metadata['branch'], status='success', event='push', per_page=100))
         pages = json.loads(gh('api', '--paginate', '--slurp',
-            f"repos/{os.environ['GITHUB_REPOSITORY']}/actions/workflows/architecture.yml/runs?{query}"))
+            f"repos/{os.environ['GITHUB_REPOSITORY']}/actions/workflows/{workflow}/runs?{query}"))
         run = select_run([r for page in pages for r in page['workflow_runs']],
                          int(os.environ['GITHUB_RUN_ID']))
         if run is None:
@@ -32,10 +31,15 @@ def main():
         else:
             metadata.update(run_id=run['id'], url=run['html_url'], sha=run['head_sha'])
             gh('run', 'download', str(run['id']), '--repo', os.environ['GITHUB_REPOSITORY'],
-               '--name', 'architecture-measurements', '--dir', str(destination))
+               '--name', artifact, '--dir', str(destination))
             metadata['available'] = True
     except (subprocess.SubprocessError, OSError, ValueError, KeyError):
         metadata['reason'] = '前回の計測またはArtifactを取得できませんでした（権限・保存期限・通信を確認）。'
+    return metadata
+
+
+def main():
+    metadata = retrieve('architecture.yml', 'architecture-measurements', Path('work/architecture-previous'))
     Path('work').mkdir(exist_ok=True)
     Path('work/architecture-previous.json').write_text(
         json.dumps(metadata, ensure_ascii=False, indent=2), encoding='utf-8')

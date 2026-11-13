@@ -22,6 +22,7 @@
 | 起動・基本操作・通常テスト | [リポジトリREADME](../README.md) |
 | 依存契約・静的解析・CIの合否条件 | [アーキテクチャ検査](../tools/architecture/README.md) |
 | 性能計測の手順と採用した改善 | [計測資料の案内](../experiments/stack-evaluation/README.md) |
+| CIでのUI操作回数・前回比較 | [操作回数の計測](../tools/ui_metrics/README.md) |
 | マスター共有の最終性能・保存検証と未解決事項 | [最終検証記録](../experiments/stack-evaluation/MASTER-LIFECYCLE.md) |
 
 各計測記録の数値は記載日の結果として扱い、現在の実装状況は正本と対応表で確認する。
