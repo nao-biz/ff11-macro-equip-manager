@@ -132,16 +132,19 @@ class ReaderWindow:
   self.save_button.configure(state='normal' if (dirty or pending) and not self.editor.blocked else 'disabled')
   self.draft_label.configure(text='ゲームデータとの確認が必要' if self.editor.blocked else ('未保存の変更あり' if dirty or pending else 'ゲームデータと同じ'))
  @traced('ui.refresh_edits')
- def refresh_edits(self):
-  self.snapshot=background(self.app,self.editor.snapshot,self.snapshot)
+ def refresh_edits(self,snapshot=None):
+  self.snapshot=snapshot if snapshot is not None else background(self.app,self.editor.snapshot,self.snapshot)
   apply_names(self.snapshot,self.augment_observations)
   self.change_mode()
   self.update_edit_status()
   self.commands.schedule_focus_restore()
  @traced('ui.run_edit')
  def run_edit(self,operation):
-  background(self.app,operation)
-  self.refresh_edits()
+  previous=self.snapshot
+  def apply_and_snapshot():
+   operation()
+   return self.editor.snapshot(previous)
+  self.refresh_edits(background(self.app,apply_and_snapshot))
  def undo_fix(self):
   try:self.run_edit(self.editor.undo)
   except (OSError,ValueError) as e:dialogs.showerror('Undo',str(e),parent=self.app);return
@@ -576,6 +579,7 @@ class ReaderWindow:
    empty=any(r.target_state=='empty' for r in self.macro_links.for_macro(m))
    frame=self.card((0 if m.bank=='ctrl' else 10)+m.key-1,key,(m.title.display or '（空欄）'),lambda macro=m:self.inspect_macro(macro),state='missing' if empty else None,compact=True)
    if hasattr(self,'commands'):self.commands.register_card(frame,m)
+  if hasattr(self,'commands'):self.commands.paint()
   self.show_detail('マクロパレット',f'ブック {book} / パレット {palette}\n\nマクロをクリックしてタイトルと各行を確認してください。')
   if macros:self.inspect_macro(macros[0])
  def inspect_macro(self,macro):

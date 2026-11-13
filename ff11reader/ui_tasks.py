@@ -27,12 +27,16 @@ class TaskScreen:
         self.label = None
         self.display_job = None
         # A first bindtag also covers keys already queued before focus moves.
+        # ttk hover handlers cache the current cursor. While it is overridden,
+        # letting Enter/Leave/Motion through can save 'wait' as the normal cursor.
         for event in ('<KeyPress>', '<KeyRelease>', '<ButtonPress>', '<ButtonRelease>',
-                      '<MouseWheel>', '<Configure>', '<<ListboxSelect>>', '<<TreeviewSelect>>', '<<ComboboxSelected>>'):
+                      '<Motion>', '<Enter>', '<Leave>', '<MouseWheel>', '<Configure>',
+                      '<<ListboxSelect>>', '<<TreeviewSelect>>', '<<ComboboxSelected>>'):
             root.tk.call('bind', self.tag, event, 'break')
         windows = []
         def visit(widget):
-            self.bindings.append((widget, widget.bindtags(), bool(widget.bind('<Configure>'))))
+            geometry=widget.winfo_geometry() if widget.bind('<Configure>') else None
+            self.bindings.append((widget, widget.bindtags(), geometry))
             widget.bindtags((self.tag,) + widget.bindtags())
             if isinstance(widget, (tk.Tk, tk.Toplevel)):windows.append(widget)
             for child in widget.winfo_children():visit(child)
@@ -85,12 +89,12 @@ class TaskScreen:
         for layer in self.layers:
             try:layer.destroy()
             except tk.TclError:pass
-        for widget, tags, configure in self.bindings:
+        for widget, tags, geometry in self.bindings:
             try:
                 widget.bindtags(tags)
                 # Re-layout covered content once after work, rather than repeatedly
                 # competing with the worker for Python execution during resizing.
-                if configure:
+                if geometry is not None and widget.winfo_geometry()!=geometry:
                     widget.event_generate('<Configure>',width=widget.winfo_width(),height=widget.winfo_height(),when='tail')
             except tk.TclError:pass
         for window, previous, command in self.protocols:

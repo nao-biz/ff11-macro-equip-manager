@@ -383,6 +383,37 @@ class CommonSaveTests(MoveFixture):
 
 @unittest.skipUnless(os.environ.get('FF11_RUN_INTEGRATION')=='1','Enable synthetic Tk tests')
 class SelectionUITests(MoveFixture):
+    def test_palette_paste_batches_wait_and_selection_paint(self):
+        import tkinter as tk
+        from ff11reader.ui import ReaderWindow
+        from ff11reader.ui_actions import state
+        from ff11reader.ui_tasks import tasks
+        self.editor.apply(self.editor.prepare_macro_edit('abc',(1,1,'ctrl',1),'Copied',['/echo copied']+['']*5))
+        app=tk.Tk();errors=[]
+        app.report_callback_exception=lambda *args:errors.append(args)
+        try:
+            view=ReaderWindow(app,self.editor.snapshot(),editor=self.editor)
+            view.mode.set('マクロ');view.change_mode();app.update()
+            view.commands.select('palette',(1,1));view.commands.run('copy')
+            view.commands.select('palette',(1,2));app.update()
+            for command in ('paste','undo','redo','paste'):
+                with patch.object(tasks(app),'call',wraps=tasks(app).call) as waits, \
+                     patch.object(view.commands,'paint',wraps=view.commands.paint) as paints:
+                    view.commands.run(command);app.update()
+                    self.assertEqual(waits.call_count,1,command)
+                    self.assertLessEqual(paints.call_count,3,command)
+                self.assertEqual(view.commands.selection,{(1,2)})
+                self.assertEqual(len(view.commands.cards),20)
+                self.assertEqual(state(app).depth,0)
+                self.assertFalse(state(app).cursors)
+                self.assertIsNone(app.grab_current())
+                def check_cursor(widget):
+                    if 'cursor' in widget.keys():self.assertNotEqual(widget.cget('cursor'),'wait',str(widget))
+                    for child in widget.winfo_children():check_cursor(child)
+                check_cursor(app)
+            self.assertFalse(errors)
+        finally:app.destroy()
+
     def test_palette_overwrite_immediate_apply_and_stale(self):
         import tkinter as tk
         from ff11reader.ui import ReaderWindow

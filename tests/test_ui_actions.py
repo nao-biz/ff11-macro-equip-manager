@@ -98,3 +98,17 @@ class ActionTests(unittest.TestCase):
             run_action(self.app,work,busy=True,message='外側')
         self.assertEqual(events[:2],['paint','work'])
         self.assertEqual(self.entry.cget('cursor'),'xterm')
+
+    def test_cleanup_flushes_restored_cursor_after_rebuild_and_failure(self):
+        from ff11reader.ui_actions import run_action
+        seen=[]
+        def work():
+            self.entry.destroy()
+            self.entry=tk.Entry(self.app,cursor='xterm');self.entry.pack()
+            self.app.after_idle(lambda:seen.append((self.app.cget('cursor'),self.entry.cget('cursor'))))
+            raise ValueError('rebuild failed')
+        with self.assertRaisesRegex(ValueError,'rebuild failed'):
+            run_action(self.app,work,busy=True)
+        self.assertEqual(seen,[('', 'xterm')])
+        self.assertEqual(state(self.app).depth,0)
+        self.assertFalse(state(self.app).cursors)

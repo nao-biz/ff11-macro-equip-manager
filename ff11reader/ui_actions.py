@@ -34,6 +34,11 @@ class BusyState:
         for widget,cursor in reversed(cursors):
             try:widget.configure(cursor=cursor)
             except tk.TclError:pass  # The callback may destroy its window.
+        # Commit cursor/notice cleanup before returning to the native event loop.
+        # This also lets widgets created during work inherit the restored cursor.
+        if cursors:
+            try:self.root.update_idletasks()
+            except tk.TclError:pass
 
     @contextmanager
     def handling(self,message="処理中です…"):

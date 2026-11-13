@@ -95,7 +95,6 @@ class SelectionCommands:
             if self.view.editor.transfer and self.view.editor.transfer.cut:return self.keypress(event)
             self.view.macro_tree.focus_set();return 'break'
         widget.bind('<Escape>',back)
-        self.paint()
 
     def click(self, event, target):
         if target is None:
@@ -228,13 +227,16 @@ class SelectionCommands:
             elif command=='paste':
                 anchor=next(iter(self.selection))
                 from .transfer_editing import MacroOverwriteRequired
-                try:edit=background(v.app,v.editor.prepare_paste,folder,anchor)
-                except MacroOverwriteRequired:
-                    edit=background(v.app,v.editor.prepare_paste,folder,anchor,overwrite=True)
-                    v.run_edit(lambda:v.editor.paste(folder,anchor,edit,overwrite=True))
-                else:v.run_edit(lambda:v.editor.paste(folder,anchor,edit))
+                def paste():
+                    overwrite=False
+                    try:edit=v.editor.prepare_paste(folder,anchor)
+                    except MacroOverwriteRequired:
+                        overwrite=True
+                        edit=v.editor.prepare_paste(folder,anchor,overwrite=True)
+                    v.editor.paste(folder,anchor,edit,overwrite=overwrite)
+                v.run_edit(paste)
             elif command=='delete':
-                edit=background(v.app,v.editor.prepare_delete,folder,self.kind,tuple(sorted(self.selection)))
-                v.run_edit(lambda:v.editor.apply(edit))
+                kind,selection=self.kind,tuple(sorted(self.selection))
+                v.run_edit(lambda:v.editor.apply(v.editor.prepare_delete(folder,kind,selection)))
             else:v.undo_fix() if command=='undo' else v.redo_edit()
         except (ValueError,OSError) as exc:dialogs.showerror('編集操作',str(exc),parent=v.app)
