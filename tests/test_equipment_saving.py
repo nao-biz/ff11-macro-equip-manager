@@ -31,7 +31,7 @@ class EquipmentSavingTests(unittest.TestCase):
             (self.folder/name).write_bytes(checksum(raw))
         self.addCleanup(patch.stopall)
         patch('ff11reader.equipment_saving.require_game_closed').start()
-        patch('ff11reader.saving.require_game_closed').start()
+        patch('ff11reader.file_io.require_game_closed').start()
         self.source=self.load();self.editor=Editor(self.source,self.base/'draft.json')
         self.editor.equipment_fixes('abc',plan_fixes(self.source.characters[0]))
         self.plan=self.editor.prepare_equipment_save('abc')
@@ -86,7 +86,7 @@ class EquipmentSavingTests(unittest.TestCase):
     def test_backup_failure_and_running_game_write_nothing(self):
         with patch.object(saving,'write_json',side_effect=OSError('full')):
             with self.assertRaises(OSError):self.editor.save_equipment(self.plan,self.base/'backups')
-        with patch('ff11reader.saving.require_game_closed',side_effect=RuntimeError('running')):
+        with patch('ff11reader.file_io.require_game_closed',side_effect=RuntimeError('running')):
             with self.assertRaises(RuntimeError):self.editor.save_equipment(self.plan,self.base/'backups')
         for f in self.plan.files:self.assertEqual(Path(f.target).read_bytes(),f.original)
 

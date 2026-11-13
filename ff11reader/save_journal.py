@@ -2,7 +2,7 @@
 import json
 import os
 from pathlib import Path
-from .saving import digest
+from .file_io import digest
 
 
 class SaveJournal:

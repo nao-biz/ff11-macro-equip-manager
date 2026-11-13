@@ -1,5 +1,6 @@
 """Explicit busy actions for heavy UI operations."""
 from .theme import ACCENT, SELECT
+from .ui_operation_state import operations
 from contextlib import contextmanager
 import tkinter as tk
 from tkinter import ttk
@@ -63,24 +64,17 @@ class BusyState:
 
 
 def state(widget):
-    root=widget._root()
-    if not hasattr(root,'_busy_actions'):root._busy_actions=BusyState(root)
-    return root._busy_actions
+    return operations(widget).busy(BusyState)
 
 
 @contextmanager
 def input_wait(widget):
-    busy=getattr(widget._root(),'_busy_actions',None)
-    if busy is None:
-        yield
-    else:
-        with busy.waiting():yield
+    with state(widget).waiting():yield
 
 
 def run_action(widget, command, *, busy=False, message="処理中です…"):
     """Shared entry for buttons and keyboard commands; paint before doing work."""
-    from .ui_tasks import is_running
-    if is_running(widget) or getattr(state(widget).root,'game_blocked',False):return
+    if operations(widget).blocked:return
     if not busy:return command()
     with state(widget).handling(message):return command()
 

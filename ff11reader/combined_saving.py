@@ -1,28 +1,14 @@
 """One guarded transaction for equipment movement and its macro references."""
-from dataclasses import dataclass, asdict
+from dataclasses import asdict
+from .save_plan import CombinedSavePlan
 from pathlib import Path
 import re
 from . import equipment_saving, macro_saving, book_saving
 from .edit_values import value, text_value
 from .loaded_files import LoadedFiles
-from .saving import digest, require_game_closed, atomic_replace, locked_read
+from .file_io import digest, require_game_closed, atomic_replace, locked_read
 from .file_transaction import execute_batch, write_json
 from .codecs import equipsets, macros
-
-
-@dataclass(frozen=True)
-class CombinedSavePlan:
-    character: str
-    equipment: equipment_saving.EquipmentSavePlan | None
-    macro: macro_saving.MacroSavePlan | None
-    dependencies: tuple
-    members: tuple
-    books: book_saving.BookSavePlan | None = None
-
-    @property
-    def files(self):return (self.equipment.files if self.equipment else ())+(self.macro.files if self.macro else ())+(self.books.files if self.books else ())
-    @property
-    def deferred(self):return (self.equipment.deferred if self.equipment else 0)+(self.macro.deferred if self.macro else 0)
 
 
 def prepare_combined_save(saved,working,folder,transfers, *, source_index=None):

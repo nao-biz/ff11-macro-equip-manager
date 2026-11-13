@@ -237,7 +237,7 @@ class Editor:
     @traced('editor.save_macros')
     def save_macros(self,preview,backup_root):
         from .macro_saving import execute_macro_save
-        from .saving import require_game_closed
+        from .file_io import require_game_closed
         if preview!=self.prepare_macro_save(preview.character,preview.scope):raise ValueError('編集内容が変わりました。保存プレビューを開き直してください。')
         require_game_closed()
         next_session=self._session.fork()
@@ -263,7 +263,7 @@ class Editor:
     @traced('editor.save_equipment')
     def save_equipment(self,preview,backup_root):
         from .equipment_saving import execute_equipment_save
-        from .saving import require_game_closed
+        from .file_io import require_game_closed
         from .codecs import equipsets, BAGS
         from .references import assess_equipment
         if preview!=self.prepare_equipment_save(preview.character,preview.scope):raise ValueError('編集内容が変わりました。保存プレビューを開き直してください。')

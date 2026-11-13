@@ -35,7 +35,7 @@ class MacroSavingTests(unittest.TestCase):
         patch('ff11reader.adapters.LocalReader.load_phrases',return_value={}).start()
         patch('ff11reader.snapshot_loading.load_macro_validation_snapshot',side_effect=lambda root,*scope:self.load()).start()
         patch('ff11reader.macro_saving.require_game_closed').start()
-        patch('ff11reader.saving.require_game_closed').start()
+        patch('ff11reader.file_io.require_game_closed').start()
         self.source=self.load();self.editor=Editor(self.source,self.base/'draft.json')
         self.editor.macro_fixes('abc',plan_macro_fixes(self.source.characters[0],self.source.items))
         self.plan=self.editor.prepare_macro_save('abc')
@@ -109,7 +109,7 @@ class MacroSavingTests(unittest.TestCase):
         self.assertFalse(reopened.journal.path.exists())
 
     def test_game_running_blocks_before_backup(self):
-        with patch('ff11reader.saving.require_game_closed',side_effect=RuntimeError('running')):
+        with patch('ff11reader.file_io.require_game_closed',side_effect=RuntimeError('running')):
             with self.assertRaises(RuntimeError):self.editor.save_macros(self.plan,self.base/'backups')
         self.assertFalse((self.base/'backups').exists())
 

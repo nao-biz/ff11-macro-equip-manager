@@ -3,6 +3,7 @@ from queue import Queue, Empty
 from threading import Event, Lock, Thread
 from .sync_observation import SyncObserver, Observation, SyncConflict
 from .ui_tasks import TaskScreen, background, is_running
+from .ui_operation_state import operations
 
 
 class SyncMonitor:
@@ -39,7 +40,7 @@ class SyncMonitor:
             if self.job:self.app.after_cancel(self.job)
 
     def block(self, message):
-        self.app.game_blocked = True
+        operations(self.app).set_game_blocked(True)
         if self.screen is None:
             self.screen = TaskScreen(self.app, message, on_close=self.close_window)
         else:self.screen.label.configure(text=message)
@@ -50,7 +51,7 @@ class SyncMonitor:
 
     def unblock(self):
         if self.screen:self.screen.close();self.screen = None
-        self.app.game_blocked = False
+        operations(self.app).set_game_blocked(False)
 
     def poll(self):
         self.job = None
@@ -84,18 +85,18 @@ class SyncMonitor:
             self.unblock();return
         self.busy = True
         self.unblock()
-        self.app.game_blocked = True
+        operations(self.app).set_game_blocked(True)
         try:
             self.update(observation)
             self.applied = observation
             self.conflict = None
-            self.app.game_blocked = False
+            operations(self.app).set_game_blocked(False)
         except SyncConflict as exc:
             self.conflict = observation
             self.view.editor.blocked = str(exc)
             self.view.update_edit_status()
             self.view.footer.configure(text=str(exc) + '「ゲームデータを再読み込み」で編集を破棄して切り替えられます。')
-            self.app.game_blocked = False
+            operations(self.app).set_game_blocked(False)
         except (OSError, ValueError, RuntimeError) as exc:
             self.block('保存データを再確認しています…\n' + str(exc))
         finally:self.busy = False

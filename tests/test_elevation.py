@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 import unittest
 from unittest.mock import patch
-from ff11reader import elevation, macro_saving, equipment_saving
+from ff11reader import elevated_saving, elevation, macro_saving, equipment_saving
 from tests.property_support import isolated, GameFixture
 import save_helper
 
@@ -25,6 +25,36 @@ def denied_once(real):
 
 
 class ElevationTests(unittest.TestCase):
+    def test_version_one_plan_transport_keeps_type_names_and_defaults(self):
+        from ff11reader.save_plan import (
+            CombinedSavePlan, MacroSavePlan, EquipmentSavePlan, BookSavePlan,
+        )
+        # Existing version-1 requests identify types by name, without module paths.
+        payload = {
+            'type': 'CombinedSavePlan',
+            'fields': {
+                'character': 'abc',
+                'equipment': {'type': 'EquipmentSavePlan', 'fields': {
+                    'character': 'abc', 'files': {'tuple': []},
+                    'dependencies': {'tuple': []}}},
+                'macro': {'type': 'MacroSavePlan', 'fields': {
+                    'character': 'abc', 'files': {'tuple': []},
+                    'dependencies': {'tuple': []}}},
+                'books': {'type': 'BookSavePlan', 'fields': {
+                    'character': 'abc', 'files': {'tuple': []},
+                    'dependencies': {'tuple': []}}},
+                'dependencies': {'tuple': []}, 'members': {'tuple': []},
+            },
+        }
+        plan = elevation.decode(payload)
+        self.assertEqual(plan, CombinedSavePlan(
+            'abc', EquipmentSavePlan('abc', (), ()), MacroSavePlan('abc', (), ()),
+            (), (), BookSavePlan('abc', (), ())))
+        self.assertEqual(plan.files, ())
+        self.assertEqual(plan.deferred, 0)
+        self.assertEqual(elevation.decode(elevation.encode(plan)), plan)
+        self.assertEqual(elevation.encode(plan)['type'], 'CombinedSavePlan')
+
     def test_both_save_types_share_uac_and_checkpoint(self):
         for kind,module,function in [('macro',macro_saving,'execute_macro_save'),('equipment',equipment_saving,'execute_equipment_save')]:
             with self.subTest(kind=kind),isolated() as base:
@@ -54,10 +84,10 @@ class ElevationTests(unittest.TestCase):
             request=base/'request.json'
             raw=json.dumps({'version':1,'plan':elevation.encode(plan),'backup_root':str(base/'backup')}).encode()
             request.write_bytes(raw+b' ')
-            with self.assertRaisesRegex(ValueError,'変更'):elevation.execute_request(request,hashlib.sha256(raw).hexdigest())
+            with self.assertRaisesRegex(ValueError,'変更'):elevated_saving.execute_request(request,hashlib.sha256(raw).hexdigest())
             request.write_bytes(raw)
             target=Path(plan.files[0].target);target.write_bytes(b'external')
-            with self.assertRaises(ValueError):elevation.execute_request(request,hashlib.sha256(raw).hexdigest())
+            with self.assertRaises(ValueError):elevated_saving.execute_request(request,hashlib.sha256(raw).hexdigest())
             self.assertEqual(target.read_bytes(),b'external')
 
     def test_no_elevation_after_write_or_nonpermission_failure(self):

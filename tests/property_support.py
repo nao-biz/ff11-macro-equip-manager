@@ -1,6 +1,6 @@
 """Seeded generators, independent fixtures, shrinking and synthetic I/O isolation."""
 from encodings import cp932  # Load the codec before installing the synthetic I/O guard.
-from ff11reader import elevation  # Load save transport before the I/O isolation guard.
+from ff11reader import elevation, file_io  # Load save transport before the I/O isolation guard.
 from contextlib import contextmanager, ExitStack
 from contextvars import ContextVar
 from copy import deepcopy
@@ -61,7 +61,7 @@ def isolated():
             for module in ('dialogs','phrase_ui','macro_editor_ui'):
                 stack.enter_context(patch('ff11reader.'+module+'.ime_composing',return_value=False))
             # No process enumeration, installation discovery, resources or native locking.
-            for module in (saving, macro_saving, equipment_saving, combined_saving):
+            for module in (file_io, saving, macro_saving, equipment_saving, combined_saving):
                 stack.enter_context(patch.object(module, 'require_game_closed', return_value=None))
             stack.enter_context(patch.object(adapters, 'discover', side_effect=AssertionError('Installation discovery forbidden')))
             stack.enter_context(patch.object(application, 'installations', side_effect=AssertionError('Installation discovery forbidden')))
@@ -70,6 +70,7 @@ def isolated():
             def locked(path, *args, **kwargs):
                 yield path.read_bytes()
             stack.enter_context(patch.object(file_transaction, 'locked_read', locked))
+            stack.enter_context(patch.object(file_io, 'locked_read', locked))
             stack.enter_context(patch.object(saving, 'locked_read', locked))
             token = ACTIVE.set(root)
             try:

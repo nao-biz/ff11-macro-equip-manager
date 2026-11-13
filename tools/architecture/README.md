@@ -70,3 +70,7 @@ Windowerフォルダの永続化もaugment-import-boundary契約に含め、設�
 同梱アドオン配置と自動ロード設定を担当するaddon_installerも同契約へ含める。設定保存を最後に実行し、通常の失敗では配置を復旧する。完了記録による再実行省略、版更新、原文バックアップ、対象外保持、途中失敗と復旧失敗はtest_addon_installerで検証する。
 
 game-observation契約はD-23のプロセス・ファイル観測からUI・編集・ゲーム書戻しへの直接・間接依存を禁止する。監視は読取専用で、状態キューを受けるsync_uiが既存の排他ワーカーへ更新を依頼する。入力停止・自動再開・編集保持はtest_auto_sync、test_sync_ui、test_startupで検証する。
+
+save-file-boundary契約は共通ファイル操作・トランザクションから形式別保存と上位調整への逆依存、save-plan-boundary契約は保存計画の値から実行部品への依存、elevation-boundary契約は親プロセスの権限要求から保存実装・補助プロセス入口への依存を禁止する。いずれも間接依存を含めCIで検査する。補助プロセスの`elevated_saving`が要求の検証と保存実装への振分けを担当し、`save_helper.py`が呼ぶ。既存JSONの型名・既定値と昇格後の再検証は`test_elevation`で確認する。
+
+macro-save-valuesは純粋なマクロ変更判定・バイト変換から保存実行とロードへの依存、backup-restore-boundaryは共通復元から形式別保存への逆依存を禁止する。ui-operation-ownerとui-action-task-boundaryは状態所有者への依存方向とUIアクションからタスク実行への逆依存を検査する。text-encoding-boundaryは文字列符号化の独立性、transfer-boundaryは貼付け計画からファイル・UI操作への直接依存を検査する。transfer-boundaryだけは既存の一時編集セッション経由の間接依存を対象外とし、他の5件は間接依存も検査する。責務と検証結果は[Issue #2〜#5の検証記録](issues-2-5.md)を参照する。

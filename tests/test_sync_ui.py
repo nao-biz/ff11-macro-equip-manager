@@ -6,6 +6,7 @@ import unittest
 from unittest.mock import patch
 from ff11reader.sync_observation import SyncObserver, Observation
 from ff11reader.sync_ui import SyncMonitor
+from ff11reader.ui_operation_state import operations
 from ff11reader.ui import ReaderWindow
 from ff11reader.ui_actions import run_action
 from tests.test_auto_sync import SynchronizeTests
@@ -46,7 +47,7 @@ class SyncUITests(SynchronizeTests):
         run_action(self.app,lambda:calls.append('edit'))
         self.assertFalse(calls)
         self.assertIsNotNone(self.monitor.screen)
-        self.assertTrue(self.app.game_blocked)
+        self.assertTrue(operations(self.app).game_blocked)
         with patch.object(self.editor,'synchronize',wraps=self.editor.synchronize) as reload:
             self.monitor.accept(self.ready());self.monitor.accept(self.ready())
             reload.assert_not_called()

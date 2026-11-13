@@ -77,55 +77,82 @@ def _navigation(macro, old_book, destinations):
     return replace(macro, lines=tuple(lines))
 
 
+def require_placement(result, kind):
+    if result.allowed:
+        return
+    if kind in ('macro', 'palette') and all(i.reason == 'occupied' for i in result.issues):
+        raise MacroOverwriteRequired('貼り付け先のマクロに内容があります。')
+    labels = {'occupied':'内容があります', 'unavailable':'読込不足', 'out_of_range':'範囲外'}
+    raise ValueError('\n'.join(f'{i.member or i.target or i.source}: {labels[i.reason]}' for i in result.issues))
+
+
+def placement_pairs(kind, placements):
+    pairs = []
+    for placement in placements:
+        pairs.extend(zip(members(kind, (placement.source,)), members(kind, (placement.target,))))
+    return pairs
+
+
+def equipment_move_changes(character, captured_items, pairs):
+    # Reuse raw-record relocation and equipset reference cascading.
+    from .equipment_moves import plan_move, vacant
+    from .editing import EditSession
+    from .domain import Snapshot
+    session = EditSession(Snapshot('transfer', '', [deepcopy(character)], {}, [], []))
+    pairs = [(a, b) for a, b in pairs if not vacant(captured_items[a])]
+    for source, target in pairs:
+        session.apply(plan_move(session.character(character.folder_id), source[0], target[0]))
+    changed = session.character(character.folder_id)
+    changes = tuple(Change(character.folder_id, field, key(a), a, b)
+                    for field in ('equipsets', 'macros')
+                    for a, b in zip(getattr(character, field), getattr(changed, field)) if value(a) != value(b))
+    moves = tuple((character.folder_id, a[0], b[0]) for a, b in pairs)
+    return changes, moves
+
+
+def copied_changes(character, transfer, original, captured_items, pairs, placements):
+    updated = dict(original)
+    if transfer.cut:
+        for source in captured_items:
+            updated[source] = cleared(original[source])
+    for source, target in pairs:
+        updated[target] = located(captured_items[source], target)
+    if transfer.kind != 'equipment':
+        destinations = {p.source:p.target for p in placements} if transfer.kind == 'palette' and transfer.cut else {}
+        old_books = {target:source[0] for source, target in pairs}
+        for address, item in list(updated.items()):
+            if address in old_books or destinations:
+                updated[address] = _navigation(item, old_books.get(address, item.book), destinations)
+    field = 'equipsets' if transfer.kind == 'equipment' else 'macros'
+    return tuple(Change(character.folder_id, field, address, item, updated[address])
+                 for address, item in original.items() if value(item) != value(updated[address]))
+
+
+def paste_label(kind, cut, overwrite):
+    if overwrite and kind in ('macro', 'palette'):
+        return ('マクロパレット' if kind == 'palette' else 'マクロ') + ('を上書きして移動' if cut else 'を上書きしてコピー')
+    return '選択範囲を移動' if cut else '選択範囲をコピー'
+
+
 def plan_paste(character, transfer, anchor, *, overwrite=False):
-    if character.folder_id != transfer.character:raise ValueError('コピー元と同じキャラクターを選択してください。')
+    if character.folder_id != transfer.character:
+        raise ValueError('コピー元と同じキャラクターを選択してください。')
     kind = transfer.kind
     field = 'equipsets' if kind == 'equipment' else 'macros'
     captured = Character(character.folder_id, **{field: list(transfer.items)})
     result = assess_placement(character, kind, transfer.selection, anchor, source_character=captured, overwrite=overwrite)
-    if not result.allowed:
-        if kind in ('macro','palette') and all(i.reason == 'occupied' for i in result.issues):
-            raise MacroOverwriteRequired('貼り付け先のマクロに内容があります。')
-        labels = {'occupied':'内容があります', 'unavailable':'読込不足', 'out_of_range':'範囲外'}
-        raise ValueError('\n'.join(f'{i.member or i.target or i.source}: {labels[i.reason]}' for i in result.issues))
+    require_placement(result, kind)
     original = {key(x):x for x in getattr(character, field)}
     captured_items = {key(x):x for x in transfer.items}
-    if transfer.cut and any(a not in original or value(original[a]) != value(x) for a,x in captured_items.items()):
+    if transfer.cut and any(a not in original or value(original[a]) != value(x) for a, x in captured_items.items()):
         raise ValueError('切り取り元が変更されました。切り取り直してください。')
-    pairs = []
-    for p in result.placements:
-        pairs.extend(zip(members(kind, (p.source,)), members(kind, (p.target,))))
-    updated = dict(original)
-    if transfer.cut:
-        for source in captured_items:updated[source] = cleared(original[source])
-    for source, target in pairs:updated[target] = located(captured_items[source], target)
-    moves = ()
+    pairs = placement_pairs(kind, result.placements)
     if kind == 'equipment' and transfer.cut:
-        # Reuse proven raw-record relocation and equipset reference cascading.
-        from .equipment_moves import plan_move
-        from .editing import EditSession
-        from .domain import Snapshot
-        session = EditSession(Snapshot('transfer','', [deepcopy(character)], {}, [], []))
-        from .equipment_moves import vacant
-        pairs = [(a,b) for a,b in pairs if not vacant(captured_items[a])]
-        for source, target in pairs:
-            session.apply(plan_move(session.character(character.folder_id), source[0], target[0]))
-        changed = session.character(character.folder_id)
-        changes = tuple(Change(character.folder_id, f, key(a), a, b)
-                        for f in ('equipsets','macros') for a,b in zip(getattr(character,f),getattr(changed,f)) if value(a)!=value(b))
-        moves = tuple((character.folder_id, a[0], b[0]) for a,b in pairs)
+        changes, moves = equipment_move_changes(character, captured_items, pairs)
     else:
-        if kind != 'equipment':
-            destinations = {p.source:p.target for p in result.placements} if kind == 'palette' and transfer.cut else {}
-            old_books = {target:source[0] for source,target in pairs}
-            for address, item in list(updated.items()):
-                if address in old_books or destinations:
-                    updated[address] = _navigation(item, old_books.get(address,item.book), destinations)
-        changes = tuple(Change(character.folder_id, field, a, item, updated[a]) for a,item in original.items() if value(item)!=value(updated[a]))
-    label = '選択範囲を移動' if transfer.cut else '選択範囲をコピー'
-    if overwrite and kind in ('macro','palette'):
-        label = ('マクロパレット' if kind == 'palette' else 'マクロ') + ('を上書きして移動' if transfer.cut else 'を上書きしてコピー')
-    return Edit(label, changes, moves, atomic=True)
+        changes = copied_changes(character, transfer, original, captured_items, pairs, result.placements)
+        moves = ()
+    return Edit(paste_label(kind, transfer.cut, overwrite), changes, moves, atomic=True)
 
 
 def plan_delete(character, kind, selection):

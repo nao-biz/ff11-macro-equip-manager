@@ -67,7 +67,7 @@ def prepare_writeback(self):
 def save_combined(self, preview, backup_root):
     from .combined_saving import execute_combined_save
     from .macro_saving import sync_macro_raw
-    from .saving import require_game_closed
+    from .file_io import require_game_closed
     if self.blocked: raise ValueError(self.blocked)
     request = SaveRequest.capture(self.capture_save_session())
     if preview != request.prepare(preview.character):

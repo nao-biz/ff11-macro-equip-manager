@@ -25,7 +25,7 @@ jobs:
         id: boundary
         env:
           PYTHONPATH: work/architecture-tools
-        run: python -X utf8 -c "from importlinter.cli import lint_imports_command; lint_imports_command()" --config tools/architecture/contracts.ini --contract domain-ui --contract save-state-storage --contract macro-proposal --contract snapshot-loading --contract reader-boundary --contract read-descriptors --contract save-inputs --contract master-values --contract book-copy --contract character-clear --contract augment-import-boundary --contract game-observation --no-cache --no-logo
+        run: python -X utf8 -c "from importlinter.cli import lint_imports_command; lint_imports_command()" --config tools/architecture/contracts.ini --contract domain-ui --contract save-state-storage --contract macro-proposal --contract snapshot-loading --contract reader-boundary --contract read-descriptors --contract save-inputs --contract master-values --contract book-copy --contract character-clear --contract augment-import-boundary --contract game-observation --contract save-file-boundary --contract save-plan-boundary --contract elevation-boundary --contract macro-save-values --contract backup-restore-boundary --contract ui-operation-owner --contract ui-action-task-boundary --contract text-encoding-boundary --contract transfer-boundary --no-cache --no-logo
       - name: Enforce save coordinator public API usage
         id: public-api
         env:

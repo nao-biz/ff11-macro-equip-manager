@@ -44,74 +44,93 @@ def patch_text(raw, before, after, resolver, *, title=False, provenance=b'', tok
     if before==after and tokens is None:return raw
     try:
         if title:
-            if TOKEN_DISPLAY.search(after):raise ValueError('マクロ名への定型文入力は未対応です。')
-            payload=after.encode('cp932',errors='strict')
+            payload=encode_title(after)
         elif tokens is not None:
-            from .domain import Text
-            from .text_editing import validate_tokens
-            validate_tokens(Text(after,'','draft',tokens))
-            original_parts=segments(provenance or raw,resolver)
-            known={encoded[1:5].hex().upper() for _,encoded,is_token in original_parts if is_token}
-            original_plain=''.join(display for display,_,is_token in original_parts if not is_token)
-            new_plain=[]
-            pieces=[];last=0
-            for token in tokens:
-                plain=after[last:token.start]
-                new_plain.append(plain)
-                pieces.append(plain.encode('cp932',errors='strict'))
-                identity=bytes.fromhex(token.identity);name=resolver(identity)
-                label=after[token.start:token.end]
-                expected='【'+name+'】' if name else '{AT:'+token.identity+'}'
-                if label!=expected:raise ValueError('定型文のIDと名称が一致しません。')
-                if token.identity not in known and not (name and ((identity[0]==2 and identity[1]==1 and identity[3]!=0) or is_item_identity(identity))):
-                    raise ValueError('このIDは新規挿入できる定型文ではありません。')
-                pieces.append(b'\xfd'+identity+b'\xfd');last=token.end
-            plain=after[last:]
-            new_plain.append(plain)
-            from collections import Counter
-            literals=''.join(new_plain)
-            if Counter(TOKEN_DISPLAY.findall(literals))-Counter(TOKEN_DISPLAY.findall(original_plain)):
-                raise ValueError('定型文はTabキーから選択してください。')
-            for marker in ('【','】','{at:'):
-                if TOKEN_DISPLAY.sub('',literals).lower().count(marker)>TOKEN_DISPLAY.sub('',original_plain).lower().count(marker):
-                    raise ValueError('定型文表記が途中で切れています。')
-            pieces.append(plain.encode('cp932',errors='strict'))
-            payload=b''.join(pieces)
+            payload=encode_token_text(raw,after,resolver,provenance,tokens)
         else:
-            source=provenance or raw
-            if len(source)!=width:raise ValueError('編集元の文字列の保存領域が不正です。')
-            parts=segments(source,resolver)
-            tokens={};literal=set()
-            for display,encoded,is_token in parts:
-                if is_token:tokens.setdefault(display,set()).add(encoded)
-                else:literal.update(m.group() for m in TOKEN_DISPLAY.finditer(display))
-            pieces=[];last=0
-            for match in TOKEN_DISPLAY.finditer(after):
-                pieces.append(after[last:match.start()].encode('cp932',errors='strict'))
-                display=match.group();choices=tokens.get(display,set())
-                if choices:
-                    if len(choices)!=1 or display in literal:raise ValueError('同じ表示の定型文を一意に決められません。')
-                    pieces.append(next(iter(choices)))
-                elif display in literal:
-                    pieces.append(display.encode('cp932',errors='strict'))
-                else:raise ValueError('編集元にない定型文表記です。定型文の追加・置換は未対応です。')
-                last=match.end()
-            pieces.append(after[last:].encode('cp932',errors='strict'))
-            payload=b''.join(pieces)
-            # Partial edits of a token's brackets must not silently turn it into ordinary text.
-            plain=''.join(p[0] for p in parts if not p[2])
-            unmatched=TOKEN_DISPLAY.sub('',after)
-            for marker in ('【','】','{at:'):
-                if unmatched.lower().count(marker)>TOKEN_DISPLAY.sub('',plain).lower().count(marker):
-                    raise ValueError('定型文表記が途中で切れています。定型文はまとまりで編集してください。')
+            payload=encode_existing_text(raw,after,resolver,provenance,width)
     except UnicodeError as exc:
         raise ValueError('CP932で保存できない文字、または解釈できない元バイトがあります。') from exc
+    validate_payload(payload,limit,title,resolver)
+    output=bytearray(raw);output[:len(payload)+1]=payload+b'\0'
+    if text(bytes(output),None if title else resolver).display!=after:raise ValueError('保存後に文字が変わるため、この文字列を保存できません。')
+    return bytes(output)
+
+
+def encode_title(after):
+    if TOKEN_DISPLAY.search(after):raise ValueError('マクロ名への定型文入力は未対応です。')
+    payload=after.encode('cp932',errors='strict')
+    return payload
+
+
+def encode_token_text(raw, after, resolver, provenance, tokens):
+    from .domain import Text
+    from .text_editing import validate_tokens
+    validate_tokens(Text(after,'','draft',tokens))
+    original_parts=segments(provenance or raw,resolver)
+    known={encoded[1:5].hex().upper() for _,encoded,is_token in original_parts if is_token}
+    original_plain=''.join(display for display,_,is_token in original_parts if not is_token)
+    new_plain=[]
+    pieces=[];last=0
+    for token in tokens:
+        plain=after[last:token.start]
+        new_plain.append(plain)
+        pieces.append(plain.encode('cp932',errors='strict'))
+        identity=bytes.fromhex(token.identity);name=resolver(identity)
+        label=after[token.start:token.end]
+        expected='【'+name+'】' if name else '{AT:'+token.identity+'}'
+        if label!=expected:raise ValueError('定型文のIDと名称が一致しません。')
+        if token.identity not in known and not (name and ((identity[0]==2 and identity[1]==1 and identity[3]!=0) or is_item_identity(identity))):
+            raise ValueError('このIDは新規挿入できる定型文ではありません。')
+        pieces.append(b'\xfd'+identity+b'\xfd');last=token.end
+    plain=after[last:]
+    new_plain.append(plain)
+    from collections import Counter
+    literals=''.join(new_plain)
+    if Counter(TOKEN_DISPLAY.findall(literals))-Counter(TOKEN_DISPLAY.findall(original_plain)):
+        raise ValueError('定型文はTabキーから選択してください。')
+    for marker in ('【','】','{at:'):
+        if TOKEN_DISPLAY.sub('',literals).lower().count(marker)>TOKEN_DISPLAY.sub('',original_plain).lower().count(marker):
+            raise ValueError('定型文表記が途中で切れています。')
+    pieces.append(plain.encode('cp932',errors='strict'))
+    payload=b''.join(pieces)
+    return payload
+
+
+def encode_existing_text(raw, after, resolver, provenance, width):
+    source=provenance or raw
+    if len(source)!=width:raise ValueError('編集元の文字列の保存領域が不正です。')
+    parts=segments(source,resolver)
+    tokens={};literal=set()
+    for display,encoded,is_token in parts:
+        if is_token:tokens.setdefault(display,set()).add(encoded)
+        else:literal.update(m.group() for m in TOKEN_DISPLAY.finditer(display))
+    pieces=[];last=0
+    for match in TOKEN_DISPLAY.finditer(after):
+        pieces.append(after[last:match.start()].encode('cp932',errors='strict'))
+        display=match.group();choices=tokens.get(display,set())
+        if choices:
+            if len(choices)!=1 or display in literal:raise ValueError('同じ表示の定型文を一意に決められません。')
+            pieces.append(next(iter(choices)))
+        elif display in literal:
+            pieces.append(display.encode('cp932',errors='strict'))
+        else:raise ValueError('編集元にない定型文表記です。定型文の追加・置換は未対応です。')
+        last=match.end()
+    pieces.append(after[last:].encode('cp932',errors='strict'))
+    payload=b''.join(pieces)
+    # Partial edits of a token's brackets must not silently turn it into ordinary text.
+    plain=''.join(p[0] for p in parts if not p[2])
+    unmatched=TOKEN_DISPLAY.sub('',after)
+    for marker in ('【','】','{at:'):
+        if unmatched.lower().count(marker)>TOKEN_DISPLAY.sub('',plain).lower().count(marker):
+            raise ValueError('定型文表記が途中で切れています。定型文はまとまりで編集してください。')
+    return payload
+
+
+def validate_payload(payload, limit, title, resolver):
     if len(payload)>limit:raise ValueError(f'{"名前" if title else "行"}の上限{limit}バイトを超えています（{len(payload)}バイト）。')
     # New literal reserved/control bytes must not become hidden game control sequences.
     if title and any(b<32 or b==0x7f or b==0xfd for b in payload):raise ValueError('制御文字は保存できません。')
     if not title:
         for display,encoded,is_token in segments(payload+b'\0',resolver):
             if not is_token and any(b<32 or b==0x7f for b in encoded):raise ValueError('制御文字は保存できません。')
-    output=bytearray(raw);output[:len(payload)+1]=payload+b'\0'
-    if text(bytes(output),None if title else resolver).display!=after:raise ValueError('保存後に文字が変わるため、この文字列を保存できません。')
-    return bytes(output)

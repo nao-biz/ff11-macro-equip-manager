@@ -1,11 +1,10 @@
 """Equipment edits and domain-approved position fixes, with guarded persistence."""
-from contextlib import ExitStack
-from dataclasses import dataclass, asdict, replace
+from .backup_restore import restore_backup_set
+from dataclasses import asdict, replace
 from pathlib import Path
 import hashlib
 import struct
 import os
-import json
 import re
 from uuid import uuid4
 from .codecs import BAGS, SLOTS, DAT_IDS, equipsets, inventory, item_records, text
@@ -13,25 +12,12 @@ from .domain import Character, Slot
 from .edit_values import validate_slot, validate_transition
 from .equipment_editing import validate_selection
 from .fixes import plan_fixes, FixChange
-from .saving import digest, patch_equipment, locked_read, atomic_replace, require_game_closed
+from .file_io import digest, locked_read, atomic_replace, require_game_closed
+from .saving import patch_equipment
 from .loaded_files import LoadedFiles
 from .file_transaction import execute_batch, write_json
-from .save_plan import DeferredChange, deferred_text, require_same_targets
-
-@dataclass(frozen=True)
-class EquipmentNameChange:
-    equipset: int
-    before: str
-    after: str
-
-
-@dataclass(frozen=True)
-class EquipmentSlotChange:
-    equipset: int
-    slot: str
-    before: tuple
-    after: tuple
-
+from .save_plan import (EquipmentNameChange, EquipmentSlotChange, EquipmentFile,
+                        EquipmentSavePlan, DeferredChange, deferred_text, require_same_targets)
 
 def slot_fields(slot):return slot.action,slot.item_id,slot.container,slot.index
 
@@ -148,27 +134,6 @@ def patch_file(raw,page,changes):
     return bytes(out)
 
 
-@dataclass(frozen=True)
-class EquipmentFile:
-    target: str
-    page: int
-    original: bytes
-    replacement: bytes
-    changes: tuple
-
-@dataclass(frozen=True)
-class EquipmentSavePlan:
-    character: str
-    files: tuple
-    dependencies: tuple
-    deferred_changes: tuple = ()
-    scope: str = 'reference-fix'
-    catalogs: tuple = ()
-    transfers: tuple = ()
-
-    @property
-    def deferred(self):return len(self.deferred_changes)
-
 def transfer_data(parent,data,transfers):
     if not transfers:return data
     from .edit_values import integer
@@ -282,37 +247,12 @@ def execute_equipment_save(plan,backup_root, *, masters=None):
                          asdict,require_game_closed,write_json,atomic_replace)
 
 
-def restore_equipment_backup(folder,apply=False):
-    """Validate a complete backup set; retry safely after an interrupted restore."""
-    folder=Path(folder).resolve();receipt=json.loads((folder/'receipt.json').read_text(encoding='utf-8'))
-    if receipt.get('kind') not in ('equipment-reference-fix','equipment-edit') or not receipt.get('files'):raise ValueError('装備セットのバックアップを指定してください。')
-    entries=[];seen=set();root=None
-    for entry in receipt['files']:
-        target=Path(entry['target']).resolve();page=entry['page']
-        if not isinstance(page,int) or not 0<=page<10:raise ValueError('バックアップのファイル番号が不正です。')
-        name=f'es{page}.dat'
-        if target.name!=name or target.parent.name!=receipt['character'] or target.parent.parent.name.upper()!='USER':raise ValueError('復元先が不正です。')
-        if root is None:root=target.parent.parent.parent
-        if target.parent.parent.parent!=root or target in seen:raise ValueError('復元先に重複があるか、異なるインストール先のファイルが含まれています。')
-        seen.add(target)
-        backup=(folder/entry['backup']).resolve()
-        if backup.parent!=folder:raise ValueError('バックアップのパスが不正です。')
-        raw=backup.read_bytes()
-        if digest(raw)!=entry['before_sha256']:raise ValueError('バックアップが破損しています。')
-        equipsets(raw,page)
-        if digest(target.read_bytes()) not in (entry['before_sha256'],entry['after_sha256']):raise ValueError('保存後にファイルが変更されたため、復元を保留しました。')
-        entries.append((target,raw,entry))
-    if not apply:return tuple(str(p) for p,_,_ in entries)
-    require_game_closed()
-    with ExitStack() as stack:
-        locks={}
-        for target,raw,entry in entries:
-            handle=ExitStack();stack.enter_context(handle);locks[target]=handle
-            current=handle.enter_context(locked_read(target))
-            if digest(current) not in (entry['before_sha256'],entry['after_sha256']):raise ValueError('復元前にファイルが変わりました。')
-        for target,raw,entry in entries:
-            require_game_closed();locks[target].close()
-            if digest(target.read_bytes()) not in (entry['before_sha256'],entry['after_sha256']):raise ValueError('置換直前にファイルが変わりました。')
-            atomic_replace(target,raw)
-            if target.read_bytes()!=raw:raise OSError('復元後検証に失敗しました。')
-    return tuple(str(p) for p,_,_ in entries)
+def backup_target_name(page):
+    if not isinstance(page, int) or not 0 <= page < 10:
+        raise ValueError('バックアップのファイル番号が不正です。')
+    return f'es{page}.dat'
+
+
+def restore_equipment_backup(folder, apply=False):
+    return restore_backup_set(folder, apply, kinds=('equipment-reference-fix', 'equipment-edit'),
+                              label='装備セット', target_name=backup_target_name, decode=equipsets)

@@ -4,6 +4,7 @@ Only the caller/poller touches Tk. The worker receives a callable with captured
 plain arguments, owns application state until completion, and returns via Queue.
 """
 from .theme import ACCENT, BG, BORDER, PANEL
+from .ui_operation_state import operations
 from contextvars import copy_context
 from queue import Queue, Empty
 from threading import Thread, get_ident
@@ -118,14 +119,17 @@ class BackgroundTasks:
     def __init__(self, root):
         self.root=root
         self.ui_thread=get_ident()
-        self.running=False
+        self.operations=operations(root)
         self.screen=None
         self.worker=None
 
+    @property
+    def running(self):
+        return self.operations.running
+
     def call(self, operation, message):
         if get_ident()!=self.ui_thread:raise RuntimeError('UIスレッドから呼び出してください。')
-        if self.running:raise RuntimeError('別の処理を実行中です。')
-        self.running=True
+        self.operations.start_task()
         results=Queue();context=copy_context();outcome=[];poll_id=None
         def work():
             try:results.put((True,context.run(operation)))
@@ -151,21 +155,18 @@ class BackgroundTasks:
                 except tk.TclError:pass
             try:
                 if self.screen:self.screen.close()
-            finally:self.screen=None;self.running=False
+            finally:self.screen=None;self.operations.finish_task()
         ok,value=outcome[0]
         if not ok:raise value
         return value
 
 
 def tasks(widget):
-    root=widget._root()
-    if not hasattr(root,'_background_tasks'):root._background_tasks=BackgroundTasks(root)
-    return root._background_tasks
+    return operations(widget).runner(BackgroundTasks)
 
 
 def is_running(widget):
-    runner=getattr(widget._root(),'_background_tasks',None)
-    return bool(runner and runner.running)
+    return operations(widget).running
 
 
 def background(widget, function, *args, message='処理しています…', **kwargs):

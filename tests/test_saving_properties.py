@@ -7,7 +7,7 @@ from pathlib import Path
 import random
 import unittest
 from unittest.mock import patch
-from ff11reader import saving, file_transaction, macro_saving, equipment_saving
+from ff11reader import saving, file_io, file_transaction, macro_saving, equipment_saving
 from ff11reader.edit_application import Editor
 from ff11reader.editing import EditSession, Change, Edit
 from tests.property_support import GameFixture, isolated, seeds, check_sequence
@@ -118,7 +118,7 @@ class SavingProperties(unittest.TestCase):
                     before=f.bytes()
                     with instrument(f) as events:
                         if mode=='running':
-                            with patch.object(saving,'require_game_closed',side_effect=RuntimeError('synthetic running')):
+                            with patch.object(file_io,'require_game_closed',side_effect=RuntimeError('synthetic running')):
                                 with self.assertRaises((ValueError,RuntimeError)):f.save(plan)
                         else:
                             with self.assertRaises((ValueError,RuntimeError)):f.save(plan)

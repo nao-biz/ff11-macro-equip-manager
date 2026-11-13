@@ -2,7 +2,7 @@
 from copy import deepcopy
 from pathlib import Path
 from immutables import Map
-from .saving import digest
+from .file_io import digest
 from .resource_catalog import SHARED_RESOURCES, resource_paths
 
 
